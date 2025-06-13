@@ -294,7 +294,7 @@ const Layout = ({ onLogout, user }) => {
             <Navbar user={user} onLogout={onLogout} />
             <Sidebar user={user} tasks={tasks} />
 
-            <div className="ml-0 xl:ml-72 lg:ml-64 md:ml-20 pt-16 p-6 sm:p-8 md:p-10 transition-all duration-300 relative z-10">
+            <div className="ml-0 xl:ml-65 lg:ml-55 md:ml-20 pt-16 p-6 sm:p-8 md:p-10 transition-all duration-300 relative z-10">
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6">
                     <div className="xl:col-span-2 space-y-6">
                         <Outlet context={{ user, tasks, fetchTasks }} />

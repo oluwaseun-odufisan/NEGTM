@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { List, CheckCircle, Menu, Info, X, LayoutDashboard, Clock, Calendar, MessageSquare, Link, File, FileText, CreditCard, Sparkles, AlertCircle, Bell, Target, Award } from 'lucide-react';
+import { List, CheckCircle, Menu, Info, X, LayoutDashboard, Clock, Calendar, MessageSquare, Link, File, FileText, CreditCard, Sparkles, AlertCircle, Bell, Target, Award, Users } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
 const Sidebar = ({ user, tasks }) => {
@@ -19,7 +19,7 @@ const Sidebar = ({ user, tasks }) => {
     const menuItems = [
         { text: 'Dashboard', path: '/', icon: <LayoutDashboard className="w-6 h-6 text-teal-500" /> },
         { text: 'Pending Tasks', path: '/pending', icon: <List className="w-6 h-6 text-teal-500" /> },
-        { text: 'Completed Tasks', path: '/complete', icon: <CheckCircle className="w-6 h-6 text-teal-500" /> },
+        { text: 'Completed', path: '/complete', icon: <CheckCircle className="w-6 h-6 text-teal-500" /> },
         { text: 'Assigned Tasks', path: '/assigned', icon: <AlertCircle className="w-6 h-6 text-teal-500" /> },
         { text: 'Calendar View', path: '/calendar', icon: <Calendar className="w-6 h-6 text-teal-500" /> },
         { text: 'Team Chat', path: '/team-chat', icon: <MessageSquare className="w-6 h-6 text-teal-500" /> },
@@ -73,8 +73,8 @@ const Sidebar = ({ user, tasks }) => {
                     </div>
                 </div>
 
-                {/* Scrollable Section: All Content */}
-                <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-teal-400 scrollbar-track-teal-100">
+                {/* Scrollable Section: Navigation and Below */}
+                <div className="h-[calc(95vh-4rem)] overflow-y-auto scrollbar-thin scrollbar-thumb-teal-400 scrollbar-track-teal-100 px-4 w-70">
                     <div className="space-y-6 pb-32">
                         {/* Navigation */}
                         <div className="bg-white/90 backdrop-blur-lg rounded-2xl p-4 shadow-md border border-teal-100/50">
@@ -146,7 +146,7 @@ const Sidebar = ({ user, tasks }) => {
                                 </p>
                             </div>
                         </div>
-                        <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-teal-400 scrollbar-track-teal-100 max-h-[calc(100vh-200px)]">
+                        <div className="h-[calc(95vh-4rem)] overflow-y-auto scrollbar-thin scrollbar-thumb-teal-400 scrollbar-track-teal-100">
                             {renderMenuItems(true)}
                         </div>
                     </div>
