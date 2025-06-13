@@ -9,17 +9,17 @@ const reminderSchema = new mongoose.Schema(
         },
         type: {
             type: String,
-            enum: ['task_due', 'meeting', 'goal_deadline', 'appraisal_submission', 'manager_feedback'],
+            enum: ['task_due', 'meeting', 'goal_deadline', 'appraisal_submission', 'manager_feedback', 'custom'],
             required: true,
         },
         targetId: {
             type: mongoose.Schema.Types.ObjectId,
-            required: true,
+            required: false,
         },
         targetModel: {
             type: String,
-            enum: ['Task', 'Meeting', 'Goal', 'Appraisal', 'Feedback'],
-            required: true,
+            enum: ['Task', 'Meeting', 'Goal', 'Appraisal', 'Feedback', null],
+            required: false,
         },
         message: {
             type: String,
@@ -28,7 +28,7 @@ const reminderSchema = new mongoose.Schema(
         },
         deliveryChannels: {
             inApp: { type: Boolean, default: true },
-            email: { type: Boolean, default: false },
+            email: { type: Boolean, default: true },
             push: { type: Boolean, default: false },
         },
         remindAt: {
@@ -48,6 +48,24 @@ const reminderSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: 'user',
             required: true,
+        },
+        isUserCreated: {
+            type: Boolean,
+            default: false,
+        },
+        repeatInterval: {
+            type: Number,
+            default: null,
+        },
+        isActive: {
+            type: Boolean,
+            default: true,
+        },
+        emailOverride: {
+            type: String,
+            trim: true,
+            lowercase: true,
+            default: null,
         },
     },
     { timestamps: true }

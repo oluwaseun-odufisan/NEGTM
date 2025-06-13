@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+import validator from 'validator';
 
 const userSchema = new mongoose.Schema(
     {
@@ -14,6 +15,7 @@ const userSchema = new mongoose.Schema(
             unique: true,
             trim: true,
             lowercase: true,
+            validate: [validator.isEmail, 'Invalid email address'],
         },
         password: {
             type: String,
@@ -27,7 +29,7 @@ const userSchema = new mongoose.Schema(
             reminders: {
                 defaultDeliveryChannels: {
                     inApp: { type: Boolean, default: true },
-                    email: { type: Boolean, default: false },
+                    email: { type: Boolean, default: true }, // Default to true
                     push: { type: Boolean, default: false },
                 },
                 defaultReminderTimes: {
@@ -36,6 +38,7 @@ const userSchema = new mongoose.Schema(
                     goal_deadline: { type: Number, default: 1440 },
                     appraisal_submission: { type: Number, default: 1440 },
                     manager_feedback: { type: Number, default: 720 },
+                    custom: { type: Number, default: 60 },
                 },
             },
         },

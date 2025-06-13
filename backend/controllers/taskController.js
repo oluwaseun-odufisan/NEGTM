@@ -21,10 +21,10 @@ const createOrUpdateTaskReminder = async (task, userId, io) => {
         // Update existing reminder
         reminder.message = `Task "${task.title}" is due soon`;
         reminder.remindAt = remindAt;
-        reminder.deliveryChannels = user.preferences?.reminders?.defaultDeliveryChannels || {
-            inApp: true,
-            email: false,
-            push: false,
+        reminder.deliveryChannels = {
+            inApp: user.preferences?.reminders?.defaultDeliveryChannels?.inApp ?? true,
+            email: user.preferences?.reminders?.defaultDeliveryChannels?.email ?? true, // Default to true
+            push: user.preferences?.reminders?.defaultDeliveryChannels?.push ?? false,
         };
         reminder.status = 'pending';
         reminder.snoozeUntil = null;
@@ -38,13 +38,15 @@ const createOrUpdateTaskReminder = async (task, userId, io) => {
             targetId: task._id,
             targetModel: 'Task',
             message: `Task "${task.title}" is due soon`,
-            deliveryChannels: user.preferences?.reminders?.defaultDeliveryChannels || {
-                inApp: true,
-                email: false,
-                push: false,
+            deliveryChannels: {
+                inApp: user.preferences?.reminders?.defaultDeliveryChannels?.inApp ?? true,
+                email: user.preferences?.reminders?.defaultDeliveryChannels?.email ?? true, // Default to true
+                push: user.preferences?.reminders?.defaultDeliveryChannels?.push ?? false,
             },
             remindAt,
             createdBy: userId,
+            isUserCreated: false,
+            isActive: true,
         });
         await reminder.save();
         io.to(`user:${userId}`).emit('newReminder', reminder);

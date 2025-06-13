@@ -2,12 +2,12 @@ import express from 'express';
 import { nanoid } from 'nanoid';
 import validator from 'validator';
 import rateLimit from 'express-rate-limit';
-import Url from '../models/Url.js';
+import Url from '../models/url.js';
 import authMiddleware from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Rate limiter: 100 requests per 15 minutes per IP
+// Rate limiter: 100 requests per 15 minutes per IP.
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 100,
