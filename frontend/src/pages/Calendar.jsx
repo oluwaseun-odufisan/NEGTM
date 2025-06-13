@@ -5,7 +5,7 @@ import TaskItem from '../components/TaskItem';
 import TaskModal from '../components/TaskModal';
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8000/api/tasks';
+const API_BASE_URL = `${import.meta.env.VITE_API_URL}/api/tasks`;
 
 // Custom Calendar Component
 const CustomCalendar = ({ value, onChange, tasksByDate }) => {

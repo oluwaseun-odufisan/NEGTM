@@ -4,7 +4,7 @@ import { Sparkles, ArrowLeft, List, Zap, Star, Gauge, Loader2 } from 'lucide-rea
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:4000/api/ai';
+const API_BASE_URL = `${import.meta.env.VITE_API_URL}/api/ai`;
 
 const AiTools = () => {
     const { user, tasks = [], onLogout } = useOutletContext();

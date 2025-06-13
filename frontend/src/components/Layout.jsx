@@ -6,6 +6,8 @@ import axios from 'axios';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 const Layout = ({ onLogout, user }) => {
     const [tasks, setTasks] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -28,7 +30,7 @@ const Layout = ({ onLogout, user }) => {
         try {
             const token = localStorage.getItem('token');
             if (!token) throw new Error('No auth token found');
-            const { data } = await axios.get('http://localhost:4000/api/tasks/gp', {
+            const { data } = await axios.get(`${API_URL}/api/tasks/gp`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             const arr = Array.isArray(data)
@@ -56,7 +58,7 @@ const Layout = ({ onLogout, user }) => {
         try {
             const token = localStorage.getItem('token');
             if (!token) throw new Error('No auth token found');
-            const { data } = await axios.get('http://localhost:4000/api/bot/chat/history', {
+            const { data } = await axios.get(`${API_URL}/api/bot/chat/history`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             if (data.success) {
@@ -86,7 +88,7 @@ const Layout = ({ onLogout, user }) => {
                 throw new Error('No auth token found');
             }
             const { data } = await axios.post(
-                'http://localhost:4000/api/bot/chat',
+                `${API_URL}/api/bot/chat`,
                 { message: chatInput },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -128,7 +130,7 @@ const Layout = ({ onLogout, user }) => {
         try {
             const token = localStorage.getItem('token');
             if (!token) throw new Error('No auth token found');
-            await axios.delete('http://localhost:4000/api/bot/chat', {
+            await axios.delete(`${API_URL}/api/bot/chat`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             setChatMessages([]);

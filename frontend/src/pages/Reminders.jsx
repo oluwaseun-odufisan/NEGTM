@@ -11,7 +11,7 @@ import 'react-datepicker/dist/react-datepicker.css';
 import { initializeApp } from 'firebase/app';
 import { getMessaging, getToken } from 'firebase/messaging';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 // Firebase configuration
 const firebaseConfig = {

@@ -5,7 +5,7 @@ import TaskItem from '../components/TaskItem';
 import axios from 'axios';
 import TaskModal from '../components/TaskModal';
 
-const API_BASE_URL = 'http://localhost:4000/api/tasks';
+const API_BASE_URL = `${import.meta.env.VITE_API_URL}/api/tasks`;
 
 const TaskActionModal = ({ isOpen, onClose, onAction }) => {
     if (!isOpen) return null;

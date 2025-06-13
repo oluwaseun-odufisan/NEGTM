@@ -13,7 +13,7 @@ const Login = ({ onSubmit, onSwitchMode }) => {
     const [rememberMe, setRememberMe] = useState(false);
 
     const navigate = useNavigate();
-    const url = 'http://localhost:4000';
+    const url = import.meta.env.VITE_API_URL;
 
     useEffect(() => {
         const token = localStorage.getItem("token");

@@ -7,7 +7,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import { Tooltip } from 'react-tooltip';
 import validator from 'validator';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const UrlShortener = () => {
     const { user, onLogout } = useOutletContext();

@@ -4,7 +4,7 @@ import axios from 'axios';
 import { format, isToday } from 'date-fns';
 import TaskModal from './TaskModal';
 
-const API_BASE = 'http://localhost:4000/api/tasks';
+const API_BASE = `${import.meta.env.VITE_API_URL}/api/tasks`;
 
 const TaskItem = ({ task, onRefresh, showCompleteCheckbox = true, onLogout }) => {
     const [showMenu, setShowMenu] = useState(false);
