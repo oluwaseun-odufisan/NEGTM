@@ -6,9 +6,9 @@ import jwt from 'jsonwebtoken';
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_here';
 const TOKEN_EXPIRES = '24h';
 
-const createToken = (userId) => jwt.sign({ id: userId }, JWT_SECRET, { expiresIn: TOKEN_EXPIRES })
+const createToken = (userId) => jwt.sign({ id: userId }, JWT_SECRET, { expiresIn: TOKEN_EXPIRES });
 
-//REGISTER FUNCTION
+// REGISTER FUNCTION
 export async function registerUser(req, res) {
     const { name, email, password } = req.body;
 
@@ -32,17 +32,13 @@ export async function registerUser(req, res) {
         const token = createToken(user._id);
 
         res.status(201).json({ success: true, token, user: { id: user._id, name: user.name, email: user.email } });
-
-    }
-
-    catch (err) {
-        console.log(err);
+    } catch (err) {
+        console.error('Error registering user:', err.message);
         res.status(500).json({ success: false, message: "Server error" });
     }
 }
 
-
-//LOGIN FUNCTION
+// LOGIN FUNCTION
 export async function loginUser(req, res) {
     const { email, password } = req.body;
     if (!email || !password) {
@@ -61,27 +57,22 @@ export async function loginUser(req, res) {
         }
         const token = createToken(user._id);
         res.json({ success: true, token, user: { id: user._id, name: user.name, email: user.email } });
-    }
-
-    catch (err) {
-        console.log(err);
+    } catch (err) {
+        console.error('Error logging in:', err.message);
         res.status(500).json({ success: false, message: "Server error" });
     }
 }
 
-
 // GET CURRENT USER FUNCTION
 export async function getCurrentUser(req, res) {
     try {
-        const user = await User.findById(req.user.id).select("name email");
+        const user = await User.findById(req.user.id).select("name email preferences");
         if (!user) {
             return res.status(400).json({ success: false, message: "User not found" });
         }
         res.json({ success: true, user });
-
-    }
-    catch (err) {
-        console.log(err);
+    } catch (err) {
+        console.error('Error fetching user:', err.message);
         res.status(500).json({ success: false, message: "Server error" });
     }
 }
@@ -92,7 +83,6 @@ export async function updateProfile(req, res) {
 
     if (!name || !email || !validator.isEmail(email)) {
         return res.status(400).json({ success: false, message: "Valid name and email required" });
-
     }
     try {
         const exists = await User.findOne({ email, _id: { $ne: req.user.id } });
@@ -108,13 +98,12 @@ export async function updateProfile(req, res) {
         );
         res.json({ success: true, user });
     } catch (err) {
-        console.log(err);
+        console.error('Error updating profile:', err.message);
         res.status(500).json({ success: false, message: "Server error" });
     }
 }
 
-
-//CHANGE PASSWORD FUNCTION
+// CHANGE PASSWORD FUNCTION
 export async function updatePassword(req, res) {
     const { currentPassword, newPassword } = req.body;
 
@@ -135,9 +124,31 @@ export async function updatePassword(req, res) {
         }
         user.password = await bcrypt.hash(newPassword, 10);
         await user.save();
-        res.json({ success: true, message: "Password changes" })
+        res.json({ success: true, message: "Password changed" });
     } catch (err) {
-        console.log(err);
+        console.error('Error updating password:', err.message);
+        res.status(500).json({ success: false, message: "Server error" });
+    }
+}
+
+// UPDATE PUSH TOKEN FUNCTION
+export async function updatePushToken(req, res) {
+    const { pushToken } = req.body;
+
+    if (!pushToken) {
+        return res.status(400).json({ success: false, message: "Push token is required" });
+    }
+
+    try {
+        const user = await User.findById(req.user.id);
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+        user.pushToken = pushToken;
+        await user.save();
+        res.json({ success: true, message: "Push token updated" });
+    } catch (err) {
+        console.error('Error updating push token:', err.message);
         res.status(500).json({ success: false, message: "Server error" });
     }
 }

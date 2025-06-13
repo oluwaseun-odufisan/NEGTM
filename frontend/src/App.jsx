@@ -18,23 +18,9 @@ import GenerateReport from './pages/GenerateReport';
 import Payment from './pages/Payment';
 import SocialFeed from './pages/SocialFeed';
 import AiTools from './pages/AiTools';
-
-
-// import React, { useEffect, useState } from 'react';
-// import { Routes, useNavigate, Route, Outlet, Navigate } from 'react-router-dom';
-// import Layout from './components/Layout';
-// import Login from './components/Login';
-// import Signup from './components/Signup';
-// import Profile from './components/Profile';
-// import Dashboard from './pages/Dashboard';
-// import PendingPage from './pages/PendingPage';
-// import CompletePage from './pages/CompletePage';
-// import AssignedTasks from './pages/Assigned';
-// import CalendarView from './pages/Calendar';
-// import TeamChat from './pages/TeamChat';
-// import UrlShortener from './pages/UrlShortener';
-// import FileStorage from './pages/FileStorage';
-// import '../src/index.css';
+import Reminders from './pages/Reminders';
+import Goals from './pages/Goals';
+import Appraisals from './pages/Appraisals';
 
 const App = () => {
   const navigate = useNavigate();
@@ -108,6 +94,9 @@ const App = () => {
         <Route path="/payment" element={<Payment />} />
         <Route path="/social-feed" element={<SocialFeed />} />
         <Route path="/ai-tools" element={<AiTools />} />
+        <Route path="/reminders" element={<Reminders />} />
+        <Route path="/goals" element={<Goals />} />
+        <Route path="/appraisals" element={<Appraisals />} />
       </Route>
 
       <Route path="/" element={<Navigate to={currentUser ? '/' : '/login'} replace />} />

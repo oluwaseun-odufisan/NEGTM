@@ -13,11 +13,14 @@ import chatRouter from './routes/chatRoutes.js';
 import botChatRouter from './routes/botChatRoutes.js';
 import urlRouter from './routes/urlRoutes.js';
 import postRouter from './routes/postRoutes.js';
+import reminderRouter from './routes/reminderRoutes.js';
+import { startReminderScheduler } from './utils/reminderScheduler.js';
 import './models/userModel.js';
 import './models/chatModel.js';
 import './models/messageModel.js';
 import './models/botChatModel.js';
 import './models/postModel.js';
+import './models/reminderModel.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -31,6 +34,9 @@ const io = new Server(httpServer, {
         credentials: true,
     },
 });
+
+// Make io globally accessible
+global.io = io;
 
 // Attach io to every request
 app.use((req, res, next) => {
@@ -58,8 +64,12 @@ const requiredEnvVars = [
     'WIT_AI_TOKEN',
     'PINATA_API_KEY',
     'PINATA_SECRET_API_KEY',
+    'PINATA_JWT',
     'BASE_URL',
     'FRONTEND_URL',
+    'EMAIL_USER',
+    'EMAIL_PASS',
+    'FIREBASE_CREDENTIALS',
 ];
 const missingEnvVars = requiredEnvVars.filter((varName) => !process.env[varName]);
 if (missingEnvVars.length > 0) {
@@ -146,6 +156,18 @@ io.on('connection', (socket) => {
         io.emit('postDeleted', postId);
     });
 
+    socket.on('newReminder', (reminder) => {
+        io.to(`user:${socket.user.id}`).emit('newReminder', reminder);
+    });
+
+    socket.on('reminderUpdated', (reminder) => {
+        io.to(`user:${socket.user.id}`).emit('reminderUpdated', reminder);
+    });
+
+    socket.on('reminderTriggered', (reminder) => {
+        io.to(`user:${socket.user.id}`).emit('reminderTriggered', reminder);
+    });
+
     socket.on('error', (error) => {
         console.error('Socket error:', error.message);
     });
@@ -166,6 +188,7 @@ app.use('/api/urls', urlRouter);
 app.use('/download', urlRouter);
 app.use('/api/bot', botChatRouter);
 app.use('/api/posts', postRouter);
+app.use('/api/reminders', reminderRouter);
 
 // Health check
 app.get('/', (req, res) => {

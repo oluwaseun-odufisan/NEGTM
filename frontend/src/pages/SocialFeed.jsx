@@ -338,16 +338,24 @@ const SocialFeed = () => {
         }
 
         try {
-            await axios.put(
+            const response = await axios.put(
                 `${API_BASE_URL}/api/posts/${postId}`,
                 { content: editContent.trim(), fileUrl, contentType },
                 { headers: getAuthHeaders() }
             );
+            const updatedPost = response.data.post; // Assuming the API returns the updated post
+            setPosts((prev) => {
+                // Filter out the edited post
+                const otherPosts = prev.filter((post) => post._id !== postId);
+                // Place the updated post at the top
+                return [updatedPost, ...otherPosts];
+            });
             setEditingPost(null);
             setEditContent('');
             setFile(null);
             setFilePreview(null);
             toast.success('Post updated!', { style: { background: '#2DD4BF', color: '#FFFFFF' } });
+            feedRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); // Scroll to top after edit
         } catch (error) {
             console.error('Edit post error:', error.response?.data || error.message);
             if (error.response?.status === 403) {
@@ -542,11 +550,10 @@ const SocialFeed = () => {
                                 <button
                                     onClick={handleCreatePost}
                                     disabled={(!newPost.trim() && !file) || isPosting}
-                                    className={`px-6 py-2 rounded-full font-semibold transition-all duration-300 flex items-center gap-2 ${
-                                        newPost.trim() || file
+                                    className={`px-6 py-2 rounded-full font-semibold transition-all duration-300 flex items-center gap-2 ${newPost.trim() || file
                                             ? 'bg-teal-600 text-white hover:bg-teal-700 shadow-md'
                                             : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                    } ${isPosting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        } ${isPosting ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     data-tooltip-id="post"
                                     data-tooltip-content="Share Post"
                                     aria-label="Share Post"
@@ -931,11 +938,10 @@ const SocialFeed = () => {
                                     <button
                                         onClick={() => handleEditPost(editingPost)}
                                         disabled={(!editContent.trim() && !file) || isPosting}
-                                        className={`px-4 py-2 rounded-full font-semibold transition-all duration-300 flex items-center gap-2 ${
-                                            editContent.trim() || file
+                                        className={`px-4 py-2 rounded-full font-semibold transition-all duration-300 flex items-center gap-2 ${editContent.trim() || file
                                                 ? 'bg-teal-600 text-white hover:bg-teal-700 shadow-md'
                                                 : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                        } ${isPosting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                            } ${isPosting ? 'opacity-50 cursor-not-allowed' : ''}`}
                                         aria-label="Save Post"
                                     >
                                         {isPosting ? 'Saving...' : 'Save'}

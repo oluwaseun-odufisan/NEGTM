@@ -1,33 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { List, CheckCircle, Menu, Info, X, LayoutDashboard, Clock, AlertCircle, Calendar, MessageSquare, Link, File, FileText, CreditCard, Rss, Sparkles } from 'lucide-react';
+import { List, CheckCircle, Menu, Info, X, LayoutDashboard, Clock, Calendar, MessageSquare, Link, File, FileText, CreditCard, Sparkles, AlertCircle, Bell, Target, Award } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
 const Sidebar = ({ user, tasks }) => {
     const [mobileOpen, setMobileOpen] = useState(false);
-    const [urgentTask, setUrgentTask] = useState(null);
-
-    // Calculate stats
-    const totalTasks = tasks?.length || 0;
-    const completedTasks = tasks?.filter((task) => task.completed).length || 0;
-    const productivity = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-
-    // Find most urgent task
-    useEffect(() => {
-        const pendingTasks = tasks?.filter((task) => !task.completed) || [];
-        if (pendingTasks.length > 0) {
-            const sortedTasks = pendingTasks.sort((a, b) => {
-                const priorityA = a.priority || 0;
-                const priorityB = b.priority || 0;
-                if (priorityB !== priorityA) return priorityB - priorityA;
-                const dateA = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
-                const dateB = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
-                return dateA - dateB;
-            });
-            setUrgentTask(sortedTasks[0]);
-        } else {
-            setUrgentTask(null);
-        }
-    }, [tasks]);
 
     const username = user?.name || 'User';
     const initial = username.charAt(0).toUpperCase();
@@ -51,8 +27,10 @@ const Sidebar = ({ user, tasks }) => {
         { text: 'File Storage', path: '/file-storage', icon: <File className="w-6 h-6 text-teal-500" /> },
         { text: 'Generate Report', path: '/generate-report', icon: <FileText className="w-6 h-6 text-teal-500" /> },
         { text: 'Payment', path: '/payment', icon: <CreditCard className="w-6 h-6 text-teal-500" /> },
-        { text: 'Social Feed', path: '/social-feed', icon: <Rss className="w-6 h-6 text-teal-500" /> },
         { text: 'AI Tools', path: '/ai-tools', icon: <Sparkles className="w-6 h-6 text-teal-500" /> },
+        { text: 'Reminders', path: '/reminders', icon: <Bell className="w-6 h-6 text-teal-500" /> },
+        { text: 'Goals', path: '/goals', icon: <Target className="w-6 h-6 text-teal-500" /> },
+        { text: 'Appraisals', path: '/appraisals', icon: <Award className="w-6 h-6 text-teal-500" /> },
     ];
 
     const renderMenuItems = (isMobile = false) => (
@@ -106,47 +84,6 @@ const Sidebar = ({ user, tasks }) => {
                             {renderMenuItems()}
                         </div>
 
-                        {/* Urgent Task Alert */}
-                        {urgentTask && (
-                            <div className="bg-gradient-to-br from-teal-50 to-blue-50 rounded-2xl p-4 shadow-md border border-teal-100/50 animate-pulse-slow">
-                                <div className="flex items-center justify-between mb-2">
-                                    <h3 className="text-base font-semibold text-gray-800 flex items-center gap-2">
-                                        <AlertCircle className="w-5 h-5 text-teal-500 animate-pulse" /> Urgent Task
-                                    </h3>
-                                </div>
-                                <p className="text-sm text-gray-700 truncate">{urgentTask.title}</p>
-                                {urgentTask.dueDate && (
-                                    <p className="text-xs text-teal-600 mt-1">
-                                        Due: {new Date(urgentTask.dueDate).toLocaleDateString()}
-                                    </p>
-                                )}
-                                <NavLink
-                                    to="/pending"
-                                    className="block mt-2 text-xs text-teal-700 font-medium hover:text-teal-900 transition-colors duration-200"
-                                    onClick={() => setMobileOpen(false)}
-                                >
-                                    View Task
-                                </NavLink>
-                            </div>
-                        )}
-
-                        {/* Productivity Widget */}
-                        <div className="bg-white/90 backdrop-blur-lg rounded-2xl p-4 shadow-md border border-teal-100/50">
-                            <div className="flex items-center justify-between mb-2">
-                                <h3 className="text-base font-semibold text-gray-800">Progress</h3>
-                                <span className="bg-teal-50 text-teal-700 px-2 py-1 rounded-full text-xs font-medium">{productivity}%</span>
-                            </div>
-                            <div className="w-full bg-teal-100 h-2 rounded-full overflow-hidden">
-                                <div
-                                    className="h-full bg-gradient-to-r from-teal-500 to-blue-600 transition-all duration-500"
-                                    style={{ width: `${productivity}%` }}
-                                />
-                            </div>
-                            <p className="text-xs text-gray-600 mt-2">
-                                {completedTasks} of {totalTasks} tasks done
-                            </p>
-                        </div>
-
                         {/* Quick Tip */}
                         <div className="bg-white/90 backdrop-blur-lg rounded-2xl p-4 shadow-md border border-teal-100/50">
                             <div className="flex items-start gap-3">
@@ -164,26 +101,6 @@ const Sidebar = ({ user, tasks }) => {
                                     >
                                         Learn More
                                     </a>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Social Feed Updates */}
-                        <div className="bg-white/90 backdrop-blur-lg rounded-2xl p-4 shadow-md border border-teal-100/50">
-                            <div className="flex items-start gap-3">
-                                <div className="p-2 rounded-full bg-teal-50">
-                                    <Rss className="w-5 h-5 text-teal-500" />
-                                </div>
-                                <div>
-                                    <h3 className="text-base font-semibold text-gray-800">Social Feed Updates</h3>
-                                    <p className="text-xs text-gray-600 mt-1">Stay updated with office news and activities.</p>
-                                    <NavLink
-                                        to="/social-feed"
-                                        className="block mt-1 text-xs text-teal-700 font-medium hover:text-teal-900 transition-colors duration-200"
-                                        onClick={() => setMobileOpen(false)}
-                                    >
-                                        View Feed
-                                    </NavLink>
                                 </div>
                             </div>
                         </div>
