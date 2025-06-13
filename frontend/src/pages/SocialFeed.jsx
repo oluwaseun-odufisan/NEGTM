@@ -1,0 +1,575 @@
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useOutletContext, useNavigate } from 'react-router-dom';
+import { Send, Paperclip, Image, Video, FileText, X, ArrowLeft, Smile } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import axios from 'axios';
+import toast, { Toaster } from 'react-hot-toast';
+import moment from 'moment-timezone';
+import { Tooltip } from 'react-tooltip';
+import io from 'socket.io-client';
+import EmojiPicker from 'emoji-picker-react';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
+
+const SocialFeed = () => {
+    const { user, onLogout } = useOutletContext();
+    const navigate = useNavigate();
+    const [posts, setPosts] = useState([]);
+    const [newPost, setNewPost] = useState('');
+    const [file, setFile] = useState(null);
+    const [filePreview, setFilePreview] = useState(null);
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
+    const [isPosting, setIsPosting] = useState(false);
+    const [selectedImage, setSelectedImage] = useState(null);
+    const [selectedDoc, setSelectedDoc] = useState(null);
+    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const fileInputRef = useRef(null);
+    const observer = useRef();
+    const modalRef = useRef(null);
+    const emojiButtonRef = useRef(null);
+
+    // Socket.IO for real-time posts
+    useEffect(() => {
+        const socket = io(API_BASE_URL, {
+            auth: { token: localStorage.getItem('token') },
+        });
+        socket.on('newPost', (post) => {
+            console.log('Received new post via Socket.IO:', post);
+            setPosts((prev) => [post, ...prev]);
+        });
+        socket.on('connect_error', (error) => {
+            console.error('Socket connect error:', error.message);
+            toast.error('Real-time updates unavailable. Posts will still appear after creation.');
+        });
+        return () => {
+            socket.off('newPost');
+            socket.disconnect();
+        };
+    }, []);
+
+    // Axios interceptor for 401 handling
+    useEffect(() => {
+        const interceptor = axios.interceptors.response.use(
+            (response) => response,
+            (error) => {
+                if (error.response?.status === 401) {
+                    toast.error('Session expired. Please log in.');
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                    onLogout?.();
+                    navigate('/login');
+                }
+                return Promise.reject(error);
+            }
+        );
+        return () => axios.interceptors.response.eject(interceptor);
+    }, [onLogout, navigate]);
+
+    // Modal focus trap and escape key handling
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape' && (selectedImage || selectedDoc || showEmojiPicker)) {
+                setSelectedImage(null);
+                setSelectedDoc(null);
+                setShowEmojiPicker(false);
+            }
+        };
+        if (selectedImage || selectedDoc || showEmojiPicker) {
+            modalRef.current?.focus();
+            window.addEventListener('keydown', handleKeyDown);
+        }
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [selectedImage, selectedDoc, showEmojiPicker]);
+
+    // Close emoji picker when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (
+                showEmojiPicker &&
+                emojiButtonRef.current &&
+                !emojiButtonRef.current.contains(e.target) &&
+                !e.target.closest('.emoji-picker-react')
+            ) {
+                setShowEmojiPicker(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [showEmojiPicker]);
+
+    const getAuthHeaders = useCallback(() => {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            toast.error('Session expired. Please log in.');
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            onLogout?.();
+            navigate('/login');
+            throw new Error('No auth token');
+        }
+        return { Authorization: `Bearer ${token}` };
+    }, [onLogout, navigate]);
+
+    const fetchPosts = useCallback(
+        async (pageNum) => {
+            if (isLoading || !hasMore) return;
+            setIsLoading(true);
+            try {
+                const response = await axios.get(`${API_BASE_URL}/api/posts?page=${pageNum}&limit=10`, {
+                    headers: getAuthHeaders(),
+                });
+                const newPosts = response.data.posts;
+                setPosts((prev) => [...prev, ...newPosts]);
+                setHasMore(newPosts.length === 10);
+            } catch (error) {
+                console.error('Fetch posts error:', error.response?.data || error.message);
+                if (error.response?.status !== 401) {
+                    toast.error(error.response?.data?.message || 'Failed to fetch posts.');
+                }
+            } finally {
+                setIsLoading(false);
+            }
+        },
+        [getAuthHeaders, isLoading, hasMore]
+    );
+
+    useEffect(() => {
+        if (!user || !localStorage.getItem('token')) {
+            navigate('/login');
+            return;
+        }
+        fetchPosts(page);
+    }, [user, page, fetchPosts, navigate]);
+
+    const lastPostElementRef = useCallback(
+        (node) => {
+            if (isLoading) return;
+            if (observer.current) observer.current.disconnect();
+            observer.current = new IntersectionObserver((entries) => {
+                if (entries[0].isIntersecting && hasMore) {
+                    setPage((prev) => prev + 1);
+                }
+            });
+            if (node) observer.current.observe(node);
+        },
+        [isLoading, hasMore]
+    );
+
+    const handleFileChange = useCallback((e) => {
+        const selectedFile = e.target.files[0];
+        if (selectedFile) {
+            if (selectedFile.size > 50 * 1024 * 1024) {
+                toast.error('File size exceeds 50MB.');
+                return;
+            }
+            setFile(selectedFile);
+            if (selectedFile.type.startsWith('image/') || selectedFile.type.startsWith('video/')) {
+                setFilePreview(URL.createObjectURL(selectedFile));
+            } else {
+                setFilePreview(null);
+            }
+        }
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    }, []);
+
+    const uploadFile = useCallback(
+        async (file) => {
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                const response = await axios.post(`${API_BASE_URL}/api/posts/upload`, formData, {
+                    headers: {
+                        ...getAuthHeaders(),
+                        'Content-Type': 'multipart/form-data',
+                    },
+                });
+                return response.data;
+            } catch (error) {
+                console.error('File upload error:', error.response?.data || error.message);
+                throw new Error(error.response?.data?.message || 'Failed to upload file.');
+            }
+        },
+        [getAuthHeaders]
+    );
+
+    const handleEmojiClick = useCallback((emojiObject) => {
+        setNewPost((prev) => prev + emojiObject.emoji);
+    }, []);
+
+    const handleCreatePost = useCallback(async () => {
+        if (!newPost.trim() && !file) {
+            toast.error('Post content or file required.');
+            return;
+        }
+        setIsPosting(true);
+        let fileUrl = '';
+        let contentType = '';
+
+        if (file) {
+            try {
+                const { fileUrl: uploadedUrl, contentType: fileContentType } = await uploadFile(file);
+                fileUrl = uploadedUrl;
+                contentType = fileContentType;
+            } catch (error) {
+                toast.error(error.message);
+                setIsPosting(false);
+                return;
+            }
+        }
+
+        try {
+            const response = await axios.post(
+                `${API_BASE_URL}/api/posts`,
+                { content: newPost.trim(), fileUrl, contentType },
+                { headers: getAuthHeaders() }
+            );
+            // Add post locally as fallback if Socket.IO fails
+            setPosts((prev) => [response.data.post, ...prev]);
+            setNewPost('');
+            setFile(null);
+            setFilePreview(null);
+            setShowEmojiPicker(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+            toast.success('Post created!', { style: { background: '#2DD4BF', color: '#FFFFFF' } });
+        } catch (error) {
+            console.error('Create post error:', error.response?.data || error.message);
+            if (error.response?.status !== 401) {
+                toast.error(error.response?.data?.message || 'Failed to create post.');
+            }
+        } finally {
+            setIsPosting(false);
+        }
+    }, [newPost, file, getAuthHeaders]);
+
+    const modalVariants = {
+        hidden: { opacity: 0, scale: 0.8 },
+        visible: { opacity: 1, scale: 1 },
+        exit: { opacity: 0, scale: 0.8 },
+    };
+
+    if (!user || !localStorage.getItem('token')) {
+        return null;
+    }
+
+    return (
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 font-sans"
+        >
+            <Toaster position="bottom-right" />
+            <header className="bg-white shadow-sm p-4 sticky top-0 z-10">
+                <div className="max-w-5xl mx-auto flex items-center justify-between">
+                    <h1 className="text-3xl font-extrabold text-teal-600">Social Connect</h1>
+                    <button
+                        onClick={() => navigate('/')}
+                        className="px-4 py-2 rounded-full bg-teal-600 text-white font-semibold hover:bg-teal-700 transition-all duration-300 flex items-center gap-2"
+                        aria-label="Back to Dashboard"
+                    >
+                        <ArrowLeft className="w-5 h-5" />
+                        Back to Dashboard
+                    </button>
+                </div>
+            </header>
+            <main className="max-w-5xl mx-auto w-full p-6">
+                <motion.div
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ duration: 0.5 }}
+                    className="bg-white rounded-2xl shadow-xl p-6 mb-8 sticky top-16 z-10"
+                >
+                    <div className="flex items-start gap-4">
+                        <div className="w-12 h-12 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center text-lg font-bold">
+                            {user.name
+                                .trim()
+                                .split(' ')
+                                .map((word) => word[0])
+                                .slice(0, 2)
+                                .join('')
+                                .toUpperCase()}
+                        </div>
+                        <div className="flex-1 relative">
+                            <textarea
+                                value={newPost}
+                                onChange={(e) => setNewPost(e.target.value)}
+                                placeholder="Share your thoughts..."
+                                className="w-full p-3 text-sm text-gray-800 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent resize-y mb-4"
+                                rows="3"
+                                maxLength={1000}
+                                aria-label="New post content"
+                            />
+                            {file && (
+                                <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    className="flex items-center gap-3 mb-4"
+                                >
+                                    {filePreview && file.type.startsWith('image/') && (
+                                        <img src={filePreview} alt="Preview" className="w-16 h-16 object-cover rounded-md" />
+                                    )}
+                                    {filePreview && file.type.startsWith('video/') && (
+                                        <video src={filePreview} className="w-16 h-16 object-cover rounded-md" />
+                                    )}
+                                    <span className="text-sm text-gray-600 truncate max-w-xs">{file.name}</span>
+                                    <button
+                                        onClick={() => {
+                                            setFile(null);
+                                            setFilePreview(null);
+                                        }}
+                                        className="text-red-500 hover:text-red-600"
+                                        aria-label="Remove file"
+                                    >
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                </motion.div>
+                            )}
+                            <div className="flex items-center justify-between mb-2">
+                                <div className="flex gap-3">
+                                    <button
+                                        ref={emojiButtonRef}
+                                        onClick={() => setShowEmojiPicker((prev) => !prev)}
+                                        className="p-2 text-blue-900 hover:text-teal-600 transition-colors duration-300"
+                                        data-tooltip-id="add-emoji"
+                                        data-tooltip-content="Add Emoji"
+                                        aria-label="Add Emoji"
+                                    >
+                                        <Smile className="w-5 h-5" />
+                                        <Tooltip id="add-emoji" className="bg-teal-600 text-white" />
+                                    </button>
+                                    <button
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="p-2 text-blue-900 hover:text-teal-600 transition-colors duration-300"
+                                        data-tooltip-id="attach-image"
+                                        data-tooltip-content="Attach Image"
+                                        aria-label="Attach Image"
+                                    >
+                                        <Image className="w-5 h-5" />
+                                        <Tooltip id="attach-image" className="bg-teal-600 text-white" />
+                                    </button>
+                                    <button
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="p-2 text-blue-900 hover:text-teal-600 transition-colors duration-300"
+                                        data-tooltip-id="attach-video"
+                                        data-tooltip-content="Attach Video"
+                                        aria-label="Attach Video"
+                                    >
+                                        <Video className="w-5 h-5" />
+                                        <Tooltip id="attach-video" className="bg-teal-600 text-white" />
+                                    </button>
+                                    <button
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="p-2 text-blue-900 hover:text-teal-600 transition-colors duration-300"
+                                        data-tooltip-id="attach-doc"
+                                        data-tooltip-content="Attach Document"
+                                        aria-label="Attach Document"
+                                    >
+                                        <FileText className="w-5 h-5" />
+                                        <Tooltip id="attach-doc" className="bg-teal-600 text-white" />
+                                    </button>
+                                    <input
+                                        type="file"
+                                        ref={fileInputRef}
+                                        className="hidden"
+                                        accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx"
+                                        onChange={handleFileChange}
+                                    />
+                                </div>
+                                <button
+                                    onClick={handleCreatePost}
+                                    disabled={(!newPost.trim() && !file) || isPosting}
+                                    className={`px-6 py-2 rounded-full font-semibold transition-all duration-300 flex items-center gap-2 ${newPost.trim() || file
+                                            ? 'bg-teal-600 text-white hover:bg-teal-700 shadow-md'
+                                            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                        } ${isPosting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    data-tooltip-id="post"
+                                    data-tooltip-content="Share Post"
+                                    aria-label="Share Post"
+                                >
+                                    <Send className="w-5 h-5" />
+                                    {isPosting ? 'Posting...' : 'Post'}
+                                    <Tooltip id="post" className="bg-teal-600 text-white" />
+                                </button>
+                            </div>
+                            <AnimatePresence>
+                                {showEmojiPicker && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: -10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -10 }}
+                                        className="absolute left-0 z-20"
+                                    >
+                                        <EmojiPicker
+                                            onEmojiClick={handleEmojiClick}
+                                            theme="light"
+                                            emojiStyle="native"
+                                            skinTonesDisabled
+                                            className="shadow-lg"
+                                        />
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+                    </div>
+                </motion.div>
+                <div
+                    className="h-[calc(100vh-16rem)] overflow-y-auto scroll-smooth space-y-6 pb-16"
+                    role="region"
+                    aria-label="Social Feed"
+                >
+                    <AnimatePresence>
+                        {posts.map((post, index) => (
+                            <motion.div
+                                key={post._id}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.3 }}
+                                className="bg-white rounded-2xl shadow-xl p-6 max-w-2xl mx-auto"
+                                ref={index === posts.length - 1 ? lastPostElementRef : null}
+                            >
+                                <div className="flex items-center gap-4 mb-4">
+                                    <div className="w-12 h-12 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center text-lg font-bold">
+                                        {post.user.name
+                                            .trim()
+                                            .split(' ')
+                                            .map((word) => word[0])
+                                            .slice(0, 2)
+                                            .join('')
+                                            .toUpperCase()}
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-semibold text-blue-900">{post.user.name}</p>
+                                        <p className="text-xs text-gray-500">
+                                            {moment(post.createdAt).tz('Africa/Lagos').format('MMM D, YYYY, h:mm A')}
+                                        </p>
+                                    </div>
+                                </div>
+                                {post.content && (
+                                    <p className="text-md text-gray-800 mb-4 text-left">{post.content}</p>
+                                )}
+                                {post.fileUrl && (
+                                    <div className="mt-4 flex justify-center">
+                                        {post.contentType === 'image' && (
+                                            <img
+                                                src={post.fileUrl}
+                                                alt="Post media"
+                                                className="max-w-full h-auto rounded-lg shadow-sm cursor-pointer hover:opacity-90 transition-opacity duration-300"
+                                                loading="lazy"
+                                                onClick={() => setSelectedImage(post.fileUrl)}
+                                            />
+                                        )}
+                                        {post.contentType === 'video' && (
+                                            <video
+                                                src={post.fileUrl}
+                                                controls
+                                                className="max-w-full h-auto rounded-lg shadow-sm"
+                                                loading="lazy"
+                                            />
+                                        )}
+                                        {post.contentType === 'application' && (
+                                            <button
+                                                onClick={() => setSelectedDoc(post.fileUrl)}
+                                                className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-full hover:bg-teal-700 transition-all duration-300"
+                                                aria-label="View Document"
+                                            >
+                                                <FileText className="w-5 h-5" /> View Document
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
+                            </motion.div>
+                        ))}
+                    </AnimatePresence>
+                    {isLoading && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="text-center text-gray-500 text-sm py-4"
+                        >
+                            Loading more posts...
+                        </motion.div>
+                    )}
+                    {!hasMore && posts.length > 0 && (
+                        <div className="text-center text-gray-500 text-sm py-4">No more posts to load.</div>
+                    )}
+                </div>
+            </main>
+
+            {/* Image Modal */}
+            <AnimatePresence>
+                {selectedImage && (
+                    <motion.div
+                        initial="hidden"
+                        animate="visible"
+                        exit="exit"
+                        variants={modalVariants}
+                        className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
+                        onClick={() => setSelectedImage(null)}
+                        role="dialog"
+                        aria-label="Image Preview"
+                        ref={modalRef}
+                        tabIndex={-1}
+                    >
+                        <div
+                            className="relative max-w-4xl w-full p-4"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <img
+                                src={selectedImage}
+                                alt="Large preview"
+                                className="w-full h-auto rounded-lg shadow-lg"
+                            />
+                            <button
+                                onClick={() => setSelectedImage(null)}
+                                className="absolute top-2 right-2 p-2 bg-teal-600 text-white rounded-full hover:bg-teal-700"
+                                aria-label="Close Image Preview"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Document Modal */}
+            <AnimatePresence>
+                {selectedDoc && (
+                    <motion.div
+                        initial="hidden"
+                        animate="visible"
+                        exit="exit"
+                        variants={modalVariants}
+                        className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
+                        onClick={() => setSelectedDoc(null)}
+                        role="dialog"
+                        aria-label="Document Preview"
+                        ref={modalRef}
+                        tabIndex={-1}
+                    >
+                        <div
+                            className="relative w-full max-w-4xl h-[80vh] bg-white rounded-lg overflow-hidden"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <iframe
+                                src={`https://docs.google.com/viewer?url=${encodeURIComponent(selectedDoc)}&embedded=true`}
+                                className="w-full h-full border-0"
+                                title="Document Preview"
+                            />
+                            <button
+                                onClick={() => setSelectedDoc(null)}
+                                className="absolute top-2 right-2 p-2 bg-teal-600 text-white rounded-full hover:bg-teal-700"
+                                aria-label="Close Document Preview"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </motion.div>
+    );
+};
+
+export default SocialFeed;
