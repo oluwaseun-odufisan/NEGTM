@@ -33,11 +33,84 @@ router.post('/', authMiddleware, async (req, res, next) => {
             contentType,
         });
         await post.save();
-        await post.populate('user', 'name');
+        await post.populate('user', 'name _id');
+        req.io.emit('newPost', post);
         res.json({ success: true, post });
     } catch (error) {
         console.error('Error creating post:', error.message);
         res.status(500).json({ success: false, message: 'Failed to create post' });
+        next(error);
+    }
+});
+
+// Update a post
+router.put('/:id', authMiddleware, async (req, res, next) => {
+    const { id } = req.params;
+    const { content, fileUrl, contentType } = req.body;
+
+    if (!content && !fileUrl) {
+        return res.status(400).json({ success: false, message: 'Post content or file required' });
+    }
+
+    const sanitizedContent = content ? sanitizeHtml(content, { allowedTags: [], allowedAttributes: {} }) : '';
+    if (sanitizedContent && !validator.isLength(sanitizedContent, { min: 1, max: 1000 })) {
+        return res.status(400).json({ success: false, message: 'Post content must be between 1 and 1000 characters' });
+    }
+
+    if (fileUrl && !validator.isURL(fileUrl)) {
+        return res.status(400).json({ success: false, message: 'Invalid file URL' });
+    }
+
+    if (!mongoose.isValidObjectId(id)) {
+        return res.status(400).json({ success: false, message: 'Invalid post ID' });
+    }
+
+    try {
+        const post = await Post.findById(id);
+        if (!post) {
+            return res.status(404).json({ success: false, message: 'Post not found' });
+        }
+        if (post.user.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ success: false, message: 'Not authorized to edit this post' });
+        }
+
+        post.content = sanitizedContent || post.content;
+        post.fileUrl = fileUrl !== undefined ? fileUrl : post.fileUrl;
+        post.contentType = contentType !== undefined ? contentType : post.contentType;
+        await post.save();
+        await post.populate('user', 'name _id');
+        req.io.emit('postUpdated', post);
+        res.json({ success: true, post });
+    } catch (error) {
+        console.error('Error updating post:', error.message);
+        res.status(500).json({ success: false, message: 'Failed to update post' });
+        next(error);
+    }
+});
+
+// Delete a post
+router.delete('/:id', authMiddleware, async (req, res, next) => {
+    const { id } = req.params;
+
+    if (!mongoose.isValidObjectId(id)) {
+        return res.status(400).json({ success: false, message: 'Invalid post ID' });
+    }
+
+    try {
+        const post = await Post.findById(id);
+        if (!post) {
+            return res.status(404).json({ success: false, message: 'Post not found' });
+        }
+        if (post.user.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ success: false, message: 'Not authorized to delete this post' });
+        }
+
+        await post.deleteOne();
+        req.io.emit('postDeleted', id);
+        res.json({ success: true, message: 'Post deleted' });
+    } catch (error) {
+        console.error('Error deleting post:', error.message);
+        res.status(500).json({ success: false, message: 'Failed to delete post' });
         next(error);
     }
 });
@@ -54,7 +127,7 @@ router.get('/', authMiddleware, async (req, res, next) => {
 
     try {
         const posts = await Post.find()
-            .populate('user', 'name')
+            .populate('user', 'name _id')
             .sort({ createdAt: -1 })
             .skip((pageNum - 1) * limitNum)
             .limit(limitNum);

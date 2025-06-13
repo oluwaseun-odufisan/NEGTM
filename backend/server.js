@@ -138,6 +138,14 @@ io.on('connection', (socket) => {
         io.emit('newPost', post);
     });
 
+    socket.on('postUpdated', (post) => {
+        io.emit('postUpdated', post);
+    });
+
+    socket.on('postDeleted', (postId) => {
+        io.emit('postDeleted', postId);
+    });
+
     socket.on('error', (error) => {
         console.error('Socket error:', error.message);
     });
