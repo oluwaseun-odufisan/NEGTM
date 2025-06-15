@@ -107,7 +107,7 @@ const CompletePage = () => {
             </div>
 
             {/* Task List with Enhanced Cards */}
-            <div className={`${CT_CLASSES.list} space-y-3 mt-5 p-2`}>
+            <div className={`${CT_CLASSES.list} space-y-3 mt-5 p-2 h-[calc(80vh-4rem)] overflow-y-auto`}>
                 {sortedCompletedTasks.length === 0 ? (
                     <div className={`${CT_CLASSES.emptyState} bg-white/90 backdrop-blur-md rounded-xl p-6 shadow-md animate-fadeIn-up`}>
                         <div className={`${CT_CLASSES.emptyIconWrapper} bg-teal-50/80 rounded-full p-3 hover:bg-teal-100 transition-all duration-300 animate-pulse-slow`}>

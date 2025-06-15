@@ -100,7 +100,7 @@ const PendingPage = () => {
             </div>
 
             {/* Task List or Empty State */}
-            <div className='space-y-4 mt-6'>
+            <div className='space-y-4 mt-6 h-[calc(80vh-4rem)] overflow-y-auto'>
                 {sortedPendingTasks.length === 0 ? (
                     <div className={`${layoutClasses.emptyState} animate-fadeIn-up`}>
                         <div className='max-w-sm mx-auto py-8'>

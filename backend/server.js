@@ -14,6 +14,7 @@ import botChatRouter from './routes/botChatRoutes.js';
 import urlRouter from './routes/urlRoutes.js';
 import postRouter from './routes/postRoutes.js';
 import reminderRouter from './routes/reminderRoutes.js';
+import goalRouter from './routes/goalRoutes.js';
 import { startReminderScheduler } from './utils/reminderScheduler.js';
 import './models/userModel.js';
 import './models/chatModel.js';
@@ -21,6 +22,7 @@ import './models/messageModel.js';
 import './models/botChatModel.js';
 import './models/postModel.js';
 import './models/reminderModel.js';
+import './models/goalModel.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -189,6 +191,7 @@ app.use('/download', urlRouter);
 app.use('/api/bot', botChatRouter);
 app.use('/api/posts', postRouter);
 app.use('/api/reminders', reminderRouter);
+app.use('/api/goals', goalRouter); 
 
 // Health check
 app.get('/', (req, res) => {

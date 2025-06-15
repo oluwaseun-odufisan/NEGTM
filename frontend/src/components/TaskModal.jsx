@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Edit, Calendar, CheckSquare, Flag, Save, X, FileText, PlusCircle } from 'lucide-react';
+import axios from 'axios';
 
 const API_BASE = `${import.meta.env.VITE_API_URL}/api/tasks`;
 
@@ -46,47 +47,49 @@ const TaskModal = ({ isOpen, onClose, taskToEdit, onSave, onLogout }) => {
         setTaskData(prev => ({ ...prev, [name]: value }));
     }, []);
 
-    const getHeaders = useCallback(() => {
-        const token = localStorage.getItem('token');
-        if (!token) throw new Error('No auth token found');
-        return {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-        };
-    }, []);
+    // const getHeaders = useCallback(() => {
+    //     const token = localStorage.getItem('token');
+    //     if (!token) throw new Error('No auth token found');
+    //     return {
+    //         'Content-Type': 'application/json',
+    //         Authorization: `Bearer ${token}`,
+    //     };
+    // }, []);
 
-    const handleSubmit = useCallback(async (e) => {
-        e.preventDefault();
-        if (taskData.dueDate < today) {
-            setError('Due date cannot be in the past.');
-            return;
-        }
-        setLoading(true);
-        setError(null);
-
-        try {
-            const isEdit = Boolean(taskData.id);
-            const url = isEdit ? `${API_BASE}/${taskData.id}/gp` : `${API_BASE}/gp`;
-            const resp = await fetch(url, {
-                method: isEdit ? 'PUT' : 'POST',
-                headers: getHeaders(),
-                body: JSON.stringify(taskData),
-            });
-            if (!resp.ok) {
-                if (resp.status === 401) return onLogout?.();
-                const err = await resp.json();
-                throw new Error(err.message || 'Failed to save task');
+    const handleSubmit = useCallback(
+        async (e) => {
+            e.preventDefault();
+            if (!taskData.title.trim()) {
+                setError("Task title is required.");
+                return;
             }
-            const saved = await resp.json();
-            onSave?.(saved);
-            onClose();
-        } catch (err) {
-            console.error(err);
-            setError(err.message || 'Unexpected error occurred');
-        } finally {
-            setLoading(false);
-        }
-    }, [taskData, today, getHeaders, onLogout, onSave, onClose]);
+            if (taskData.dueDate < today) {
+                setError("Due date cannot be in the past.");
+                return;
+            }
+            setLoading(true);
+            setError(null);
+
+            try {
+                // Pass taskData directly to onSave instead of making API call
+                onSave?.({
+                    _id: taskData.id,
+                    title: taskData.title,
+                    description: taskData.description,
+                    priority: taskData.priority,
+                    dueDate: taskData.dueDate,
+                    completed: taskData.completed,
+                });
+                onClose();
+            } catch (err) {
+                console.error(err);
+                setError(err.message || "Unexpected error occurred");
+            } finally {
+                setLoading(false);
+            }
+        },
+        [taskData, today, onSave, onClose]
+    );
 
     const priorityStyles = {
         Low: 'bg-gray-50 text-gray-700 border-gray-200',

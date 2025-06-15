@@ -178,39 +178,52 @@ const Dashboard = () => {
     };
 
     // Handle Task Save (Modal)
-    const handleTaskSave = useCallback(async (taskData) => {
-        try {
-            const token = localStorage.getItem('token');
-            if (!token) throw new Error('No authentication token found');
+    const handleTaskSave = useCallback(
+        async (taskData) => {
+            try {
+                const token = localStorage.getItem("token");
+                if (!token) throw new Error("No authentication token found");
 
-            // Filter fields like TaskItem
-            const payload = (({ title, description, priority, dueDate, completed }) => ({
-                title,
-                description,
-                priority,
-                dueDate,
-                completed: completed ? 'Yes' : 'No',
-            }))(taskData);
+                // Filter and validate fields
+                const payload = {
+                    title: taskData.title?.trim() || "",
+                    description: taskData.description || "",
+                    priority: taskData.priority || "Low",
+                    dueDate: taskData.dueDate || undefined,
+                    completed: taskData.completed === "Yes" || taskData.completed === true,
+                };
 
-            if (taskData._id) {
-                await axios.put(`${API_BASE_URL}/${taskData._id}/gp`, payload, {
-                    headers: { Authorization: `Bearer ${token}` },
-                });
-            } else {
-                await axios.post(`${API_BASE_URL}/create`, { ...payload, userId: user?.id || null }, {
-                    headers: { Authorization: `Bearer ${token}` },
-                });
+                if (!payload.title) {
+                    console.error("Task title is required");
+                    return;
+                }
+
+                console.log("Sending payload:", payload);
+
+                if (taskData._id) {
+                    await axios.put(`${API_BASE_URL}/${taskData._id}/gp`, payload, {
+                        headers: { Authorization: `Bearer ${token}` },
+                    });
+                } else {
+                    await axios.post(
+                        `${API_BASE_URL}/gp`,
+                        { ...payload, userId: user?.id || null },
+                        {
+                            headers: { Authorization: `Bearer ${token}` },
+                        }
+                    );
+                }
+
+                await refreshTasks();
+                setShowModal(false);
+                setSelectedTask(null);
+            } catch (error) {
+                console.error("Error saving task:", error.response?.data || error.message);
+                if (error.response?.status === 401) onLogout?.();
             }
-
-            await refreshTasks();
-            setShowModal(false);
-            setSelectedTask(null);
-        } catch (error) {
-            console.error('Error saving task:', error.response?.data || error.message);
-            if (error.response?.status === 401) onLogout?.();
-        }
-    }, [refreshTasks, user, onLogout]);
-
+        },
+        [refreshTasks, user, onLogout]
+    );
     // Handle Task Action Selection
     const handleAction = (action) => {
         if (action === 'complete') {
