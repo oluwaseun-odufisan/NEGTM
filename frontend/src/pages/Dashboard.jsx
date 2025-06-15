@@ -86,8 +86,7 @@ const Dashboard = () => {
     // Live Clock for WAT (UTC+1)
     useEffect(() => {
         const timer = setInterval(() => {
-            const watTime = new Date().toLocaleString();
-            setCurrentTime(new Date(watTime));
+            setCurrentTime(new Date());
         }, 1000);
         return () => clearInterval(timer);
     }, []);
