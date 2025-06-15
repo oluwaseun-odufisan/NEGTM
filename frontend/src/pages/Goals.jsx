@@ -1,25 +1,15 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
-import { Plus, X, Target, Calendar, CheckCircle, Edit2, Trash2, Save, ArrowLeft } from 'lucide-react';
+import { Target, X, Plus, Edit, Trash, CheckCircle, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import toast, { Toaster } from 'react-hot-toast';
-import { getDatabase, ref, onValue, set } from 'firebase/database';
-import { initializeApp } from 'firebase/app';
+import io from 'socket.io-client';
+import moment from 'moment-timezone';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-import moment from 'moment-timezone';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
-
-const firebaseConfig = {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-    appId: import.meta.env.VITE_FIREBASE_APP_ID,
-};
 
 const Goals = () => {
     const { user, onLogout } = useOutletContext();
@@ -27,93 +17,52 @@ const Goals = () => {
     const [goals, setGoals] = useState([]);
     const [tasks, setTasks] = useState([]);
     const [showCreateGoal, setShowCreateGoal] = useState(false);
-    const [showGoalDetails, setShowGoalDetails] = useState(null);
-    const [editGoal, setEditGoal] = useState(null);
+    const [showGoalDetails, setShowGoalDetails] = useState(false);
+    const [selectedGoal, setSelectedGoal] = useState(null);
+    const [isEditing, setIsEditing] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
     const [newGoal, setNewGoal] = useState({
         title: '',
-        subGoals: [{ description: '' }],
+        subGoals: [],
         type: 'personal',
-        taskId: '',
         timeframe: 'daily',
         startDate: new Date(),
-        endDate: new Date(new Date().setHours(23, 59, 59, 999)),
+        endDate: new Date(),
     });
-    const [isLoading, setIsLoading] = useState(false);
+    const [editGoal, setEditGoal] = useState(null);
+    const [newSubGoal, setNewSubGoal] = useState('');
     const modalRef = useRef(null);
-    const subGoalInputRef = useRef(null);
 
-    // Initialize Firebase
-    const app = initializeApp(firebaseConfig);
-
-    // Calculate default end date based on timeframe
-    const getDefaultEndDate = (timeframe, startDate) => {
-        const start = new Date(startDate);
-        switch (timeframe) {
-            case 'daily':
-                return new Date(start.setHours(23, 59, 59, 999));
-            case 'weekly':
-                return new Date(start.setDate(start.getDate() + 6));
-            case 'monthly':
-                return new Date(start.setMonth(start.getMonth() + 1, 0));
-            case 'quarterly':
-                return new Date(start.setMonth(start.getMonth() + 3, 0));
-            case 'custom':
-            default:
-                return new Date(start.setDate(start.getDate() + 1));
-        }
-    };
-
-    useEffect(() => {
-        // Update endDate when timeframe changes
-        setNewGoal((prev) => ({
-            ...prev,
-            endDate: getDefaultEndDate(prev.timeframe, prev.startDate),
-        }));
-    }, [newGoal.timeframe, newGoal.startDate]);
-
-    // Real-time updates with Firebase Realtime Database
-    useEffect(() => {
-        if (!user) return;
-        const db = getDatabase();
-        const goalsRef = ref(db, `goals/${user._id}`);
-        const unsubscribe = onValue(goalsRef, (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                setGoals(Object.values(data));
-            } else {
-                setGoals([]);
-            }
-        });
-        return () => unsubscribe();
-    }, [user]);
-
-    // Socket.IO for additional real-time events
+    // Socket.IO for real-time updates
     useEffect(() => {
         const socket = io(API_BASE_URL, {
             auth: { token: localStorage.getItem('token') },
         });
         socket.on('newGoal', (goal) => {
             setGoals((prev) => [goal, ...prev]);
-            toast.success('Goal created!');
+            toast.success('Goal created in real-time!');
         });
         socket.on('goalUpdated', (goal) => {
             setGoals((prev) => prev.map((g) => (g._id === goal._id ? goal : g)));
-            toast.success('Goal updated!');
+            toast.success('Goal updated in real-time!');
         });
-        socket.on('goalDeleted', (id) => {
-            setGoals((prev) => prev.filter((g) => g._id !== id));
-            toast.success('Goal deleted!');
+        socket.on('goalDeleted', (goalId) => {
+            setGoals((prev) => prev.filter((g) => g._id !== goalId));
+            toast.success('Goal deleted in real-time!');
         });
         socket.on('connect_error', (error) => {
             console.error('Socket connect error:', error.message);
             toast.error('Real-time updates unavailable.');
         });
         return () => {
+            socket.off('newGoal');
+            socket.off('goalUpdated');
+            socket.off('goalDeleted');
             socket.disconnect();
         };
     }, []);
 
-    // Handle authentication errors
+    // Axios interceptor for 401 handling
     useEffect(() => {
         const interceptor = axios.interceptors.response.use(
             (response) => response,
@@ -131,32 +80,45 @@ const Goals = () => {
         return () => axios.interceptors.response.eject(interceptor);
     }, [onLogout, navigate]);
 
-    // Close modals on Escape key
+    // Modal focus trap
     useEffect(() => {
         const handleKeyDown = (e) => {
-            if (e.key === 'Escape' && (showCreateGoal || showGoalDetails || editGoal)) {
+            if (e.key === 'Escape' && (showCreateGoal || showGoalDetails)) {
                 setShowCreateGoal(false);
-                setShowGoalDetails(null);
-                setEditGoal(null);
+                setShowGoalDetails(false);
+                setIsEditing(false);
             }
         };
-        if (showCreateGoal || showGoalDetails || editGoal) {
+        if (showCreateGoal || showGoalDetails) {
             modalRef.current?.focus();
             window.addEventListener('keydown', handleKeyDown);
         }
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [showCreateGoal, showGoalDetails, editGoal]);
+    }, [showCreateGoal, showGoalDetails]);
 
-    // Fetch tasks and goals
     const getAuthHeaders = useCallback(() => {
         const token = localStorage.getItem('token');
         if (!token) throw new Error('No auth token');
         return { Authorization: `Bearer ${token}` };
     }, []);
 
+    const fetchGoals = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            const response = await axios.get(`${API_BASE_URL}/api/goals`, { headers: getAuthHeaders() });
+            setGoals(response.data.goals);
+        } catch (error) {
+            if (error.response?.status !== 401) {
+                toast.error(error.response?.data?.message || 'Failed to fetch goals.');
+            }
+        } finally {
+            setIsLoading(false);
+        }
+    }, [getAuthHeaders]);
+
     const fetchTasks = useCallback(async () => {
         try {
-            const response = await axios.get(`${API_BASE_URL}/api/tasks`, { headers: getAuthHeaders() });
+            const response = await axios.get(`${API_BASE_URL}/api/tasks/gp`, { headers: getAuthHeaders() });
             setTasks(response.data.tasks);
         } catch (error) {
             if (error.response?.status !== 401) {
@@ -165,161 +127,145 @@ const Goals = () => {
         }
     }, [getAuthHeaders]);
 
-    const fetchGoals = useCallback(async () => {
-        setIsLoading(true);
-        try {
-            const response = await axios.get(`${API_BASE_URL}/api/goals`, { headers: getAuthHeaders() });
-            setGoals(response.data.goals);
-            // Sync with Firebase
-            const db = getDatabase();
-            const goalsRef = ref(db, `goals/${user._id}`);
-            await set(goalsRef, response.data.goals.reduce((acc, goal) => ({ ...acc, [goal._id]: goal }), {}));
-        } catch (error) {
-            if (error.response?.status !== 401) {
-                toast.error(error.response?.data?.message || 'Failed to fetch goals.');
-            }
-        } finally {
-            setIsLoading(false);
-        }
-    }, [getAuthHeaders, user]);
-
     useEffect(() => {
         if (!user || !localStorage.getItem('token')) {
             navigate('/login');
             return;
         }
-        fetchTasks();
         fetchGoals();
-    }, [user, navigate, fetchTasks, fetchGoals]);
+        fetchTasks();
+    }, [user, navigate, fetchGoals, fetchTasks]);
 
-    // Handle goal creation
-    const handleCreateGoal = async () => {
+    const handleCreateGoal = useCallback(async () => {
         if (!newGoal.title.trim()) {
             toast.error('Goal title is required.');
             return;
         }
-        if (newGoal.subGoals.some((sg) => !sg.description.trim())) {
-            toast.error('All sub-goals must have a description.');
+        if (newGoal.subGoals.length === 0) {
+            toast.error('At least one sub-goal is required.');
             return;
         }
-        if (newGoal.type === 'task_related' && !newGoal.taskId) {
-            toast.error('Please select a task for task-related goal.');
+        if (newGoal.startDate >= newGoal.endDate) {
+            toast.error('End date must be after start date.');
             return;
         }
-        if (newGoal.startDate > newGoal.endDate) {
-            toast.error('Start date must be before end date.');
-            return;
-        }
-
         try {
-            const response = await axios.post(
-                `${API_BASE_URL}/api/goals`,
-                {
-                    ...newGoal,
-                    subGoals: newGoal.subGoals.map((sg) => ({ description: sg.description })),
-                },
-                { headers: getAuthHeaders() }
-            );
-            // Sync with Firebase
-            const db = getDatabase();
-            const goalRef = ref(db, `goals/${user._id}/${response.data.goal._id}`);
-            await set(goalRef, response.data.goal);
+            const response = await axios.post(`${API_BASE_URL}/api/goals`, newGoal, { headers: getAuthHeaders() });
             setShowCreateGoal(false);
             setNewGoal({
                 title: '',
-                subGoals: [{ description: '' }],
+                subGoals: [],
                 type: 'personal',
-                taskId: '',
                 timeframe: 'daily',
                 startDate: new Date(),
-                endDate: new Date(new Date().setHours(23, 59, 59, 999)),
+                endDate: new Date(),
             });
+            toast.success('Goal created!');
         } catch (error) {
             if (error.response?.status !== 401) {
                 toast.error(error.response?.data?.message || 'Failed to create goal.');
             }
         }
-    };
+    }, [newGoal, getAuthHeaders]);
 
-    // Handle goal update
-    const handleUpdateGoal = async () => {
+    const handleUpdateGoal = useCallback(async () => {
         if (!editGoal.title.trim()) {
             toast.error('Goal title is required.');
             return;
         }
-        if (editGoal.subGoals.some((sg) => !sg.description.trim())) {
-            toast.error('All sub-goals must have a description.');
+        if (editGoal.subGoals.length === 0) {
+            toast.error('At least one sub-goal is required.');
             return;
         }
-        if (editGoal.type === 'task_related' && !editGoal.taskId) {
-            toast.error('Please select a task for task-related goal.');
+        if (editGoal.startDate >= editGoal.endDate) {
+            toast.error('End date must be after start date.');
             return;
         }
-        if (editGoal.startDate > editGoal.endDate) {
-            toast.error('Start date must be before end date.');
-            return;
-        }
-
         try {
             const response = await axios.put(
-                `${API_BASE_URL}/api/goals/${editGoal._id}`,
+                `${API_BASE_URL}/api/goals/${selectedGoal._id}`,
                 editGoal,
                 { headers: getAuthHeaders() }
             );
-            // Sync with Firebase
-            const db = getDatabase();
-            const goalRef = ref(db, `goals/${user._id}/${editGoal._id}`);
-            await set(goalRef, response.data.goal);
-            setEditGoal(null);
-            setShowGoalDetails(null);
+            setShowGoalDetails(false);
+            setIsEditing(false);
+            toast.success('Goal updated!');
         } catch (error) {
             if (error.response?.status !== 401) {
                 toast.error(error.response?.data?.message || 'Failed to update goal.');
             }
         }
-    };
+    }, [editGoal, selectedGoal, getAuthHeaders]);
 
-    // Handle goal progress update
-    const handleUpdateProgress = async (goal) => {
+    const handleDeleteGoal = useCallback(async () => {
         try {
-            const response = await axios.put(
-                `${API_BASE_URL}/api/goals/${goal._id}/progress`,
-                { subGoals: goal.subGoals },
-                { headers: getAuthHeaders() }
-            );
-            // Sync with Firebase
-            const db = getDatabase();
-            const goalRef = ref(db, `goals/${user._id}/${goal._id}`);
-            await set(goalRef, response.data.goal);
-            setShowGoalDetails(response.data.goal);
-        } catch (error) {
-            if (error.response?.status !== 401) {
-                toast.error(error.response?.data?.message || 'Failed to update progress.');
-            }
-        }
-    };
-
-    // Handle goal deletion
-    const handleDeleteGoal = async (id) => {
-        try {
-            await axios.delete(`${API_BASE_URL}/api/goals/${id}`, { headers: getAuthHeaders() });
-            // Sync with Firebase
-            const db = getDatabase();
-            const goalRef = ref(db, `goals/${user._id}/${id}`);
-            await set(goalRef, null);
-            setShowGoalDetails(null);
+            await axios.delete(`${API_BASE_URL}/api/goals/${selectedGoal._id}`, { headers: getAuthHeaders() });
+            setShowGoalDetails(false);
+            toast.success('Goal deleted!');
         } catch (error) {
             if (error.response?.status !== 401) {
                 toast.error(error.response?.data?.message || 'Failed to delete goal.');
             }
         }
+    }, [selectedGoal, getAuthHeaders]);
+
+    const handleGoalClick = useCallback((goal) => {
+        setSelectedGoal(goal);
+        setEditGoal({ ...goal, startDate: new Date(goal.startDate), endDate: new Date(goal.endDate) });
+        setShowGoalDetails(true);
+    }, []);
+
+    const handleAddSubGoal = () => {
+        if (!newSubGoal.trim()) {
+            toast.error('Sub-goal title is required.');
+            return;
+        }
+        setNewGoal((prev) => ({
+            ...prev,
+            subGoals: [...prev.subGoals, { title: newSubGoal, completed: false, taskId: null }],
+        }));
+        setNewSubGoal('');
     };
 
-    // Modal animation variants
+    const handleUpdateSubGoalStatus = async (subGoalIndex, completed) => {
+        const updatedSubGoals = [...editGoal.subGoals];
+        updatedSubGoals[subGoalIndex].completed = completed;
+        setEditGoal((prev) => ({ ...prev, subGoals: updatedSubGoals }));
+    };
+
+    const calculateProgress = (subGoals) => {
+        if (subGoals.length === 0) return 0;
+        const completed = subGoals.filter((sg) => sg.completed).length;
+        return Math.round((completed / subGoals.length) * 100);
+    };
+
+    const setDefaultDates = (timeframe) => {
+        const startDate = new Date();
+        let endDate = new Date();
+        switch (timeframe) {
+            case 'daily':
+                endDate.setDate(startDate.getDate() + 1);
+                break;
+            case 'weekly':
+                endDate.setDate(startDate.getDate() + 7);
+                break;
+            case 'monthly':
+                endDate.setMonth(startDate.getMonth() + 1);
+                break;
+            case 'quarterly':
+                endDate.setMonth(startDate.getMonth() + 3);
+                break;
+            default:
+                endDate.setDate(startDate.getDate() + 1);
+                break;
+        }
+        setNewGoal((prev) => ({ ...prev, startDate, endDate }));
+    };
+
     const modalVariants = {
-        hidden: { opacity: 0, scale: 0.95 },
-        visible: { opacity: 1, scale: 1, transition: { duration: 0.2 } },
-        exit: { opacity: 0, scale: 0.95, transition: { duration: 0.2 } },
+        hidden: { opacity: 0, scale: 0.8 },
+        visible: { opacity: 1, scale: 1, transition: { duration: 0.3, ease: 'easeOut' } },
+        exit: { opacity: 0, scale: 0.8, transition: { duration: 0.2 } },
     };
 
     if (!user || !localStorage.getItem('token')) {
@@ -330,79 +276,84 @@ const Goals = () => {
         <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.5 }}
-            className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-200 font-sans"
+            className="min-h-screen bg-gradient-to-br from-gray-50 to-teal-50 font-sans"
         >
             <Toaster position="bottom-right" />
-            <header className="bg-white shadow-md p-4 sticky top-0 z-10">
+            <header className="bg-white shadow-lg p-6 sticky top-0 z-10">
                 <div className="max-w-6xl mx-auto flex items-center justify-between">
-                    <h1 className="text-3xl font-bold text-teal-600">ConnectSphere Goals</h1>
-                    <div className="flex items-center gap-4">
-                        <button
-                            onClick={() => setShowCreateGoal(true)}
-                            className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-full hover:bg-teal-700 transition-all duration-200"
+                    <h1 className="text-4xl font-extrabold text-teal-700">Your Goals</h1>
+                    <div className="flex items-center gap-6">
+                        <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => {
+                                setShowCreateGoal(true);
+                                setDefaultDates('daily');
+                            }}
+                            className="px-6 py-3 rounded-full bg-blue-600 text-white text-lg font-semibold hover:bg-blue-700 transition-all flex items-center gap-3 shadow-md"
                             aria-label="Create Goal"
                         >
-                            <Plus className="w-5 h-5" />
-                            Create Goal
-                        </button>
-                        <button
-                            onClick={() => navigate(-1)}
-                            className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-full hover:bg-gray-700 transition-all duration-200"
+                            <Plus className="w-6 h-6" />
+                            New Goal
+                        </motion.button>
+                        <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => navigate('/dashboard')}
+                            className="px-6 py-3 rounded-full bg-teal-600 text-white text-lg font-semibold hover:bg-teal-700 transition-all flex items-center gap-3 shadow-md"
                             aria-label="Back to Dashboard"
                         >
-                            <ArrowLeft className="w-5 h-5" />
-                            Back
-                        </button>
+                            <ArrowLeft className="w-6 h-6" />
+                            Dashboard
+                        </motion.button>
                     </div>
                 </div>
             </header>
-
-            <main className="max-w-6xl mx-auto p-6">
+            <main className="max-w-6xl mx-auto w-full p-8">
                 <motion.div
-                    initial={{ y: 20, opacity: 0 }}
+                    initial={{ y: 30, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
-                    transition={{ duration: 0.5 }}
-                    className="space-y-6"
+                    transition={{ duration: 0.6 }}
+                    className="space-y-8 h-[calc(85vh-6rem)] overflow-y-auto"
                 >
-                    <h2 className="text-2xl font-semibold text-gray-800">Your Goals</h2>
+                    <h2 className="text-3xl font-bold text-blue-900">All Goals</h2>
                     {isLoading ? (
-                        <div className="text-center text-gray-600">Loading goals...</div>
+                        <div className="text-center text-gray-600 text-lg">Loading goals...</div>
                     ) : goals.length === 0 ? (
-                        <div className="text-center text-gray-600">No goals found. Create a goal to get started!</div>
+                        <div className="text-center text-gray-600 text-lg">No goals found. Create a goal to get started!</div>
                     ) : (
                         <AnimatePresence>
                             {goals.map((goal) => (
                                 <motion.div
                                     key={goal._id}
-                                    initial={{ opacity: 0, y: 10 }}
+                                    initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: -10 }}
-                                    className="bg-white rounded-xl shadow-lg p-6 flex items-center gap-4 cursor-pointer hover:bg-gray-50 transition-all duration-200 border-l-4 border-teal-500"
-                                    onClick={() => setShowGoalDetails(goal)}
+                                    exit={{ opacity: 0, y: -20 }}
+                                    className="bg-white rounded-3xl shadow-xl p-6 flex items-center gap-6 hover:shadow-2xl transition-all duration-300 border-l-6 border-teal-600 cursor-pointer bg-opacity-90 backdrop-blur-sm"
+                                    onClick={() => handleGoalClick(goal)}
                                 >
-                                    <Target className="w-8 h-8 text-teal-500" />
+                                    <Target className="w-8 h-8 text-teal-400 flex-shrink-0" />
                                     <div className="flex-1">
-                                        <div className="flex items-center gap-2">
-                                            <h3 className="text-lg font-semibold text-gray-900">{goal.title}</h3>
-                                            {goal.completed && (
-                                                <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-green-800 bg-green-100 rounded-full">
-                                                    Completed
-                                                </span>
-                                            )}
-                                        </div>
-                                        <p className="text-sm text-gray-600">
-                                            {moment(goal.startDate).format('MMM D, YYYY')} - {moment(goal.endDate).format('MMM D, YYYY')}
+                                        <p className="text-lg font-semibold text-blue-900">{goal.title}</p>
+                                        <p className="text-base text-gray-600">
+                                            {moment(goal.startDate).tz('Africa/Lagos').format('MMM D, YYYY')} -{' '}
+                                            {moment(goal.endDate).tz('Africa/Lagos').format('MMM D, YYYY')}
                                         </p>
+                                        <p className="text-base text-gray-500 capitalize">Type: {goal.type}</p>
                                         <div className="mt-2 flex items-center gap-2">
-                                            <div className="w-full bg-gray-200 rounded-full h-2.5">
-                                                <div
-                                                    className="bg-teal-600 h-2.5 rounded-full"
-                                                    style={{ width: `${goal.progress}%` }}
-                                                ></div>
+                                            <div className="w-full bg-gray-200 rounded-full h-3">
+                                                <motion.div
+                                                    className="bg-teal-600 h-3 rounded-full"
+                                                    initial={{ width: 0 }}
+                                                    animate={{ width: `${calculateProgress(goal.subGoals)}%` }}
+                                                    transition={{ duration: 0.5 }}
+                                                />
                                             </div>
-                                            <span className="text-sm font-medium text-gray-700">{goal.progress}%</span>
+                                            <p className="text-base text-gray-600">{calculateProgress(goal.subGoals)}%</p>
                                         </div>
+                                        {calculateProgress(goal.subGoals) === 100 && (
+                                            <p className="text-base text-teal-600 font-semibold mt-1">Goal Completed!</p>
+                                        )}
                                     </div>
                                 </motion.div>
                             ))}
@@ -415,136 +366,135 @@ const Goals = () => {
             <AnimatePresence>
                 {showCreateGoal && (
                     <motion.div
-                        variants={modalVariants}
                         initial="hidden"
                         animate="visible"
                         exit="exit"
-                        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+                        variants={modalVariants}
+                        className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
                         role="dialog"
-                        aria-labelledby="create-goal-title"
+                        aria-label="Create Goal"
                         ref={modalRef}
                         tabIndex={-1}
                     >
-                        <div className="bg-white rounded-2xl p-8 max-w-lg w-full max-h-[90vh] overflow-y-auto">
+                        <div className="bg-white bg-opacity-95 backdrop-blur-lg rounded-3xl p-8 max-w-xl w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
                             <div className="flex justify-between items-center mb-6">
-                                <h3 id="create-goal-title" className="text-xl font-semibold text-gray-900">
-                                    Create New Goal
-                                </h3>
-                                <button
+                                <h2 className="text-2xl font-semibold text-blue-900">Create New Goal</h2>
+                                <motion.button
+                                    whileHover={{ scale: 1.1 }}
+                                    whileTap={{ scale: 0.9 }}
                                     onClick={() => setShowCreateGoal(false)}
-                                    className="p-2 text-gray-600 hover:text-gray-800"
-                                    aria-label="Close"
+                                    className="p-2 text-blue-900 hover:text-teal-600"
+                                    aria-label="Close Create Goal"
                                 >
-                                    <X className="w-5 h-5" />
-                                </button>
+                                    <X className="w-6 h-6" />
+                                </motion.button>
                             </div>
-                            <div className="space-y-4">
+                            <div className="space-y-6">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700">Goal Title</label>
+                                    <label className="text-base font-semibold text-gray-800">Goal Title</label>
                                     <input
                                         type="text"
                                         value={newGoal.title}
                                         onChange={(e) => setNewGoal((prev) => ({ ...prev, title: e.target.value }))}
-                                        className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
+                                        className="w-full p-3 border border-gray-200 rounded-xl text-base focus:ring-2 focus:ring-teal-500"
                                         placeholder="Enter goal title"
                                         maxLength={100}
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700">Sub-Goals</label>
-                                    {newGoal.subGoals.map((sg, index) => (
-                                        <div key={index} className="flex items-center gap-2 mt-2">
-                                            <input
-                                                type="text"
-                                                value={sg.description}
-                                                onChange={(e) =>
-                                                    setNewGoal((prev) => {
-                                                        const updatedSubGoals = [...prev.subGoals];
-                                                        updatedSubGoals[index] = { description: e.target.value };
-                                                        return { ...prev, subGoals: updatedSubGoals };
-                                                    })
-                                                }
-                                                className="flex-1 border-gray-300 rounded-md shadow-sm focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
-                                                placeholder="Enter sub-goal"
-                                                maxLength={200}
-                                                ref={index === newGoal.subGoals.length - 1 ? subGoalInputRef : null}
-                                            />
-                                            {newGoal.subGoals.length > 1 && (
-                                                <button
+                                    <label className="text-base font-semibold text-gray-800">Sub-Goals</label>
+                                    <div className="flex gap-3">
+                                        <input
+                                            type="text"
+                                            value={newSubGoal}
+                                            onChange={(e) => setNewSubGoal(e.target.value)}
+                                            className="flex-1 p-3 border border-gray-200 rounded-xl text-base focus:ring-2 focus:ring-teal-500"
+                                            placeholder="Enter sub-goal"
+                                            maxLength={200}
+                                        />
+                                        <motion.button
+                                            whileHover={{ scale: 1.05 }}
+                                            whileTap={{ scale: 0.95 }}
+                                            onClick={handleAddSubGoal}
+                                            className="p-3 bg-teal-600 text-white rounded-full hover:bg-teal-700 transition-all shadow-md"
+                                            aria-label="Add Sub-Goal"
+                                        >
+                                            <Plus className="w-5 h-5" />
+                                        </motion.button>
+                                    </div>
+                                    <div className="mt-3 max-h-48 overflow-y-auto">
+                                        {newGoal.subGoals.map((subGoal, index) => (
+                                            <motion.div
+                                                key={index}
+                                                initial={{ opacity: 0, x: -20 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl mb-3"
+                                            >
+                                                <p className="text-base text-gray-800 flex-1">{subGoal.title}</p>
+                                                <motion.button
+                                                    whileHover={{ scale: 1.1 }}
+                                                    whileTap={{ scale: 0.9 }}
                                                     onClick={() =>
                                                         setNewGoal((prev) => ({
                                                             ...prev,
                                                             subGoals: prev.subGoals.filter((_, i) => i !== index),
                                                         }))
                                                     }
-                                                    className="text-red-600 hover:text-red-800"
-                                                    aria-label="Remove sub-goal"
+                                                    className="p-1 text-red-600 hover:text-red-500"
+                                                    aria-label="Remove Sub-Goal"
                                                 >
                                                     <X className="w-5 h-5" />
-                                                </button>
-                                            )}
-                                        </div>
-                                    ))}
-                                    <button
-                                        onClick={() =>
-                                            setNewGoal((prev) => ({
-                                                ...prev,
-                                                subGoals: [...prev.subGoals, { description: '' }],
-                                            }))
-                                        }
-                                        className="mt-2 flex items-center gap-1 text-teal-600 hover:text-teal-800"
-                                        aria-label="Add sub-goal"
-                                    >
-                                        <Plus className="w-4 h-4" />
-                                        Add Sub-Goal
-                                    </button>
+                                                </motion.button>
+                                            </motion.div>
+                                        ))}
+                                    </div>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700">Goal Type</label>
+                                    <label className="text-base font-semibold text-gray-800">Goal Type</label>
                                     <select
                                         value={newGoal.type}
-                                        onChange={(e) =>
-                                            setNewGoal((prev) => ({
-                                                ...prev,
-                                                type: e.target.value,
-                                                taskId: e.target.value === 'personal' ? '' : prev.taskId,
-                                            }))
-                                        }
-                                        className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
+                                        onChange={(e) => setNewGoal((prev) => ({ ...prev, type: e.target.value }))}
+                                        className="w-full p-3 border border-gray-200 rounded-xl text-base focus:ring-2 focus:ring-teal-500"
                                     >
                                         <option value="personal">Personal</option>
-                                        <option value="task_related">Task-Related</option>
+                                        <option value="task">Task</option>
                                     </select>
                                 </div>
-                                {newGoal.type === 'task_related' && (
+                                {newGoal.type === 'task' && (
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700">Select Task</label>
-                                        <select
-                                            value={newGoal.taskId}
-                                            onChange={(e) => setNewGoal((prev) => ({ ...prev, taskId: e.target.value }))}
-                                            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
-                                        >
-                                            <option value="">Select a task</option>
-                                            {tasks.map((task) => (
-                                                <option key={task._id} value={task._id}>
-                                                    {task.title}
-                                                </option>
-                                            ))}
-                                        </select>
+                                        <label className="text-base font-semibold text-gray-800">Attach Task to Sub-Goals</label>
+                                        {newGoal.subGoals.map((subGoal, index) => (
+                                            <div key={index} className="flex items-center gap-3 mb-3">
+                                                <p className="text-base text-gray-800 flex-1">{subGoal.title}</p>
+                                                <select
+                                                    value={subGoal.taskId || ''}
+                                                    onChange={(e) => {
+                                                        const updatedSubGoals = [...newGoal.subGoals];
+                                                        updatedSubGoals[index].taskId = e.target.value || null;
+                                                        setNewGoal((prev) => ({ ...prev, subGoals: updatedSubGoals }));
+                                                    }}
+                                                    className="w-1/2 p-3 border border-gray-200 rounded-xl text-base focus:ring-2 focus:ring-teal-500"
+                                                >
+                                                    <option value="">No Task</option>
+                                                    {tasks.map((task) => (
+                                                        <option key={task._id} value={task._id}>
+                                                            {task.title}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        ))}
                                     </div>
                                 )}
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700">Timeframe</label>
+                                    <label className="text-base font-semibold text-gray-800">Timeframe</label>
                                     <select
                                         value={newGoal.timeframe}
-                                        onChange={(e) =>
-                                            setNewGoal((prev) => ({
-                                                ...prev,
-                                                timeframe: e.target.value,
-                                                endDate: getDefaultEndDate(e.target.value, prev.startDate),
-                                            }))
-                                        }
-                                        className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
+                                        onChange={(e) => {
+                                            setNewGoal((prev) => ({ ...prev, timeframe: e.target.value }));
+                                            setDefaultDates(e.target.value);
+                                        }}
+                                        className="w-full p-3 border border-gray-200 rounded-xl text-base focus:ring-2 focus:ring-teal-500"
                                     >
                                         <option value="daily">Daily</option>
                                         <option value="weekly">Weekly</option>
@@ -553,50 +503,46 @@ const Goals = () => {
                                         <option value="custom">Custom</option>
                                     </select>
                                 </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">Start Date</label>
-                                        <DatePicker
-                                            selected={newGoal.startDate}
-                                            onChange={(date) =>
-                                                setNewGoal((prev) => ({
-                                                    ...prev,
-                                                    startDate: date,
-                                                    endDate: getDefaultEndDate(prev.timeframe, date),
-                                                }))
-                                            }
-                                            dateFormat="MMM d, yyyy"
-                                            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
-                                            minDate={new Date()}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">End Date</label>
-                                        <DatePicker
-                                            selected={newGoal.endDate}
-                                            onChange={(date) => setNewGoal((prev) => ({ ...prev, endDate: date }))}
-                                            dateFormat="MMM d, yyyy"
-                                            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
-                                            minDate={newGoal.startDate}
-                                        />
-                                    </div>
+                                <div>
+                                    <label className="text-base font-semibold text-gray-800">Start Date</label>
+                                    <DatePicker
+                                        selected={newGoal.startDate}
+                                        onChange={(date) => setNewGoal((prev) => ({ ...prev, startDate: date }))}
+                                        dateFormat="MMMM d, yyyy"
+                                        className="w-full p-3 border border-gray-200 rounded-xl text-base focus:ring-2 focus:ring-teal-500"
+                                        minDate={new Date()}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-base font-semibold text-gray-800">End Date</label>
+                                    <DatePicker
+                                        selected={newGoal.endDate}
+                                        onChange={(date) => setNewGoal((prev) => ({ ...prev, endDate: date }))}
+                                        dateFormat="MMMM d, yyyy"
+                                        className="w-full p-3 border border-gray-200 rounded-xl text-base focus:ring-2 focus:ring-teal-500"
+                                        minDate={newGoal.startDate}
+                                    />
                                 </div>
                             </div>
-                            <div className="flex justify-end gap-2 mt-6">
-                                <button
+                            <div className="flex justify-end gap-3 mt-8">
+                                <motion.button
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
                                     onClick={() => setShowCreateGoal(false)}
-                                    className="px-4 py-2 bg-gray-200 text-gray-800 rounded-full hover:bg-gray-300 transition-all duration-200"
+                                    className="px-6 py-3 rounded-full bg-gray-200 text-gray-800 text-lg font-semibold hover:bg-gray-300 transition-all"
                                     aria-label="Cancel"
                                 >
                                     Cancel
-                                </button>
-                                <button
+                                </motion.button>
+                                <motion.button
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
                                     onClick={handleCreateGoal}
-                                    className="px-4 py-2 bg-teal-600 text-white rounded-full hover:bg-teal-700 transition-all duration-200"
+                                    className="px-6 py-3 rounded-full bg-teal-600 text-white text-lg font-semibold hover:bg-teal-700 transition-all shadow-md"
                                     aria-label="Create Goal"
                                 >
                                     Create Goal
-                                </button>
+                                </motion.button>
                             </div>
                         </div>
                     </motion.div>
@@ -605,339 +551,294 @@ const Goals = () => {
 
             {/* Goal Details Modal */}
             <AnimatePresence>
-                {showGoalDetails && (
+                {showGoalDetails && selectedGoal && (
                     <motion.div
-                        variants={modalVariants}
                         initial="hidden"
                         animate="visible"
                         exit="exit"
-                        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-                        role="dialog"
-                        aria-labelledby="goal-details-title"
-                        ref={modalRef}
-                        tabIndex={-1}
-                    >
-                        <div className="bg-white rounded-2xl p-8 max-w-lg w-full">
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 id="goal-details-title" className="text-xl font-semibold text-gray-900">
-                                    Goal Details
-                                </h3>
-                                <button
-                                    onClick={() => setShowGoalDetails(null)}
-                                    className="p-2 text-gray-600 hover:text-gray-800"
-                                    aria-label="Close"
-                                >
-                                    <X className="w-5 h-5" />
-                                </button>
-                            </div>
-                            <div className="space-y-4">
-                                <div>
-                                    <h4 className="text-sm font-medium text-gray-700">Title</h4>
-                                    <p className="text-sm text-gray-900">{showGoalDetails.title}</p>
-                                </div>
-                                <div>
-                                    <h4 className="text-sm font-medium text-gray-700">Sub-Goals</h4>
-                                    <ul className="space-y-2">
-                                        {showGoalDetails.subGoals.map((sg, index) => (
-                                            <li key={index} className="flex items-center gap-2">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={sg.completed}
-                                                    onChange={() => {
-                                                        const updatedSubGoals = [...showGoalDetails.subGoals];
-                                                        updatedSubGoals[index].completed = !sg.completed;
-                                                        setShowGoalDetails((prev) => ({
-                                                            ...prev,
-                                                            subGoals: updatedSubGoals,
-                                                        }));
-                                                    }}
-                                                    className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
-                                                />
-                                                <span
-                                                    className={`text-sm ${sg.completed ? 'line-through text-gray-500' : 'text-gray-900'
-                                                        }`}
-                                                >
-                                                    {sg.description}
-                                                </span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                                <div>
-                                    <h4 className="text-sm font-medium text-gray-700">Progress</h4>
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-full bg-gray-200 rounded-full h-2.5">
-                                            <div
-                                                className="bg-teal-600 h-2.5 rounded-full"
-                                                style={{ width: `${showGoalDetails.progress}%` }}
-                                            ></div>
-                                        </div>
-                                        <span className="text-sm font-medium text-gray-700">{showGoalDetails.progress}%</span>
-                                    </div>
-                                    {showGoalDetails.completed && (
-                                        <div className="mt-2 flex items-center gap-2 text-green-600">
-                                            <CheckCircle className="w-5 h-5" />
-                                            <span className="text-sm font-medium">Goal Completed!</span>
-                                        </div>
-                                    )}
-                                </div>
-                                <div>
-                                    <h4 className="text-sm font-medium text-gray-700">Type</h4>
-                                    <p className="text-sm text-gray-600 capitalize">{showGoalDetails.type.replace('_', ' ')}</p>
-                                </div>
-                                {showGoalDetails.taskId && (
-                                    <div>
-                                        <h4 className="text-sm font-medium text-gray-700">Attached Task</h4>
-                                        <p className="text-sm text-gray-600">
-                                            {tasks.find((t) => t._id === showGoalDetails.taskId)?.title || 'N/A'}
-                                        </p>
-                                    </div>
-                                )}
-                                <div>
-                                    <h4 className="text-sm font-medium text-gray-700">Timeframe</h4>
-                                    <p className="text-sm text-gray-600 capitalize">{showGoalDetails.timeframe}</p>
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <h4 className="text-sm font-medium text-gray-700">Start Date</h4>
-                                        <p className="text-sm text-gray-600">
-                                            {moment(showGoalDetails.startDate).format('MMM D, YYYY')}
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <h4 className="text-sm font-medium text-gray-700">End Date</h4>
-                                        <p className="text-sm text-gray-600">
-                                            {moment(showGoalDetails.endDate).format('MMM D, YYYY')}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="flex justify-end gap-2 mt-6">
-                                <button
-                                    onClick={() =>
-                                        setEditGoal({
-                                            ...showGoalDetails,
-                                            startDate: new Date(showGoalDetails.startDate),
-                                            endDate: new Date(showGoalDetails.endDate),
-                                        })
-                                    }
-                                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-all duration-200"
-                                    aria-label="Edit Goal"
-                                >
-                                    <Edit2 className="w-4 h-4" />
-                                    Edit
-                                </button>
-                                <button
-                                    onClick={() => handleUpdateProgress(showGoalDetails)}
-                                    className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-full hover:bg-teal-700 transition-all duration-200"
-                                    aria-label="Update Progress"
-                                >
-                                    <Save className="w-4 h-4" />
-                                    Update
-                                </button>
-                                <button
-                                    onClick={() => handleDeleteGoal(showGoalDetails._id)}
-                                    className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition-all duration-200"
-                                    aria-label="Delete Goal"
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                    Delete
-                                </button>
-                            </div>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
-            {/* Edit Goal Modal */}
-            <AnimatePresence>
-                {editGoal && (
-                    <motion.div
                         variants={modalVariants}
-                        initial="hidden"
-                        animate="visible"
-                        exit="exit"
-                        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+                        className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
                         role="dialog"
-                        aria-labelledby="edit-goal-title"
+                        aria-label="Goal Details"
                         ref={modalRef}
                         tabIndex={-1}
                     >
-                        <div className="bg-white rounded-2xl p-8 max-w-lg w-full max-h-[90vh] overflow-y-auto">
+                        <div className="bg-white bg-opacity-95 backdrop-blur-lg rounded-3xl p-8 max-w-xl w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
                             <div className="flex justify-between items-center mb-6">
-                                <h3 id="edit-goal-title" className="text-xl font-semibold text-gray-900">
-                                    Edit Goal
-                                </h3>
-                                <button
-                                    onClick={() => setEditGoal(null)}
-                                    className="p-2 text-gray-600 hover:text-gray-800"
-                                    aria-label="Close"
+                                <h2 className="text-2xl font-semibold text-blue-900">
+                                    {isEditing ? 'Edit Goal' : 'Goal Details'}
+                                </h2>
+                                <motion.button
+                                    whileHover={{ scale: 1.1 }}
+                                    whileTap={{ scale: 0.9 }}
+                                    onClick={() => {
+                                        setShowGoalDetails(false);
+                                        setIsEditing(false);
+                                    }}
+                                    className="p-2 text-blue-900 hover:text-teal-600"
+                                    aria-label="Close Goal Details"
                                 >
-                                    <X className="w-5 h-5" />
-                                </button>
+                                    <X className="w-6 h-6" />
+                                </motion.button>
                             </div>
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Goal Title</label>
-                                    <input
-                                        type="text"
-                                        value={editGoal.title}
-                                        onChange={(e) => setEditGoal((prev) => ({ ...prev, title: e.target.value }))}
-                                        className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
-                                        placeholder="Enter goal title"
-                                        maxLength={100}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Sub-Goals</label>
-                                    {editGoal.subGoals.map((sg, index) => (
-                                        <div key={index} className="flex items-center gap-2 mt-2">
+                            {isEditing ? (
+                                <div className="space-y-6">
+                                    <div>
+                                        <label className="text-base font-semibold text-gray-800">Goal Title</label>
+                                        <input
+                                            type="text"
+                                            value={editGoal.title}
+                                            onChange={(e) => setEditGoal((prev) => ({ ...prev, title: e.target.value }))}
+                                            className="w-full p-3 border border-gray-200 rounded-xl text-base focus:ring-2 focus:ring-teal-500"
+                                            placeholder="Enter goal title"
+                                            maxLength={100}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-base font-semibold text-gray-800">Sub-Goals</label>
+                                        <div className="flex gap-3">
                                             <input
                                                 type="text"
-                                                value={sg.description}
-                                                onChange={(e) =>
-                                                    setEditGoal((prev) => {
-                                                        const updatedSubGoals = [...prev.subGoals];
-                                                        updatedSubGoals[index] = {
-                                                            ...updatedSubGoals[index],
-                                                            description: e.target.value,
-                                                        };
-                                                        return { ...prev, subGoals: updatedSubGoals };
-                                                    })
-                                                }
-                                                className="flex-1 border-gray-300 rounded-md shadow-sm focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
+                                                value={newSubGoal}
+                                                onChange={(e) => setNewSubGoal(e.target.value)}
+                                                className="flex-1 p-3 border border-gray-200 rounded-xl text-base focus:ring-2 focus:ring-teal-500"
                                                 placeholder="Enter sub-goal"
                                                 maxLength={200}
                                             />
-                                            {editGoal.subGoals.length > 1 && (
-                                                <button
-                                                    onClick={() =>
-                                                        setEditGoal((prev) => ({
-                                                            ...prev,
-                                                            subGoals: prev.subGoals.filter((_, i) => i !== index),
-                                                        }))
+                                            <motion.button
+                                                whileHover={{ scale: 1.05 }}
+                                                whileTap={{ scale: 0.95 }}
+                                                onClick={() => {
+                                                    if (!newSubGoal.trim()) {
+                                                        toast.error('Sub-goal title is required.');
+                                                        return;
                                                     }
-                                                    className="text-red-600 hover:text-red-800"
-                                                    aria-label="Remove sub-goal"
-                                                >
-                                                    <X className="w-5 h-5" />
-                                                </button>
-                                            )}
+                                                    setEditGoal((prev) => ({
+                                                        ...prev,
+                                                        subGoals: [
+                                                            ...prev.subGoals,
+                                                            { title: newSubGoal, completed: false, taskId: null },
+                                                        ],
+                                                    }));
+                                                    setNewSubGoal('');
+                                                }}
+                                                className="p-3 bg-teal-600 text-white rounded-full hover:bg-teal-700 transition-all shadow-md"
+                                                aria-label="Add Sub-Goal"
+                                            >
+                                                <Plus className="w-5 h-5" />
+                                            </motion.button>
                                         </div>
-                                    ))}
-                                    <button
-                                        onClick={() =>
-                                            setEditGoal((prev) => ({
-                                                ...prev,
-                                                subGoals: [...prev.subGoals, { description: '', completed: false }],
-                                            }))
-                                        }
-                                        className="mt-2 flex items-center gap-1 text-teal-600 hover:text-teal-800"
-                                        aria-label="Add sub-goal"
-                                    >
-                                        <Plus className="w-4 h-4" />
-                                        Add Sub-Goal
-                                    </button>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Goal Type</label>
-                                    <select
-                                        value={editGoal.type}
-                                        onChange={(e) =>
-                                            setEditGoal((prev) => ({
-                                                ...prev,
-                                                type: e.target.value,
-                                                taskId: e.target.value === 'personal' ? '' : prev.taskId,
-                                            }))
-                                        }
-                                        className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
-                                    >
-                                        <option value="personal">Personal</option>
-                                        <option value="task_related">Task-Related</option>
-                                    </select>
-                                </div>
-                                {editGoal.type === 'task_related' && (
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">Select Task</label>
-                                        <select
-                                            value={editGoal.taskId || ''}
-                                            onChange={(e) => setEditGoal((prev) => ({ ...prev, taskId: e.target.value }))}
-                                            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
-                                        >
-                                            <option value="">Select a task</option>
-                                            {tasks.map((task) => (
-                                                <option key={task._id} value={task._id}>
-                                                    {task.title}
-                                                </option>
+                                        <div className="mt-3 max-h-48 overflow-y-auto">
+                                            {editGoal.subGoals.map((subGoal, index) => (
+                                                <motion.div
+                                                    key={index}
+                                                    initial={{ opacity: 0, x: -20 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl mb-3"
+                                                >
+                                                    <p className="text-base text-gray-800 flex-1">{subGoal.title}</p>
+                                                    <motion.button
+                                                        whileHover={{ scale: 1.1 }}
+                                                        whileTap={{ scale: 0.9 }}
+                                                        onClick={() =>
+                                                            setEditGoal((prev) => ({
+                                                                ...prev,
+                                                                subGoals: prev.subGoals.filter((_, i) => i !== index),
+                                                            }))
+                                                        }
+                                                        className="p-1 text-red-600 hover:text-red-500"
+                                                        aria-label="Remove Sub-Goal"
+                                                    >
+                                                        <X className="w-5 h-5" />
+                                                    </motion.button>
+                                                </motion.div>
                                             ))}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="text-base font-semibold text-gray-800">Goal Type</label>
+                                        <select
+                                            value={editGoal.type}
+                                            onChange={(e) => setEditGoal((prev) => ({ ...prev, type: e.target.value }))}
+                                            className="w-full p-3 border border-gray-200 rounded-xl text-base focus:ring-2 focus:ring-teal-500"
+                                        >
+                                            <option value="personal">Personal</option>
+                                            <option value="task">Task</option>
                                         </select>
                                     </div>
-                                )}
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Timeframe</label>
-                                    <select
-                                        value={editGoal.timeframe}
-                                        onChange={(e) =>
-                                            setEditGoal((prev) => ({
-                                                ...prev,
-                                                timeframe: e.target.value,
-                                                endDate: getDefaultEndDate(e.target.value, prev.startDate),
-                                            }))
-                                        }
-                                        className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
-                                    >
-                                        <option value="daily">Daily</option>
-                                        <option value="weekly">Weekly</option>
-                                        <option value="monthly">Monthly</option>
-                                        <option value="quarterly">Quarterly</option>
-                                        <option value="custom">Custom</option>
-                                    </select>
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
+                                    {editGoal.type === 'task' && (
+                                        <div>
+                                            <label className="text-base font-semibold text-gray-800">Attach Task to Sub-Goals</label>
+                                            {editGoal.subGoals.map((subGoal, index) => (
+                                                <div key={index} className="flex items-center gap-3 mb-3">
+                                                    <p className="text-base text-gray-800 flex-1">{subGoal.title}</p>
+                                                    <select
+                                                        value={subGoal.taskId || ''}
+                                                        onChange={(e) => {
+                                                            const updatedSubGoals = [...editGoal.subGoals];
+                                                            updatedSubGoals[index].taskId = e.target.value || null;
+                                                            setEditGoal((prev) => ({ ...prev, subGoals: updatedSubGoals }));
+                                                        }}
+                                                        className="w-1/2 p-3 border border-gray-200 rounded-xl text-base focus:ring-2 focus:ring-teal-500"
+                                                    >
+                                                        <option value="">No Task</option>
+                                                        {tasks.map((task) => (
+                                                            <option key={task._id} value={task._id}>
+                                                                {task.title}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700">Start Date</label>
+                                        <label className="text-base font-semibold text-gray-800">Timeframe</label>
+                                        <select
+                                            value={editGoal.timeframe}
+                                            onChange={(e) => setEditGoal((prev) => ({ ...prev, timeframe: e.target.value }))}
+                                            className="w-full p-3 border border-gray-200 rounded-xl text-base focus:ring-2 focus:ring-teal-500"
+                                        >
+                                            <option value="daily">Daily</option>
+                                            <option value="weekly">Weekly</option>
+                                            <option value="monthly">Monthly</option>
+                                            <option value="quarterly">Quarterly</option>
+                                            <option value="custom">Custom</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="text-base font-semibold text-gray-800">Start Date</label>
                                         <DatePicker
                                             selected={editGoal.startDate}
-                                            onChange={(date) =>
-                                                setEditGoal((prev) => ({
-                                                    ...prev,
-                                                    startDate: date,
-                                                    endDate: getDefaultEndDate(prev.timeframe, date),
-                                                }))
-                                            }
-                                            dateFormat="MMM d, yyyy"
-                                            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
+                                            onChange={(date) => setEditGoal((prev) => ({ ...prev, startDate: date }))}
+                                            dateFormat="MMMM d, yyyy"
+                                            className="w-full p-3 border border-gray-200 rounded-xl text-base focus:ring-2 focus:ring-teal-500"
                                             minDate={new Date()}
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700">End Date</label>
+                                        <label className="text-base font-semibold text-gray-800">End Date</label>
                                         <DatePicker
                                             selected={editGoal.endDate}
                                             onChange={(date) => setEditGoal((prev) => ({ ...prev, endDate: date }))}
-                                            dateFormat="MMM d, yyyy"
-                                            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
+                                            dateFormat="MMMM d, yyyy"
+                                            className="w-full p-3 border border-gray-200 rounded-xl text-base focus:ring-2 focus:ring-teal-500"
                                             minDate={editGoal.startDate}
                                         />
                                     </div>
+                                    <div className="flex justify-end gap-3 mt-8">
+                                        <motion.button
+                                            whileHover={{ scale: 1.05 }}
+                                            whileTap={{ scale: 0.95 }}
+                                            onClick={() => setIsEditing(false)}
+                                            className="px-6 py-3 rounded-full bg-gray-200 text-gray-800 text-lg font-semibold hover:bg-gray-300 transition-all"
+                                            aria-label="Cancel"
+                                        >
+                                            Cancel
+                                        </motion.button>
+                                        <motion.button
+                                            whileHover={{ scale: 1.05 }}
+                                            whileTap={{ scale: 0.95 }}
+                                            onClick={handleUpdateGoal}
+                                            className="px-6 py-3 rounded-full bg-teal-600 text-white text-lg font-semibold hover:bg-teal-700 transition-all shadow-md"
+                                            aria-label="Save Goal"
+                                        >
+                                            Save Goal
+                                        </motion.button>
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="flex justify-end gap-2 mt-6">
-                                <button
-                                    onClick={() => setEditGoal(null)}
-                                    className="px-4 py-2 bg-gray-200 text-gray-800 rounded-full hover:bg-gray-300 transition-all duration-200"
-                                    aria-label="Cancel"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleUpdateGoal}
-                                    className="px-4 py-2 bg-teal-600 text-white rounded-full hover:bg-teal-700 transition-all duration-200"
-                                    aria-label="Save Changes"
-                                >
-                                    Save
-                                </button>
-                            </div>
+                            ) : (
+                                <div className="space-y-6">
+                                    <div>
+                                        <p className="text-base font-semibold text-gray-800">Goal Title</p>
+                                        <p className="text-lg text-gray-600">{selectedGoal.title}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-base font-semibold text-gray-800">Sub-Goals</p>
+                                        {selectedGoal.subGoals.map((subGoal, index) => (
+                                            <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={subGoal.completed}
+                                                    onChange={(e) => handleUpdateSubGoalStatus(index, e.target.checked)}
+                                                    className="h-5 w-5 text-teal-600 focus:ring-teal-500"
+                                                />
+                                                <p className="text-base text-gray-600 flex-1">
+                                                    {subGoal.title}
+                                                    {subGoal.taskId && (
+                                                        <span className="text-sm text-gray-400">
+                                                            {' '}
+                                                            (Task: {tasks.find((t) => t._id === subGoal.taskId)?.title || 'Not found'})
+                                                        </span>
+                                                    )}
+                                                </p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div>
+                                        <p className="text-base font-semibold text-gray-800">Progress</p>
+                                        <div className="w-full bg-gray-200 rounded-full h-3">
+                                            <motion.div
+                                                className="bg-teal-600 h-3 rounded-full"
+                                                initial={{ width: 0 }}
+                                                animate={{ width: `${calculateProgress(selectedGoal.subGoals)}%` }}
+                                                transition={{ duration: 0.5 }}
+                                            />
+                                        </div>
+                                        <p className="text-base text-gray-600 mt-1">{calculateProgress(selectedGoal.subGoals)}%</p>
+                                        {calculateProgress(selectedGoal.subGoals) === 100 && (
+                                            <p className="text-base text-teal-600 font-semibold mt-1">Goal Completed!</p>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <p className="text-base font-semibold text-gray-800">Type</p>
+                                        <p className="text-base text-gray-600 capitalize">{selectedGoal.type}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-base font-semibold text-gray-800">Timeframe</p>
+                                        <p className="text-base text-gray-600 capitalize">{selectedGoal.timeframe}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-base font-semibold text-gray-800">Duration</p>
+                                        <p className="text-base text-gray-600">
+                                            {moment(selectedGoal.startDate).tz('Africa/Lagos').format('MMM D, YYYY')} -{' '}
+                                            {moment(selectedGoal.endDate).tz('Africa/Lagos').format('MMM D, YYYY')}
+                                        </p>
+                                    </div>
+                                    <div className="flex justify-end gap-3 mt-8">
+                                        <motion.button
+                                            whileHover={{ scale: 1.05 }}
+                                            whileTap={{ scale: 0.95 }}
+                                            onClick={() => setIsEditing(true)}
+                                            className="px-6 py-3 rounded-full bg-blue-600 text-white text-lg font-semibold hover:bg-blue-700 transition-all flex items-center gap-3 shadow-md"
+                                            aria-label="Edit Goal"
+                                        >
+                                            <Edit className="w-5 h-5" />
+                                            Edit
+                                        </motion.button>
+                                        <motion.button
+                                            whileHover={{ scale: 1.05 }}
+                                            whileTap={{ scale: 0.95 }}
+                                            onClick={handleUpdateGoal}
+                                            className="px-6 py-3 rounded-full bg-teal-600 text-white text-lg font-semibold hover:bg-teal-700 transition-all flex items-center gap-3 shadow-md"
+                                            aria-label="Update Progress"
+                                        >
+                                            <CheckCircle className="w-5 h-5" />
+                                            Update
+                                        </motion.button>
+                                        <motion.button
+                                            whileHover={{ scale: 1.05 }}
+                                            whileTap={{ scale: 0.95 }}
+                                            onClick={handleDeleteGoal}
+                                            className="px-6 py-3 rounded-full bg-red-600 text-white text-lg font-semibold hover:bg-red-500 transition-all flex items-center gap-3 shadow-md"
+                                            aria-label="Delete Goal"
+                                        >
+                                            <Trash className="w-5 h-5" />
+                                            Delete
+                                        </motion.button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </motion.div>
                 )}

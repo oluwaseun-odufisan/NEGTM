@@ -170,6 +170,16 @@ io.on('connection', (socket) => {
         io.to(`user:${socket.user.id}`).emit('reminderTriggered', reminder);
     });
 
+    socket.on('newGoal', (goal) => {
+        io.to(`user:${socket.user.id}`).emit('newGoal', goal);
+    });
+    socket.on('goalUpdated', (goal) => {
+        io.to(`user:${socket.user.id}`).emit('goalUpdated', goal);
+    });
+    socket.on('goalDeleted', (id) => {
+        io.to(`user:${socket.user.id}`).emit('goalDeleted', id);
+    });
+
     socket.on('error', (error) => {
         console.error('Socket error:', error.message);
     });
@@ -191,7 +201,7 @@ app.use('/download', urlRouter);
 app.use('/api/bot', botChatRouter);
 app.use('/api/posts', postRouter);
 app.use('/api/reminders', reminderRouter);
-app.use('/api/goals', goalRouter); 
+app.use('/api/goals', goalRouter);
 
 // Health check
 app.get('/', (req, res) => {

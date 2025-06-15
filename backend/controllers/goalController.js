@@ -1,13 +1,13 @@
 import Goal from '../models/goalModel.js';
-import Task from '../models/taskModel.js';
 import Reminder from '../models/reminderModel.js';
-import validator from 'validator';
 import User from '../models/userModel.js';
-import mongoose from 'mongoose';
 
-// Helper to create/update goal reminder
+// Helper function to create or update reminder for a goal
 const createOrUpdateGoalReminder = async (goal, userId, io) => {
-    if (!goal.endDate) return;
+    if (!goal.endDate) {
+        await Reminder.deleteMany({ targetId: goal._id, targetModel: 'Goal', user: userId });
+        return;
+    }
 
     const user = await User.findById(userId);
     if (!user) throw new Error('User not found');
@@ -17,7 +17,7 @@ const createOrUpdateGoalReminder = async (goal, userId, io) => {
 
     let reminder = await Reminder.findOne({ targetId: goal._id, targetModel: 'Goal', user: userId });
     if (reminder) {
-        reminder.message = `Goal "${goal.title}" is due soon`;
+        reminder.message = `Goal "${goal.title}" deadline approaching`;
         reminder.remindAt = remindAt;
         reminder.deliveryChannels = {
             inApp: user.preferences?.reminders?.defaultDeliveryChannels?.inApp ?? true,
@@ -34,7 +34,7 @@ const createOrUpdateGoalReminder = async (goal, userId, io) => {
             type: 'goal_deadline',
             targetId: goal._id,
             targetModel: 'Goal',
-            message: `Goal "${goal.title}" is due soon`,
+            message: `Goal "${goal.title}" deadline approaching`,
             deliveryChannels: {
                 inApp: user.preferences?.reminders?.defaultDeliveryChannels?.inApp ?? true,
                 email: user.preferences?.reminders?.defaultDeliveryChannels?.email ?? true,
@@ -50,208 +50,103 @@ const createOrUpdateGoalReminder = async (goal, userId, io) => {
     }
 };
 
-// Create a new goal
+// CREATE A NEW GOAL
 export const createGoal = async (req, res) => {
     try {
-        const { title, subGoals, type, taskId, timeframe, startDate, endDate } = req.body;
-
-        if (!title || !validator.isLength(title, { min: 1, max: 100 })) {
-            return res.status(400).json({ success: false, message: 'Title must be 1-100 characters' });
-        }
-        if (!subGoals || !Array.isArray(subGoals) || subGoals.length === 0) {
-            return res.status(400).json({ success: false, message: 'At least one sub-goal is required' });
-        }
-        if (!['task_related', 'personal'].includes(type)) {
-            return res.status(400).json({ success: false, message: 'Invalid goal type' });
-        }
-        if (type === 'task_related' && (!taskId || !mongoose.isValidObjectId(taskId))) {
-            return res.status(400).json({ success: false, message: 'Valid task ID required for task-related goal' });
-        }
-        if (!['daily', 'weekly', 'monthly', 'quarterly', 'custom'].includes(timeframe)) {
-            return res.status(400).json({ success: false, message: 'Invalid timeframe' });
-        }
-        if (!startDate || !endDate || isNaN(new Date(startDate).getTime()) || isNaN(new Date(endDate).getTime())) {
-            return res.status(400).json({ success: false, message: 'Valid start and end dates required' });
-        }
-        if (new Date(startDate) > new Date(endDate)) {
-            return res.status(400).json({ success: false, message: 'Start date must be before end date' });
-        }
-
-        if (type === 'task_related') {
-            const task = await Task.findOne({ _id: taskId, owner: req.user._id });
-            if (!task) {
-                return res.status(404).json({ success: false, message: 'Task not found or not authorized' });
-            }
+        const { title, subGoals, type, timeframe, startDate, endDate } = req.body;
+        if (!title || !timeframe || !startDate || !endDate) {
+            return res.status(400).json({ success: false, message: 'Missing required fields' });
         }
 
         const goal = new Goal({
             title,
-            subGoals: subGoals.map((sg) => ({ description: sg.description, completed: false })),
-            type,
-            taskId: type === 'task_related' ? taskId : null,
+            subGoals: subGoals || [],
+            type: type || 'personal',
             timeframe,
             startDate: new Date(startDate),
             endDate: new Date(endDate),
             owner: req.user._id,
         });
 
-        const savedGoal = await goal.save();
+        const saved = await goal.save();
+        await createOrUpdateGoalReminder(saved, req.user._id, req.io);
+        req.io.to(`user:${req.user._id}`).emit('newGoal', saved);
 
-        // Create reminder
-        await createOrUpdateGoalReminder(savedGoal, req.user._id, req.io);
-
-        // Emit real-time event
-        req.io.to(`user:${req.user._id}`).emit('newGoal', savedGoal);
-
-        res.status(201).json({ success: true, goal: savedGoal });
+        res.status(201).json({ success: true, goal: saved });
     } catch (err) {
         console.error('Error creating goal:', err.message);
-        res.status(500).json({ success: false, message: 'Server error' });
+        res.status(400).json({ success: false, message: err.message });
     }
 };
 
-// Get all goals for logged-in user
+// GET ALL GOALS FOR LOGGED-IN USER
 export const getGoals = async (req, res) => {
     try {
-        const goals = await Goal.find({ owner: req.user._id })
-            .populate('taskId', 'title')
-            .sort({ createdAt: -1 });
+        const goals = await Goal.find({ owner: req.user._id }).sort({ createdAt: -1 });
         res.json({ success: true, goals });
     } catch (err) {
         console.error('Error fetching goals:', err.message);
-        res.status(500).json({ success: false, message: 'Server error' });
+        res.status(500).json({ success: false, message: err.message });
     }
 };
 
-// Get single goal by ID
+// GET SINGLE GOAL BY ID
 export const getGoalById = async (req, res) => {
     try {
-        const goal = await Goal.findOne({ _id: req.params.id, owner: req.user._id }).populate('taskId', 'title');
+        const goal = await Goal.findOne({ _id: req.params.id, owner: req.user._id });
         if (!goal) {
             return res.status(404).json({ success: false, message: 'Goal not found' });
         }
         res.json({ success: true, goal });
     } catch (err) {
         console.error('Error fetching goal:', err.message);
-        res.status(500).json({ success: false, message: 'Server error' });
+        res.status(500).json({ success: false, message: err.message });
     }
 };
 
-// Update a goal by ID
+// UPDATE A GOAL BY ID
 export const updateGoal = async (req, res) => {
     try {
-        const { title, subGoals, type, taskId, timeframe, startDate, endDate } = req.body;
+        const data = { ...req.body };
+        if (data.startDate) data.startDate = new Date(data.startDate);
+        if (data.endDate) data.endDate = new Date(data.endDate);
 
-        if (!title || !validator.isLength(title, { min: 1, max: 100 })) {
-            return res.status(400).json({ success: false, message: 'Title must be 1-100 characters' });
-        }
-        if (!subGoals || !Array.isArray(subGoals) || subGoals.length === 0) {
-            return res.status(400).json({ success: false, message: 'At least one sub-goal is required' });
-        }
-        if (!['task_related', 'personal'].includes(type)) {
-            return res.status(400).json({ success: false, message: 'Invalid goal type' });
-        }
-        if (type === 'task_related' && (!taskId || !mongoose.isValidObjectId(taskId))) {
-            return res.status(400).json({ success: false, message: 'Valid task ID required for task-related goal' });
-        }
-        if (!['daily', 'weekly', 'monthly', 'quarterly', 'custom'].includes(timeframe)) {
-            return res.status(400).json({ success: false, message: 'Invalid timeframe' });
-        }
-        if (!startDate || !endDate || isNaN(new Date(startDate).getTime()) || isNaN(new Date(endDate).getTime())) {
-            return res.status(400).json({ success: false, message: 'Valid start and end dates required' });
-        }
-        if (new Date(startDate) > new Date(endDate)) {
-            return res.status(400).json({ success: false, message: 'Start date must be before end date' });
+        const updated = await Goal.findOneAndUpdate(
+            { _id: req.params
+
+.id, owner: req.user._id },
+            data,
+            { new: true, runValidators: true }
+        );
+
+        if (!updated) {
+            return res.status(404).json({ success: false, message: 'Goal not found or not yours' });
         }
 
-        const goal = await Goal.findOne({ _id: req.params.id, owner: req.user._id });
-        if (!goal) {
-            return res.status(404).json({ success: false, message: 'Goal not found or not authorized' });
-        }
+        await createOrUpdateGoalReminder(updated, req.user._id, req.io);
+        req.io.to(`user:${req.user._id}`).emit('goalUpdated', updated);
 
-        if (type === 'task_related') {
-            const task = await Task.findOne({ _id: taskId, owner: req.user._id });
-            if (!task) {
-                return res.status(404).json({ success: false, message: 'Task not found or not authorized' });
-            }
-        }
-
-        goal.title = title;
-        goal.subGoals = subGoals.map((sg) => ({
-            description: sg.description,
-            completed: sg.completed || false,
-        }));
-        goal.type = type;
-        goal.taskId = type === 'task_related' ? taskId : null;
-        goal.timeframe = timeframe;
-        goal.startDate = new Date(startDate);
-        goal.endDate = new Date(endDate);
-
-        const updatedGoal = await goal.save();
-
-        // Update reminder
-        await createOrUpdateGoalReminder(updatedGoal, req.user._id, req.io);
-
-        // Emit real-time event
-        req.io.to(`user:${req.user._id}`).emit('goalUpdated', updatedGoal);
-
-        res.json({ success: true, goal: updatedGoal });
+        res.json({ success: true, goal: updated });
     } catch (err) {
         console.error('Error updating goal:', err.message);
-        res.status(500).json({ success: false, message: 'Server error' });
+        res.status(400).json({ success: false, message: err.message });
     }
 };
 
-// Update goal progress (for checkboxes)
-export const updateGoalProgress = async (req, res) => {
-    try {
-        const { subGoals } = req.body;
-
-        if (!subGoals || !Array.isArray(subGoals)) {
-            return res.status(400).json({ success: false, message: 'Sub-goals array required' });
-        }
-
-        const goal = await Goal.findOne({ _id: req.params.id, owner: req.user._id });
-        if (!goal) {
-            return res.status(404).json({ success: false, message: 'Goal not found or not authorized' });
-        }
-
-        // Update only the completed status of sub-goals
-        goal.subGoals = goal.subGoals.map((sg, index) => ({
-            ...sg.toObject(),
-            completed: subGoals[index]?.completed ?? sg.completed,
-        }));
-
-        const updatedGoal = await goal.save();
-
-        // Emit real-time event
-        req.io.to(`user:${req.user._id}`).emit('goalUpdated', updatedGoal);
-
-        res.json({ success: true, goal: updatedGoal });
-    } catch (err) {
-        console.error('Error updating goal progress:', err.message);
-        res.status(500).json({ success: false, message: 'Server error' });
-    }
-};
-
-// Delete a goal by ID
+// DELETE A GOAL
 export const deleteGoal = async (req, res) => {
     try {
-        const goal = await Goal.findOneAndDelete({ _id: req.params.id, owner: req.user._id });
-        if (!goal) {
-            return res.status(404).json({ success: false, message: 'Goal not found or not authorized' });
+        const deleted = await Goal.findOneAndDelete({ _id: req.params.id, owner: req.user._id });
+        if (!deleted) {
+            return res.status(404).json({ success: false, message: 'Goal not found or not yours' });
         }
 
-        // Remove associated reminders
         await Reminder.deleteMany({ targetId: req.params.id, targetModel: 'Goal', user: req.user._id });
-        req.io.to(`user:${req.user._id}`).emit('reminderDeleted', req.params.id);
-
-        // Emit real-time event
         req.io.to(`user:${req.user._id}`).emit('goalDeleted', req.params.id);
 
         res.json({ success: true, message: 'Goal deleted' });
     } catch (err) {
         console.error('Error deleting goal:', err.message);
-        res.status(500).json({ success: false, message: 'Server error' });
+        res.status(500).json({ success: false, message: err.message });
     }
 };
