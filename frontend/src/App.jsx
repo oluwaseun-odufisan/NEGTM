@@ -21,6 +21,8 @@ import AiTools from './pages/AiTools';
 import Reminders from './pages/Reminders';
 import Goals from './pages/Goals';
 import Appraisals from './pages/Appraisals';
+import Meeting from './pages/Meeting';
+import Training from './pages/Training';
 
 const App = () => {
   const navigate = useNavigate();
@@ -97,6 +99,8 @@ const App = () => {
         <Route path="/reminders" element={<Reminders />} />
         <Route path="/goals" element={<Goals />} />
         <Route path="/appraisals" element={<Appraisals />} />
+        <Route path="/meeting" element={<Meeting />} />
+        <Route path="/training" element={<Training />} />
       </Route>
 
       <Route path="/" element={<Navigate to={currentUser ? '/' : '/login'} replace />} />

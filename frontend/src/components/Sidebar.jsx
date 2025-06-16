@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { List, CheckCircle, Menu, Info, X, LayoutDashboard, Clock, Calendar, MessageSquare, Link, File, FileText, CreditCard, Sparkles, AlertCircle, Bell, Target, Award, Users } from 'lucide-react';
+import { List, CheckCircle, Menu, Info, X, LayoutDashboard, Clock, Calendar, MessageSquare, Link, File, FileText, CreditCard, Sparkles, AlertCircle, Bell, Target, Award, Users, Video, BookOpen } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
 const Sidebar = ({ user, tasks }) => {
@@ -31,6 +31,8 @@ const Sidebar = ({ user, tasks }) => {
         { text: 'Reminders', path: '/reminders', icon: <Bell className="w-6 h-6 text-teal-500" /> },
         { text: 'Goals', path: '/goals', icon: <Target className="w-6 h-6 text-teal-500" /> },
         { text: 'Appraisals', path: '/appraisals', icon: <Award className="w-6 h-6 text-teal-500" /> },
+        { text: 'Meeting', path: '/meeting', icon: <Video className="w-6 h-6 text-teal-500" /> },
+        { text: 'Training', path: '/training', icon: <BookOpen className="w-6 h-6 text-teal-500" /> },
     ];
 
     const renderMenuItems = (isMobile = false) => (
