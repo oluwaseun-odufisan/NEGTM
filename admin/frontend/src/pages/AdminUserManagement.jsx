@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     User,
     Mail,
@@ -14,41 +14,16 @@ import {
     Search,
     ChevronUp,
     ChevronDown,
+    Plus,
+    History,
 } from 'lucide-react';
+import axios from 'axios';
+import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 
-// Mock user data (replace with backend API call)
-const initialUsers = [
-    {
-        id: '1',
-        name: 'John Doe',
-        email: 'john.doe@example.com',
-        role: 'User',
-        registrationDate: '2025-01-15',
-        status: 'Active',
-        lastLogin: '2025-06-16',
-    },
-    {
-        id: '2',
-        name: 'Jane Smith',
-        email: 'jane.smith@example.com',
-        role: 'Team Lead',
-        registrationDate: '2025-02-10',
-        status: 'Inactive',
-        lastLogin: '2025-06-10',
-    },
-    {
-        id: '3',
-        name: 'Alice Johnson',
-        email: 'alice.johnson@example.com',
-        role: 'User',
-        registrationDate: '2025-03-05',
-        status: 'Active',
-        lastLogin: '2025-06-17',
-    },
-];
-
-const AdminUserManagement = () => {
-    const [users, setUsers] = useState(initialUsers);
+const AdminUserManagement = ({ onLogout }) => {
+    const navigate = useNavigate();
+    const [users, setUsers] = useState([]);
     const [selectedUsers, setSelectedUsers] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [filterRole, setFilterRole] = useState('');
@@ -56,11 +31,84 @@ const AdminUserManagement = () => {
     const [sortConfig, setSortConfig] = useState({ key: '', direction: '' });
     const [currentPage, setCurrentPage] = useState(1);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [isLogsModalOpen, setIsLogsModalOpen] = useState(false);
     const [editUser, setEditUser] = useState(null);
+    const [createUser, setCreateUser] = useState({
+        name: '',
+        email: '',
+        password: '',
+        role: 'standard',
+        preferences: { notifications: true },
+    });
+    const [activityLogs, setActivityLogs] = useState([]);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const usersPerPage = 5;
+
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
+
+    // Fetch users on mount
+    useEffect(() => {
+        fetchUsers();
+    }, []);
+
+    // Fetch all users
+    const fetchUsers = async () => {
+        setIsLoading(true);
+        try {
+            const token = localStorage.getItem('adminToken');
+            if (!token) {
+                console.error('No token found in localStorage');
+                setError('Authentication token missing. Please log in again.');
+                toast.error('Authentication token missing. Please log in again.');
+                navigate('/admin/login', { replace: true });
+                return;
+            }
+            const response = await axios.get(`${API_BASE_URL}/api/admin/users`, {
+                headers: { Authorization: `Bearer ${token}`, 'Cache-Control': 'no-cache' },
+            });
+            console.log('Fetch users response:', response.data);
+            if (response.data.success) {
+                setUsers(
+                    response.data.users.map((user) => ({
+                        id: user._id,
+                        name: user.name,
+                        email: user.email,
+                        role: user.role === 'standard' ? 'User' : user.role === 'team-lead' ? 'Team Lead' : 'Admin',
+                        registrationDate: new Date(user.createdAt).toISOString().split('T')[0],
+                        status: user.isActive ? 'Active' : 'Inactive',
+                        lastLogin: user.lastLogin ? new Date(user.lastLogin).toISOString().split('T')[0] : 'Never',
+                        preferences: user.preferences,
+                    }))
+                );
+            } else {
+                setError(response.data.message || 'Failed to fetch users.');
+                toast.error(response.data.message || 'Failed to fetch users.');
+            }
+        } catch (err) {
+            handleApiError(err, 'Failed to fetch users.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Handle API errors
+    const handleApiError = (err, defaultMessage) => {
+        console.error('API error:', err.message, err.response?.data);
+        const status = err.response?.status;
+        const message = err.response?.data?.message || defaultMessage;
+        setError(message);
+        toast.error(message);
+        if (status === 401) {
+            onLogout();
+            navigate('/admin/login');
+        } else if (status === 403) {
+            setError('Access denied: Super-admin role required to manage users.');
+            navigate('/admin/dashboard', { replace: true });
+        }
+    };
 
     // Handle sorting
     const handleSort = (key) => {
@@ -110,89 +158,141 @@ const AdminUserManagement = () => {
     };
 
     // Handle bulk actions
-    const handleBulkAction = (action) => {
+    const handleBulkAction = async (action) => {
         setIsLoading(true);
-        setTimeout(() => {
-            if (action === 'deactivate') {
-                setUsers((prev) =>
-                    prev.map((user) =>
-                        selectedUsers.includes(user.id) ? { ...user, status: 'Inactive' } : user
-                    )
-                );
-                setSuccess('Selected users deactivated successfully!');
-            } else if (action === 'activate') {
-                setUsers((prev) =>
-                    prev.map((user) =>
-                        selectedUsers.includes(user.id) ? { ...user, status: 'Active' } : user
-                    )
-                );
-                setSuccess('Selected users activated successfully!');
-            } else if (action === 'delete') {
-                setUsers((prev) => prev.filter((user) => !selectedUsers.includes(user.id)));
-                setSuccess('Selected users deleted successfully!');
-            } else if (action === 'assignRole') {
-                setUsers((prev) =>
-                    prev.map((user) =>
-                        selectedUsers.includes(user.id) ? { ...user, role: 'Team Lead' } : user
-                    )
-                );
-                setSuccess('Role assigned to selected users successfully!');
+        try {
+            const token = localStorage.getItem('adminToken');
+            for (const userId of selectedUsers) {
+                if (action === 'deactivate') {
+                    await axios.put(
+                        `${API_BASE_URL}/api/admin/users/${userId}/deactivate`,
+                        {},
+                        { headers: { Authorization: `Bearer ${token}` } }
+                    );
+                } else if (action === 'activate') {
+                    await axios.put(
+                        `${API_BASE_URL}/api/admin/users/${userId}`,
+                        { isActive: true },
+                        { headers: { Authorization: `Bearer ${token}` } }
+                    );
+                } else if (action === 'delete') {
+                    await axios.delete(`${API_BASE_URL}/api/admin/users/${userId}`, {
+                        headers: { Authorization: `Bearer ${token}` },
+                    });
+                } else if (action === 'assignRole') {
+                    await axios.put(
+                        `${API_BASE_URL}/api/admin/users/${userId}/role`,
+                        { role: 'team-lead' },
+                        { headers: { Authorization: `Bearer ${token}` } }
+                    );
+                }
             }
+            setSuccess(`Bulk ${action} completed successfully!`);
+            toast.success(`Bulk ${action} completed!`);
             setSelectedUsers([]);
+            fetchUsers();
+        } catch (err) {
+            handleApiError(err, `Failed to perform bulk ${action}.`);
+        } finally {
             setIsLoading(false);
-        }, 1000);
+        }
     };
 
     // Handle individual actions
     const handleEdit = (user) => {
-        setEditUser({ ...user });
+        setEditUser({
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role === 'User' ? 'standard' : user.role === 'Team Lead' ? 'team-lead' : 'admin',
+            preferences: user.preferences,
+        });
         setIsEditModalOpen(true);
         setError('');
         setSuccess('');
     };
 
-    const handleToggleStatus = (id) => {
+    const handleToggleStatus = async (id, currentStatus) => {
         setIsLoading(true);
-        setTimeout(() => {
-            setUsers((prev) =>
-                prev.map((user) =>
-                    user.id === id
-                        ? { ...user, status: user.status === 'Active' ? 'Inactive' : 'Active' }
-                        : user
-                )
+        try {
+            const token = localStorage.getItem('adminToken');
+            await axios.put(
+                `${API_BASE_URL}/api/admin/users/${id}/${currentStatus === 'Active' ? 'deactivate' : ''}`,
+                currentStatus === 'Inactive' ? { isActive: true } : {},
+                { headers: { Authorization: `Bearer ${token}` } }
             );
             setSuccess(`User status updated successfully!`);
+            toast.success('User status updated!');
+            fetchUsers();
+        } catch (err) {
+            handleApiError(err, 'Failed to update user status.');
+        } finally {
             setIsLoading(false);
-        }, 1000);
+        }
     };
 
-    const handleResetPassword = (email) => {
+    const handleResetPassword = async (id) => {
         setIsLoading(true);
-        setTimeout(() => {
-            console.log(`Password reset email sent to ${email}`); // Replace with API call
-            setSuccess(`Password reset email sent to ${email}!`);
+        try {
+            const token = localStorage.getItem('adminToken');
+            const newPassword = `TempPass${Math.random().toString(36).slice(-8)}!`;
+            await axios.put(
+                `${API_BASE_URL}/api/admin/users/${id}/password`,
+                { newPassword },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            setSuccess(`Password reset for user! Temporary password: ${newPassword}`);
+            toast.success('Password reset! Check success message for temporary password.');
+        } catch (err) {
+            handleApiError(err, 'Failed to reset password.');
+        } finally {
             setIsLoading(false);
-        }, 1000);
+        }
     };
 
-    const handleDelete = (id) => {
+    const handleDelete = async (id) => {
         if (window.confirm('Are you sure you want to delete this user?')) {
             setIsLoading(true);
-            setTimeout(() => {
-                setUsers((prev) => prev.filter((user) => user.id !== id));
+            try {
+                const token = localStorage.getItem('adminToken');
+                await axios.delete(`${API_BASE_URL}/api/admin/users/${id}`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
                 setSuccess('User deleted successfully!');
+                toast.success('User deleted!');
+                fetchUsers();
+            } catch (err) {
+                handleApiError(err, 'Failed to delete user.');
+            } finally {
                 setIsLoading(false);
-            }, 1000);
+            }
+        }
+    };
+
+    const handleViewLogs = async (id) => {
+        setIsLoading(true);
+        try {
+            const token = localStorage.getItem('adminToken');
+            const response = await axios.get(`${API_BASE_URL}/api/admin/users/${id}/activity`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            if (response.data.success) {
+                setActivityLogs(response.data.activityLogs);
+                setIsLogsModalOpen(true);
+            }
+        } catch (err) {
+            handleApiError(err, 'Failed to fetch activity logs.');
+        } finally {
+            setIsLoading(false);
         }
     };
 
     // Handle edit form submission
-    const handleEditSubmit = (e) => {
+    const handleEditSubmit = async (e) => {
         e.preventDefault();
         setError('');
         setIsLoading(true);
 
-        // Mock validation
         if (!editUser.name || editUser.name.length < 2) {
             setError('Name must be at least 2 characters long.');
             setIsLoading(false);
@@ -209,33 +309,137 @@ const AdminUserManagement = () => {
             return;
         }
 
-        // Simulate API call
-        setTimeout(() => {
-            setUsers((prev) =>
-                prev.map((user) => (user.id === editUser.id ? editUser : user))
+        try {
+            const token = localStorage.getItem('adminToken');
+            // Update profile (name, email, preferences)
+            const profileResponse = await axios.put(
+                `${API_BASE_URL}/api/admin/users/${editUser.id}`,
+                {
+                    name: editUser.name,
+                    email: editUser.email,
+                    preferences: editUser.preferences,
+                },
+                { headers: { Authorization: `Bearer ${token}` } }
             );
-            setSuccess('User updated successfully!');
-            setIsEditModalOpen(false);
-            setEditUser(null);
+            // Update role if changed
+            if (editUser.role !== (users.find((u) => u.id === editUser.id)?.role.toLowerCase() || '')) {
+                await axios.put(
+                    `${API_BASE_URL}/api/admin/users/${editUser.id}/role`,
+                    { role: editUser.role },
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
+            }
+            if (profileResponse.data.success) {
+                setSuccess('User updated successfully!');
+                toast.success('User updated!');
+                setIsEditModalOpen(false);
+                setEditUser(null);
+                fetchUsers();
+            }
+        } catch (err) {
+            handleApiError(err, 'Failed to update user.');
+        } finally {
             setIsLoading(false);
-        }, 1000);
+        }
     };
+
+    // Handle create form submission
+    const handleCreateSubmit = async (e) => {
+        e.preventDefault();
+        setError('');
+        setIsLoading(true);
+
+        if (!createUser.name || createUser.name.length < 2) {
+            setError('Name must be at least 2 characters long.');
+            setIsLoading(false);
+            return;
+        }
+        if (!createUser.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(createUser.email)) {
+            setError('Please enter a valid email address.');
+            setIsLoading(false);
+            return;
+        }
+        if (!createUser.password || createUser.password.length < 8) {
+            setError('Password must be at least 8 characters.');
+            setIsLoading(false);
+            return;
+        }
+        if (!createUser.role) {
+            setError('Please select a role.');
+            setIsLoading(false);
+            return;
+        }
+
+        try {
+            const token = localStorage.getItem('adminToken');
+            const response = await axios.post(
+                `${API_BASE_URL}/api/admin/users`,
+                createUser,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            if (response.data.success) {
+                setSuccess('User created successfully!');
+                toast.success('User created!');
+                setIsCreateModalOpen(false);
+                setCreateUser({
+                    name: '',
+                    email: '',
+                    password: '',
+                    role: 'standard',
+                    preferences: { notifications: true },
+                });
+                fetchUsers();
+            }
+        } catch (err) {
+            handleApiError(err, 'Failed to create user.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Render access denied message if error indicates 403
+    if (error === 'Access denied: Super-admin role required to manage users.') {
+        return (
+            <div className="min-h-screen bg-teal-50 flex items-center justify-center">
+                <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-2xl p-8 max-w-md text-center">
+                    <h2 className="text-2xl font-bold text-red-600 mb-4">Access Denied</h2>
+                    <p className="text-gray-700 mb-6">You need super-admin privileges to manage users.</p>
+                    <button
+                        onClick={() => navigate('/admin/dashboard')}
+                        className="px-4 py-2 rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition-all duration-300"
+                    >
+                        Return to Dashboard
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="p-6 bg-white/80 backdrop-blur-md rounded-2xl shadow-2xl max-w-7xl mx-auto relative animate-fade-in">
             {/* Header */}
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-teal-600">User Management</h2>
-                <div className="relative">
-                    <input
-                        type="text"
-                        placeholder="Search users..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-10 pr-4 py-2 rounded-full border border-teal-200 focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white text-gray-700 w-64"
-                        aria-label="Search users"
-                    />
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-teal-600" size={18} />
+                <div className="flex space-x-4">
+                    <div className="relative">
+                        <input
+                            type="text"
+                            placeholder="Search users..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-10 pr-4 py-2 rounded-full border border-teal-200 focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white text-gray-700 w-64"
+                            aria-label="Search users"
+                        />
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-teal-600" size={18} />
+                    </div>
+                    <button
+                        onClick={() => setIsCreateModalOpen(true)}
+                        className="px-4 py-2 rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition-all duration-300 flex items-center"
+                        aria-label="Create new user"
+                    >
+                        <Plus size={18} className="mr-2" />
+                        New User
+                    </button>
                 </div>
             </div>
 
@@ -250,6 +454,7 @@ const AdminUserManagement = () => {
                     <option value="">All Roles</option>
                     <option value="User">User</option>
                     <option value="Team Lead">Team Lead</option>
+                    <option value="Admin">Admin</option>
                 </select>
                 <select
                     value={filterStatus}
@@ -264,7 +469,7 @@ const AdminUserManagement = () => {
             </div>
 
             {/* Success/Error Messages */}
-            {error && (
+            {error && error !== 'Access denied: Super-admin role required to manage users.' && (
                 <div className="text-red-500 text-sm text-center animate-shake mb-4">
                     {error}
                 </div>
@@ -375,7 +580,7 @@ const AdminUserManagement = () => {
                                         <Edit size={16} />
                                     </button>
                                     <button
-                                        onClick={() => handleToggleStatus(user.id)}
+                                        onClick={() => handleToggleStatus(user.id, user.status)}
                                         className="p-2 rounded-full bg-teal-600 text-white hover:bg-teal-700 transition-all duration-300"
                                         aria-label={`${user.status === 'Active' ? 'Deactivate' : 'Activate'} ${user.name}`}
                                         disabled={isLoading}
@@ -383,7 +588,7 @@ const AdminUserManagement = () => {
                                         {user.status === 'Active' ? <ToggleLeft size={16} /> : <ToggleRight size={16} />}
                                     </button>
                                     <button
-                                        onClick={() => handleResetPassword(user.email)}
+                                        onClick={() => handleResetPassword(user.id)}
                                         className="p-2 rounded-full bg-teal-600 text-white hover:bg-teal-700 transition-all duration-300"
                                         aria-label={`Reset password for ${user.name}`}
                                         disabled={isLoading}
@@ -397,6 +602,14 @@ const AdminUserManagement = () => {
                                         disabled={isLoading}
                                     >
                                         <Trash2 size={16} />
+                                    </button>
+                                    <button
+                                        onClick={() => handleViewLogs(user.id)}
+                                        className="p-2 rounded-full bg-teal-600 text-white hover:bg-teal-700 transition-all duration-300"
+                                        aria-label={`View activity logs for ${user.name}`}
+                                        disabled={isLoading}
+                                    >
+                                        <History size={16} />
                                     </button>
                                 </td>
                             </tr>
@@ -488,17 +701,35 @@ const AdminUserManagement = () => {
                                         aria-label="Select role"
                                         required
                                     >
-                                        <option value="User">User</option>
-                                        <option value="Team Lead">Team Lead</option>
+                                        <option value="standard">User</option>
+                                        <option value="team-lead">Team Lead</option>
+                                        <option value="admin">Admin</option>
                                     </select>
                                 </div>
+                            </div>
+                            <div className="relative">
+                                <label htmlFor="notifications" className="flex items-center space-x-2">
+                                    <input
+                                        type="checkbox"
+                                        id="notifications"
+                                        checked={editUser.preferences.notifications}
+                                        onChange={(e) =>
+                                            setEditUser({
+                                                ...editUser,
+                                                preferences: { notifications: e.target.checked },
+                                            })
+                                        }
+                                        className="h-4 w-4 text-teal-600 focus:ring-teal-400"
+                                        aria-label="Enable notifications"
+                                    />
+                                    <span className="text-gray-700">Enable Notifications</span>
+                                </label>
                             </div>
                             <div className="flex space-x-4">
                                 <button
                                     type="submit"
                                     disabled={isLoading}
-                                    className={`w-full py-3 rounded-lg bg-teal-600 text-white font-semibold flex items-center justify-center transition-all duration-300 ${isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-teal-700 hover:shadow-lg'
-                                        }`}
+                                    className={`w-full py-3 rounded-lg bg-teal-600 text-white font-semibold flex items-center justify-center transition-all duration-300 ${isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-teal-700 hover:shadow-lg'}`}
                                     aria-label="Save user"
                                 >
                                     {isLoading ? (
@@ -528,6 +759,187 @@ const AdminUserManagement = () => {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Create Modal */}
+            {isCreateModalOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
+                    <div className="bg-white/80 backdrop-blur-md rounded-2xl p-8 w-full max-w-md transform transition-all duration-500 hover:scale-105">
+                        <h3 className="text-xl font-bold text-teal-600 mb-4">Create User</h3>
+                        <form onSubmit={handleCreateSubmit} className="space-y-4">
+                            <div className="relative">
+                                <label htmlFor="create-name" className="sr-only">
+                                    Name
+                                </label>
+                                <div className="flex items-center border border-teal-200 rounded-lg focus-within:ring-2 focus-within:ring-teal-400 transition-all duration-300">
+                                    <User className="w-5 h-5 text-teal-600 ml-3" />
+                                    <input
+                                        type="text"
+                                        id="create-name"
+                                        value={createUser.name}
+                                        onChange={(e) => setCreateUser({ ...createUser, name: e.target.value })}
+                                        placeholder="Enter name"
+                                        className="w-full p-3 bg-transparent focus:outline-none text-gray-700 placeholder-gray-400"
+                                        aria-label="Full name"
+                                        required
+                                    />
+                                </div>
+                            </div>
+                            <div className="relative">
+                                <label htmlFor="create-email" className="sr-only">
+                                    Email
+                                </label>
+                                <div className="flex items-center border border-teal-200 rounded-lg focus-within:ring-2 focus-within:ring-teal-400 transition-all duration-300">
+                                    <Mail className="w-5 h-5 text-teal-600 ml-3" />
+                                    <input
+                                        type="email"
+                                        id="create-email"
+                                        value={createUser.email}
+                                        onChange={(e) => setCreateUser({ ...createUser, email: e.target.value })}
+                                        placeholder="Enter email"
+                                        className="w-full p-3 bg-transparent focus:outline-none text-gray-700 placeholder-gray-400"
+                                        aria-label="Email address"
+                                        required
+                                    />
+                                </div>
+                            </div>
+                            <div className="relative">
+                                <label htmlFor="create-password" className="sr-only">
+                                    Password
+                                </label>
+                                <div className="flex items-center border border-teal-200 rounded-lg focus-within:ring-2 focus-within:ring-teal-400 transition-all duration-300">
+                                    <Key className="w-5 h-5 text-teal-600 ml-3" />
+                                    <input
+                                        type="password"
+                                        id="create-password"
+                                        value={createUser.password}
+                                        onChange={(e) => setCreateUser({ ...createUser, password: e.target.value })}
+                                        placeholder="Enter password"
+                                        className="w-full p-3 bg-transparent focus:outline-none text-gray-700 placeholder-gray-400"
+                                        aria-label="Password"
+                                        required
+                                    />
+                                </div>
+                            </div>
+                            <div className="relative">
+                                <label htmlFor="create-role" className="sr-only">
+                                    Role
+                                </label>
+                                <div className="flex items-center border border-teal-200 rounded-lg focus-within:ring-2 focus-within:ring-teal-400 transition-all duration-300">
+                                    <Shield className="w-5 h-5 text-teal-600 ml-3" />
+                                    <select
+                                        id="create-role"
+                                        value={createUser.role}
+                                        onChange={(e) => setCreateUser({ ...createUser, role: e.target.value })}
+                                        className="w-full p-3 bg-transparent focus:outline-none text-gray-700 appearance-none"
+                                        aria-label="Select role"
+                                        required
+                                    >
+                                        <option value="standard">User</option>
+                                        <option value="team-lead">Team Lead</option>
+                                        <option value="admin">Admin</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div className="relative">
+                                <label htmlFor="create-notifications" className="flex items-center space-x-2">
+                                    <input
+                                        type="checkbox"
+                                        id="create-notifications"
+                                        checked={createUser.preferences.notifications}
+                                        onChange={(e) =>
+                                            setCreateUser({
+                                                ...createUser,
+                                                preferences: { notifications: e.target.checked },
+                                            })
+                                        }
+                                        className="h-4 w-4 text-teal-600 focus:ring-teal-400"
+                                        aria-label="Enable notifications"
+                                    />
+                                    <span className="text-gray-700">Enable Notifications</span>
+                                </label>
+                            </div>
+                            <div className="flex space-x-4">
+                                <button
+                                    type="submit"
+                                    disabled={isLoading}
+                                    className={`w-full py-3 rounded-lg bg-teal-600 text-white font-semibold flex items-center justify-center transition-all duration-300 ${isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-teal-700 hover:shadow-lg'}`}
+                                    aria-label="Create user"
+                                >
+                                    {isLoading ? (
+                                        <div className="flex items-center space-x-2">
+                                            <div className="w-5 h-5 border-2 border-teal-200 border-t-teal-600 rounded-full animate-spin" />
+                                            <span>Creating...</span>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <CheckCircle className="w-5 h-5 mr-2" />
+                                            Create
+                                        </>
+                                    )}
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setIsCreateModalOpen(false);
+                                        setCreateUser({
+                                            name: '',
+                                            email: '',
+                                            password: '',
+                                            role: 'standard',
+                                            preferences: { notifications: true },
+                                        });
+                                        setError('');
+                                        setSuccess('');
+                                    }}
+                                    className="w-full py-3 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 hover:shadow-lg transition-all duration-300"
+                                    aria-label="Cancel"
+                                >
+                                    <X className="w-5 h-5 mr-2 inline" />
+                                    Cancel
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Activity Logs Modal */}
+            {isLogsModalOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
+                    <div className="bg-white/80 backdrop-blur-md rounded-2xl p-8 w-full max-w-2xl transform transition-all duration-500 hover:scale-105">
+                        <h3 className="text-xl font-bold text-teal-600 mb-4">Activity Logs</h3>
+                        <div className="max-h-96 overflow-y-auto">
+                            {activityLogs.length === 0 ? (
+                                <p className="text-gray-700">No activity logs available.</p>
+                            ) : (
+                                <ul className="space-y-2">
+                                    {activityLogs.map((log, index) => (
+                                        <li key={index} className="p-2 border-b border-teal-100">
+                                            <p className="text-gray-700">
+                                                <strong>{log.action.toUpperCase()}</strong> at{' '}
+                                                {new Date(log.timestamp).toLocaleString()}
+                                            </p>
+                                            {log.details && <p className="text-gray-600 text-sm">{log.details}</p>}
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+                        <div className="mt-4">
+                            <button
+                                onClick={() => {
+                                    setIsLogsModalOpen(false);
+                                    setActivityLogs([]);
+                                }}
+                                className="w-full py-3 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 hover:shadow-lg transition-all duration-300"
+                                aria-label="Close"
+                            >
+                                <X className="w-5 h-5 mr-2 inline" />
+                                Close
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

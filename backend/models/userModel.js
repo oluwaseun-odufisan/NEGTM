@@ -21,6 +21,35 @@ const userSchema = new mongoose.Schema(
             type: String,
             required: true,
         },
+        role: {
+            type: String,
+            enum: ['standard', 'team-lead', 'admin'],
+            default: 'standard',
+        },
+        isActive: {
+            type: Boolean,
+            default: true,
+        },
+        createdAt: {
+            type: Date,
+            default: Date.now,
+        },
+        lastLogin: {
+            type: Date,
+        },
+        activityLogs: [{
+            action: {
+                type: String,
+                required: true,
+            },
+            timestamp: {
+                type: Date,
+                default: Date.now,
+            },
+            details: {
+                type: String,
+            },
+        }],
         pushToken: {
             type: String,
             trim: true,

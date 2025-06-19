@@ -3,6 +3,7 @@ import cors from 'cors';
 import 'dotenv/config';
 import { connectDB } from './config/adminDb.js';
 import adminRouter from './routes/adminRoutes.js';
+import adminUserRouter from './routes/adminUserRoutes.js';
 
 const app = express();
 const port = process.env.ADMIN_PORT || 4000;
@@ -33,6 +34,7 @@ console.log(`NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
 
 // Routes
 app.use('/api/admin', adminRouter);
+app.use('/api/admin/users', adminUserRouter);
 
 // Health check route
 app.get('/', (req, res) => {

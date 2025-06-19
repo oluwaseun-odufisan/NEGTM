@@ -29,13 +29,16 @@ const AdminLogin = ({ onSubmit }) => {
 
         try {
             const response = await axios.post(`${API_BASE_URL}/api/admin/login`, { email, password });
+            console.log('Login response:', response.data);
             if (response.data.success) {
                 setSuccess('Login successful! Redirecting...');
                 toast.success('Login successful!');
-                onSubmit(response.data); // Pass { success, token, admin } to AdminApp.jsx
+                console.log('Calling onSubmit with:', response.data);
+                onSubmit(response.data);
             }
         } catch (err) {
             const message = err.response?.data?.message || 'Login failed. Please try again.';
+            console.error('Login error:', { message: err.message, status: err.response?.status, data: err.response?.data });
             setError(message);
             toast.error(message);
             setIsLoading(false);
@@ -44,24 +47,19 @@ const AdminLogin = ({ onSubmit }) => {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 via-teal-50 to-teal-100 flex items-center justify-center relative overflow-hidden">
-            {/* Background Decorative Elements */}
             <div className="absolute inset-0 pointer-events-none">
                 <div className="absolute w-96 h-96 top-0 left-0 bg-teal-200/30 rounded-full filter blur-4xl animate-pulse-slow" />
                 <div className="absolute w-96 h-96 bottom-0 right-0 bg-blue-200/30 rounded-full filter blur-4xl animate-pulse-slow-delayed" />
                 <div className="absolute w-64 h-64 top-1/4 right-1/4 bg-teal-300/20 rounded-full filter blur-3xl animate-float" />
             </div>
 
-            {/* Login Card */}
             <div className="relative bg-white/80 backdrop-blur-md rounded-2xl shadow-2xl p-8 w-full max-w-md transform transition-all duration-500 hover:scale-105">
-                {/* Branding */}
                 <div className="text-center mb-8">
                     <h1 className="text-3xl font-bold text-teal-600 animate-fade-in">NEGTM Admin</h1>
                     <p className="text-sm text-blue-600 mt-2">Secure Access to Admin Portal</p>
                 </div>
 
-                {/* Form */}
                 <form onSubmit={handleSubmit} className="space-y-6">
-                    {/* Email Input */}
                     <div className="relative">
                         <label htmlFor="email" className="sr-only">
                             Email
@@ -81,7 +79,6 @@ const AdminLogin = ({ onSubmit }) => {
                         </div>
                     </div>
 
-                    {/* Password Input */}
                     <div className="relative">
                         <label htmlFor="password" className="sr-only">
                             Password
@@ -101,7 +98,6 @@ const AdminLogin = ({ onSubmit }) => {
                         </div>
                     </div>
 
-                    {/* Success/Error Messages */}
                     {success && (
                         <div className="text-teal-600 text-sm text-center animate-fade-in">
                             {success}
@@ -113,7 +109,6 @@ const AdminLogin = ({ onSubmit }) => {
                         </div>
                     )}
 
-                    {/* Login Button */}
                     <button
                         type="submit"
                         disabled={isLoading}
@@ -134,7 +129,6 @@ const AdminLogin = ({ onSubmit }) => {
                     </button>
                 </form>
 
-                {/* Link to Signup */}
                 <p className="mt-6 text-center text-sm text-blue-600">
                     Don’t have an account?{' '}
                     <Link to="/admin/signup" className="underline hover:text-teal-600 transition-colors">

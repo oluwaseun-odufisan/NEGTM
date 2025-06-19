@@ -38,7 +38,7 @@ export async function registerUser(req, res) {
     }
 }
 
-// LOGIN FUNCTION
+// In userController.js, update loginUser
 export async function loginUser(req, res) {
     const { email, password } = req.body;
     if (!email || !password) {
@@ -51,12 +51,15 @@ export async function loginUser(req, res) {
             return res.status(401).json({ success: false, message: "Invalid credentials." });
         }
         const matched = await bcrypt.compare(password, user.password);
-
         if (!matched) {
             return res.status(400).json({ success: false, message: "Invalid credentials." });
         }
+        // Update lastLogin and add login activity log
+        user.lastLogin = new Date();
+        user.activityLogs.push({ action: 'login', details: `User logged in from IP ${req.ip}` });
+        await user.save();
         const token = createToken(user._id);
-        res.json({ success: true, token, user: { id: user._id, name: user.name, email: user.email } });
+        res.json({ success: true, token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
     } catch (err) {
         console.error('Error logging in:', err.message);
         res.status(500).json({ success: false, message: "Server error" });
