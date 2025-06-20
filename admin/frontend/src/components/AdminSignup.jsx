@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Mail, Lock, CheckCircle, ChevronDown } from 'lucide-react';
+import { User, Mail, Lock, CheckCircle, ChevronDown, Eye, EyeOff } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 
@@ -11,10 +11,14 @@ const AdminSignup = () => {
         confirmPassword: '',
         role: '',
     });
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const navigate = useNavigate();
+
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -58,7 +62,7 @@ const AdminSignup = () => {
         }
 
         try {
-            const response = await axios.post('http://localhost:4000/api/admin/signup', {
+            const response = await axios.post(`${API_BASE_URL}/api/admin/signup`, {
                 name,
                 email,
                 password,
@@ -147,7 +151,7 @@ const AdminSignup = () => {
                         <div className="flex items-center border border-teal-200 rounded-lg focus-within:ring-2 focus-within:ring-teal-400 transition-all duration-300">
                             <Lock className="w-5 h-5 text-teal-600 ml-3" />
                             <input
-                                type="password"
+                                type={showPassword ? 'text' : 'password'}
                                 id="password"
                                 name="password"
                                 value={formData.password}
@@ -157,6 +161,18 @@ const AdminSignup = () => {
                                 aria-label="Password"
                                 required
                             />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="mr-3 focus:outline-none"
+                                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                            >
+                                {showPassword ? (
+                                    <EyeOff className="w-5 h-5 text-teal-600 hover:text-teal-800" />
+                                ) : (
+                                    <Eye className="w-5 h-5 text-teal-600 hover:text-teal-800" />
+                                )}
+                            </button>
                         </div>
                     </div>
 
@@ -168,7 +184,7 @@ const AdminSignup = () => {
                         <div className="flex items-center border border-teal-200 rounded-lg focus-within:ring-2 focus-within:ring-teal-400 transition-all duration-300">
                             <Lock className="w-5 h-5 text-teal-600 ml-3" />
                             <input
-                                type="password"
+                                type={showConfirmPassword ? 'text' : 'password'}
                                 id="confirmPassword"
                                 name="confirmPassword"
                                 value={formData.confirmPassword}
@@ -178,6 +194,18 @@ const AdminSignup = () => {
                                 aria-label="Confirm password"
                                 required
                             />
+                            <button
+                                type="button"
+                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                className="mr-3 focus:outline-none"
+                                aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+                            >
+                                {showConfirmPassword ? (
+                                    <EyeOff className="w-5 h-5 text-teal-600 hover:text-teal-800" />
+                                ) : (
+                                    <Eye className="w-5 h-5 text-teal-600 hover:text-teal-800" />
+                                )}
+                            </button>
                         </div>
                     </div>
 
@@ -226,8 +254,11 @@ const AdminSignup = () => {
                         aria-label="Sign up"
                     >
                         {isLoading ? (
-                            <div className="flex items-center space-x-2">
-                                <div className="w-5 h-5 border-2 border-teal-200 border-t-teal-600 rounded-full animate-spin" />
+                            <div className="flex items-center gap-2">
+                                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                </svg>
                                 <span>Signing up...</span>
                             </div>
                         ) : (

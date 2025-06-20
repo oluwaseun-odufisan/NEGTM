@@ -1,31 +1,30 @@
 import React, { useState } from 'react';
-import { UserPlus, User, Mail, Lock } from 'lucide-react';
+import { UserPlus, User, Mail, Lock, Shield } from 'lucide-react';
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
-const INITIAL_FORM = { name: "", email: "", password: "" };
+const INITIAL_FORM = { name: '', email: '', password: '', role: 'standard' };
 
 const Signup = ({ onSwitchMode }) => {
     const [formData, setFormData] = useState(INITIAL_FORM);
     const [loading, setLoading] = useState(false);
-    const [message, setMessage] = useState({ text: "", type: "" });
+    const [message, setMessage] = useState({ text: '', type: '' });
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
-        setMessage({ text: "", type: "" });
+        setMessage({ text: '', type: '' });
 
         try {
             const { data } = await axios.post(`${API_URL}/api/user/register`, formData);
-            console.log("Signup Successful", data);
-            setMessage({ text: "Registration successful! You can now log in.", type: "success" });
+            setMessage({ text: 'Registration successful! You can now log in.', type: 'success' });
             setFormData(INITIAL_FORM);
         } catch (err) {
-            console.error("Signup error:", err);
+            console.error('Signup error:', err);
             setMessage({
-                text: err.response?.data?.message || "An error occurred. Please try again later.",
-                type: "error"
+                text: err.response?.data?.message || 'An error occurred. Please try again later.',
+                type: 'error',
             });
         } finally {
             setLoading(false);
@@ -40,22 +39,29 @@ const Signup = ({ onSwitchMode }) => {
 
     const FIELDS = [
         {
-            name: "name",
-            type: "text",
-            placeholder: "Your Full Name",
+            name: 'name',
+            type: 'text',
+            placeholder: 'Your Full Name',
             icon: User,
         },
         {
-            name: "email",
-            type: "email",
-            placeholder: "Your Email Address",
+            name: 'email',
+            type: 'email',
+            placeholder: 'Your Email Address',
             icon: Mail,
         },
         {
-            name: "password",
-            type: "password",
-            placeholder: "Your Password",
+            name: 'password',
+            type: 'password',
+            placeholder: 'Your Password',
             icon: Lock,
+        },
+        {
+            name: 'role',
+            type: 'select',
+            placeholder: 'Select Role',
+            icon: Shield,
+            options: ['standard', 'team-lead', 'admin'],
         },
     ];
 
@@ -81,18 +87,34 @@ const Signup = ({ onSwitchMode }) => {
                 )}
 
                 <form onSubmit={handleSubmit} onKeyDown={handleKeyDown} className="space-y-6">
-                    {FIELDS.map(({ name, type, placeholder, icon: Icon }) => (
+                    {FIELDS.map(({ name, type, placeholder, icon: Icon, options }) => (
                         <div key={name} className="relative group">
                             <div className="flex items-center border border-teal-200 rounded-2xl px-5 py-3 bg-teal-50/70 focus-within:border-emerald-400 focus-within:ring-4 focus-within:ring-emerald-200/50 transition-all duration-300 group-hover:shadow-md">
                                 {Icon && <Icon className="text-teal-500 w-6 h-6 mr-4 transform transition-transform duration-300 group-hover:scale-110" />}
-                                <input
-                                    type={type}
-                                    placeholder={placeholder}
-                                    value={formData[name]}
-                                    onChange={(e) => setFormData({ ...formData, [name]: e.target.value })}
-                                    className="w-full focus:outline-none text-lg text-gray-800 placeholder-gray-500 bg-transparent transition-all duration-300"
-                                    required
-                                />
+                                {type === 'select' ? (
+                                    <select
+                                        name={name}
+                                        value={formData[name]}
+                                        onChange={(e) => setFormData({ ...formData, [name]: e.target.value })}
+                                        className="w-full focus:outline-none text-lg text-gray-800 bg-transparent transition-all duration-300"
+                                        required
+                                    >
+                                        {options.map((option) => (
+                                            <option key={option} value={option}>
+                                                {option.charAt(0).toUpperCase() + option.slice(1)}
+                                            </option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <input
+                                        type={type}
+                                        placeholder={placeholder}
+                                        value={formData[name]}
+                                        onChange={(e) => setFormData({ ...formData, [name]: e.target.value })}
+                                        className="w-full focus:outline-none text-lg text-gray-800 placeholder-gray-500 bg-transparent transition-all duration-300"
+                                        required
+                                    />
+                                )}
                             </div>
                             <div className="absolute inset-x-0 -bottom-0.5 h-0.5 bg-gradient-to-r from-teal-500 to-emerald-500 scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-center" />
                         </div>

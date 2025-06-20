@@ -58,6 +58,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/chats', fileUpload());
 app.use('/api/bot', fileUpload());
 app.use('/api/posts', fileUpload());
+app.use('/api/user', userRouter);//just added too 
 
 // Environment variable validation
 const requiredEnvVars = [

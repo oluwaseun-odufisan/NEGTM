@@ -4,7 +4,8 @@ import { toast, ToastContainer } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
-const INITIAL_FORM = { email: "", password: "" };
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+const INITIAL_FORM = { email: '', password: '' };
 
 const Login = ({ onSubmit, onSwitchMode }) => {
     const [showPassword, setShowPassword] = useState(false);
@@ -13,26 +14,27 @@ const Login = ({ onSubmit, onSwitchMode }) => {
     const [rememberMe, setRememberMe] = useState(false);
 
     const navigate = useNavigate();
-    const url = import.meta.env.VITE_API_URL;
 
     useEffect(() => {
-        const token = localStorage.getItem("token");
-        const userId = localStorage.getItem("userId");
-        if (token) {
+        const token = localStorage.getItem('token');
+        const userId = localStorage.getItem('userId');
+        if (token && userId) {
             (async () => {
                 try {
-                    const { data } = await axios.get(`${url}/api/user/me`, {
+                    const { data } = await axios.get(`${API_URL}/api/user/me`, {
                         headers: { Authorization: `Bearer ${token}` },
                     });
                     if (data.success) {
                         onSubmit?.({ token, userId, ...data.user });
-                        toast.success("Welcome back! Redirecting...");
+                        toast.success('Welcome back! Redirecting...');
                         navigate('/');
                     } else {
                         localStorage.clear();
+                        toast.error('Session invalid. Please log in again.');
                     }
-                } catch {
+                } catch (err) {
                     localStorage.clear();
+                    toast.error('Unable to verify session. Please log in again.');
                 }
             })();
         }
@@ -46,17 +48,18 @@ const Login = ({ onSubmit, onSwitchMode }) => {
         }
         setLoading(true);
         try {
-            const { data } = await axios.post(`${url}/api/user/login`, formData);
-            if (!data.token) throw new Error(data.message || "Login failed");
-            localStorage.setItem("token", data.token);
-            localStorage.setItem("userId", data.user.id);
-            setFormData(INITIAL_FORM);
+            const { data } = await axios.post(`${API_URL}/api/user/login`, formData);
+            if (!data.success || !data.token) {
+                throw new Error(data.message || 'Login failed');
+            }
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('userId', data.user.id);
             onSubmit?.({ token: data.token, userId: data.user.id, ...data.user });
-            toast.success("Login successful! Redirecting...");
-            setTimeout(() => navigate("/", 1000));
+            toast.success('Login successful! Redirecting...');
+            setFormData(INITIAL_FORM);
+            setTimeout(() => navigate('/'), 1000);
         } catch (err) {
-            const msg = err.response?.data?.message || err.message;
-            toast.error(msg);
+            toast.error(err.response?.data?.message || 'Login failed. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -75,15 +78,15 @@ const Login = ({ onSubmit, onSwitchMode }) => {
 
     const fields = [
         {
-            name: "email",
-            type: "email",
-            placeholder: "Your Email Address",
+            name: 'email',
+            type: 'email',
+            placeholder: 'Your Email Address',
             icon: Mail,
         },
         {
-            name: "password",
-            type: showPassword ? "text" : "password",
-            placeholder: "Your Password",
+            name: 'password',
+            type: showPassword ? 'text' : 'password',
+            placeholder: 'Your Password',
             icon: Lock,
             isPassword: true,
         },
@@ -91,7 +94,7 @@ const Login = ({ onSubmit, onSwitchMode }) => {
 
     return (
         <div className="min-h-screen w-screen bg-gradient-to-br from-teal-100 via-lime-100 to-emerald-100 flex items-center justify-center p-4 sm:p-6 lg:p-8 overflow-hidden">
-            <ToastContainer position='top-center' autoClose={3000} hideProgressBar />
+            <ToastContainer position="top-center" autoClose={3000} hideProgressBar />
             <div className="w-full max-w-md bg-white/95 backdrop-blur-xl shadow-2xl rounded-3xl p-6 sm:p-8 border border-teal-200 transform transition-all duration-500 hover:scale-105 hover:shadow-3xl">
                 <div className="mb-10 text-center">
                     <div className="w-24 h-24 bg-gradient-to-br from-teal-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-2xl animate-bounce-slow transition-transform duration-300 hover:scale-110">
@@ -169,7 +172,7 @@ const Login = ({ onSubmit, onSwitchMode }) => {
                 </form>
 
                 <p className="text-center text-base sm:text-lg text-gray-600 mt-10 animate-fade-in">
-                    Don't have an account yet?{" "}
+                    Don't have an account yet?{' '}
                     <button
                         type="button"
                         onClick={handleSwitchMode}

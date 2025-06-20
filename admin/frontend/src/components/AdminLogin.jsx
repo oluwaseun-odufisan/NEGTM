@@ -29,12 +29,17 @@ const AdminLogin = ({ onSubmit }) => {
 
         try {
             const response = await axios.post(`${API_BASE_URL}/api/admin/login`, { email, password });
-            console.log('Login response:', response.data);
+            console.log('Login response:', {
+                success: response.data.success,
+                token: response.data.token ? 'Present' : 'Missing',
+                admin: response.data.admin,
+            });
             if (response.data.success) {
                 setSuccess('Login successful! Redirecting...');
                 toast.success('Login successful!');
                 console.log('Calling onSubmit with:', response.data);
                 onSubmit(response.data);
+                setIsLoading(false);
             }
         } catch (err) {
             const message = err.response?.data?.message || 'Login failed. Please try again.';
