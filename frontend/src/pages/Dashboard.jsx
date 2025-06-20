@@ -4,8 +4,10 @@ import { useOutletContext } from 'react-router-dom';
 import TaskItem from '../components/TaskItem';
 import axios from 'axios';
 import TaskModal from '../components/TaskModal';
+import io from 'socket.io-client';
 
 const API_BASE_URL = `${import.meta.env.VITE_API_URL}/api/tasks`;
+const USER_API_URL = import.meta.env.VITE_USER_API_URL || 'http://localhost:4001';
 
 const TaskActionModal = ({ isOpen, onClose, onAction }) => {
     if (!isOpen) return null;
@@ -82,6 +84,47 @@ const Dashboard = () => {
     const [search, setSearch] = useState('');
     const [sort, setSort] = useState('dueDate');
     const [currentTime, setCurrentTime] = useState(new Date());
+    const [localTasks, setLocalTasks] = useState(tasks);
+
+    // Socket.IO setup
+    useEffect(() => {
+        const socket = io(USER_API_URL, {
+            auth: { token: localStorage.getItem('token') },
+        });
+
+        socket.on('connect', () => console.log('User socket connected:', socket.id));
+        socket.on('newTask', (task) => {
+            if (task.owner?._id === user?.id) {
+                setLocalTasks((prev) => [...prev, task]);
+            }
+        });
+        socket.on('updateTask', (updatedTask) => {
+            if (updatedTask.owner?._id === user?.id) {
+                setLocalTasks((prev) =>
+                    prev.map((task) => (task._id === updatedTask._id ? updatedTask : task))
+                );
+            } else {
+                setLocalTasks((prev) => prev.filter((task) => task._id !== updatedTask._id));
+            }
+        });
+        socket.on('deleteTask', (taskId) => {
+            setLocalTasks((prev) => prev.filter((task) => task._id !== taskId));
+        });
+
+        socket.on('connect_error', (err) => {
+            console.error('User socket connection error:', err.message);
+        });
+
+        return () => {
+            socket.disconnect();
+            console.log('User socket disconnected');
+        };
+    }, [user?.id]);
+
+    // Sync local tasks with context tasks
+    useEffect(() => {
+        setLocalTasks(tasks);
+    }, [tasks]);
 
     // Live Clock for WAT (UTC+1)
     useEffect(() => {
@@ -93,16 +136,17 @@ const Dashboard = () => {
 
     // Stats
     const stats = useMemo(() => ({
-        total: tasks.length,
-        completed: tasks.filter(t => t.completed === true || t.completed === 1 || (typeof t.completed === 'string' && t.completed.toLowerCase() === 'yes')).length,
-        highPriority: tasks.filter(t => t.priority?.toLowerCase() === 'high').length,
-        mediumPriority: tasks.filter(t => t.priority?.toLowerCase() === 'medium').length,
-    }), [tasks]);
+        total: localTasks.length,
+        completed: localTasks.filter(t => t.completed === true || t.completed === 1 || (typeof t.completed === 'string' && t.completed.toLowerCase() === 'yes')).length,
+        highPriority: localTasks.filter(t => t.priority?.toLowerCase() === 'high').length,
+        mediumPriority: localTasks.filter(t => t.priority?.toLowerCase() === 'medium').length,
+    }), [localTasks]);
 
     // Filtered and Sorted Tasks
     const filteredTasks = useMemo(() => {
-        let filtered = tasks.filter(task => {
-            const dueDate = new Date(task.dueDate);
+        let filtered = localTasks.filter(task => {
+            if (!task || !task.title) return false;
+            const dueDate = task.dueDate ? new Date(task.dueDate) : null;
             const today = new Date();
             const nextWeek = new Date(today);
             nextWeek.setDate(today.getDate() + 7);
@@ -110,9 +154,9 @@ const Dashboard = () => {
             const matchesSearch = task.title.toLowerCase().includes(searchLower) || (task.description || '').toLowerCase().includes(searchLower);
             switch (filter) {
                 case 'today':
-                    return dueDate.toDateString() === today.toDateString() && matchesSearch;
+                    return dueDate && dueDate.toDateString() === today.toDateString() && matchesSearch;
                 case 'week':
-                    return dueDate >= today && dueDate <= nextWeek && matchesSearch;
+                    return dueDate && dueDate >= today && dueDate <= nextWeek && matchesSearch;
                 case 'high':
                 case 'medium':
                 case 'low':
@@ -135,7 +179,7 @@ const Dashboard = () => {
             }
             return 0;
         });
-    }, [tasks, filter, search, sort]);
+    }, [localTasks, filter, search, sort]);
 
     // API Helpers
     const getAuthHeaders = () => {
@@ -224,6 +268,7 @@ const Dashboard = () => {
         },
         [refreshTasks, user, onLogout]
     );
+
     // Handle Task Action Selection
     const handleAction = (action) => {
         if (action === 'complete') {
@@ -462,6 +507,7 @@ const Dashboard = () => {
                                                 onRefresh={refreshTasks}
                                                 showCompleteCheckbox
                                                 onAction={() => { setSelectedTask(task); setShowActionModal(true); }}
+                                                onLogout={onLogout}
                                             />
                                         </div>
                                         {/* Hover Overlay */}
@@ -504,6 +550,7 @@ const Dashboard = () => {
                     onClose={() => { setShowModal(false); setSelectedTask(null); }}
                     taskToEdit={selectedTask}
                     onSave={handleTaskSave}
+                    onLogout={onLogout}
                 />
 
                 {/* Action Prompt Modal */}

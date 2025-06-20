@@ -376,7 +376,7 @@ const AdminTaskManagement = ({ onLogout }) => {
                 <h2 className="text-2xl font-bold text-teal-600">Task Management</h2>
                 <div className="flex space-x-4">
                     <button
-                        onClick={() =>
+                        onClick={() => {
                             setEditTask({
                                 title: '',
                                 description: '',
@@ -384,8 +384,9 @@ const AdminTaskManagement = ({ onLogout }) => {
                                 completed: 'Pending',
                                 priority: 'Low',
                                 dueDate: '',
-                            })
-                        }
+                            });
+                            setIsEditModalOpen(true);
+                        }}
                         className="px-4 py-2 rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition-all duration-300"
                     >
                         Create Task
@@ -651,7 +652,7 @@ const AdminTaskManagement = ({ onLogout }) => {
                                         </motion.button>
                                         <select
                                             onChange={(e) => handleReassign(task._id, e.target.value)}
-                                            className="p-2 rounded-full bg-teal-600 text-white hover:bg-teal-700 text-xs"
+                                            className="p-2 rounded-full bg-teal-600 text-white hover:bg-teal-700 text-xs text-center"
                                             aria-label={`Reassign ${task.title}`}
                                             disabled={isLoading}
                                         >
