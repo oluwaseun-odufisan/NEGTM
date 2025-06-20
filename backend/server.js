@@ -48,7 +48,7 @@ app.use((req, res, next) => {
 
 // Global middleware
 app.use(cors({
-    origin: [process.env.FRONTEND_URL],
+    origin: [process.env.FRONTEND_URL, 'http://localhost:5174'],
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true,
 }));
@@ -203,6 +203,16 @@ app.use('/api/bot', botChatRouter);
 app.use('/api/posts', postRouter);
 app.use('/api/reminders', reminderRouter);
 app.use('/api/goals', goalRouter);
+
+// Emit endpoint for admin
+app.post('/api/emit', (req, res) => {
+    const { event, data } = req.body;
+    if (!event || !data) {
+        return res.status(400).json({ success: false, message: 'Event and data are required' });
+    }
+    io.emit(event, data);
+    res.json({ success: true, message: 'Event emitted' });
+});
 
 // Health check
 app.get('/', (req, res) => {
