@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     User,
     Mail,
@@ -14,53 +14,15 @@ import {
     Trash2,
     Download,
 } from 'lucide-react';
+import axios from 'axios';
+import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
+import jsPDF from 'jspdf';
 
-// Mock user data (replace with backend API call)
-const initialUsers = [
-    {
-        id: '1',
-        name: 'John Doe',
-        email: 'john.doe@example.com',
-        role: 'Admin',
-        registrationDate: '2025-01-15',
-        status: 'Active',
-        lastLogin: '2025-06-17 14:30',
-    },
-    {
-        id: '2',
-        name: 'Jane Smith',
-        email: 'jane.smith@example.com',
-        role: 'User',
-        registrationDate: '2025-02-10',
-        status: 'Active',
-        lastLogin: '2025-06-16 09:45',
-    },
-    {
-        id: '3',
-        name: 'Alice Johnson',
-        email: 'alice.johnson@example.com',
-        role: 'User',
-        registrationDate: '2025-03-05',
-        status: 'Inactive',
-        lastLogin: '2025-06-10 12:20',
-    },
-    {
-        id: '4',
-        name: 'Bob Wilson',
-        email: 'bob.wilson@example.com',
-        role: 'Manager',
-        registrationDate: '2025-04-20',
-        status: 'Active',
-        lastLogin: '2025-06-17 08:15',
-    },
-];
+const API_BASE_URL = import.meta.env.VITE_ADMIN_API_BASE_URL || 'http://localhost:4000';
 
-// Mock available roles and statuses
-const availableRoles = ['All Roles', 'Admin', 'Manager', 'User'];
-const availableStatuses = ['All Statuses', 'Active', 'Inactive'];
-
-const AdminUserList = () => {
-    const [users, setUsers] = useState(initialUsers);
+const AdminUserList = ({ onLogout }) => {
+    const [users, setUsers] = useState([]);
     const [selectedUsers, setSelectedUsers] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [filterRole, setFilterRole] = useState('All Roles');
@@ -70,7 +32,89 @@ const AdminUserList = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
-    const usersPerPage = 5;
+    const navigate = useNavigate();
+    const usersPerPage = 10;
+
+    // Available roles and statuses (aligned with backend)
+    const availableRoles = ['All Roles', 'Super Admin', 'Manager', 'User'];
+    const availableStatuses = ['All Statuses', 'Active', 'Inactive'];
+
+    // Map backend roles to display roles
+    const mapRoleToDisplay = (role) => {
+        switch (role) {
+            case 'super-admin': return 'Super Admin';
+            case 'manager': return 'Manager';
+            case 'standard': return 'User';
+            default: return role;
+        }
+    };
+
+    // Map display roles to backend roles
+    const mapRoleToBackend = (role) => {
+        switch (role) {
+            case 'Super Admin': return 'super-admin';
+            case 'Manager': return 'manager';
+            case 'User': return 'standard';
+            default: return role;
+        }
+    };
+
+    // Fetch users from backend
+    const fetchUsers = useCallback(async () => {
+        setIsLoading(true);
+        setError('');
+        try {
+            const token = localStorage.getItem('adminToken');
+            if (!token) {
+                setError('Authentication token missing. Please log in again.');
+                toast.error('Authentication token missing. Please log in again.');
+                onLogout();
+                navigate('/admin/login', { replace: true });
+                return;
+            }
+            const response = await axios.get(`${API_BASE_URL}/api/admin/users`, {
+                headers: { Authorization: `Bearer ${token}`, 'Cache-Control': 'no-cache' },
+            });
+            console.log('Fetch users response:', response.data);
+            if (response.data.success) {
+                setUsers(
+                    response.data.users.map((user) => ({
+                        id: user._id,
+                        name: user.name,
+                        email: user.email,
+                        role: mapRoleToDisplay(user.role),
+                        registrationDate: new Date(user.createdAt).toISOString().split('T')[0],
+                        status: user.isActive ? 'Active' : 'Inactive',
+                        lastLogin: user.lastLogin ? new Date(user.lastLogin).toISOString().split('T')[0] : 'Never',
+                    }))
+                );
+            } else {
+                setError(response.data.message || 'Failed to fetch users.');
+                toast.error(response.data.message || 'Failed to fetch users.');
+            }
+        } catch (err) {
+            console.error('Error fetching users:', {
+                message: err.message,
+                status: err.response?.status,
+                data: err.response?.data,
+            });
+            const message = err.response?.status === 403
+                ? 'Access denied: Super-admin role required.'
+                : err.response?.data?.message || 'Failed to fetch users.';
+            setError(message);
+            toast.error(message);
+            if (err.response?.status === 401 || err.response?.status === 403) {
+                onLogout();
+                navigate('/admin/login', { replace: true });
+            }
+        } finally {
+            setIsLoading(false);
+        }
+    }, [navigate, onLogout]);
+
+    useEffect(() => {
+        fetchUsers();
+    }, [fetchUsers]);
 
     // Handle sorting
     const handleSort = (key) => {
@@ -81,9 +125,11 @@ const AdminUserList = () => {
         setSortConfig({ key, direction });
 
         const sortedUsers = [...users].sort((a, b) => {
+            const aValue = a[key] || '';
+            const bValue = b[key] || '';
             return direction === 'asc'
-                ? a[key].localeCompare(b[key])
-                : b[key].localeCompare(a[key]);
+                ? aValue.localeCompare(bValue)
+                : bValue.localeCompare(aValue);
         });
         setUsers(sortedUsers);
     };
@@ -92,10 +138,10 @@ const AdminUserList = () => {
     const filteredUsers = users.filter(
         (user) =>
             (user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                user.email.toLowerCase().includes(searchQuery.toLowerCase())) &&
-            (filterRole !== 'All Roles' ? user.role === filterRole : true) &&
-            (filterStatus !== 'All Statuses' ? user.status === filterStatus : true)
-    );
+            user.email.toLowerCase().includes(searchQuery.toLowerCase())) &&
+            (filterRole !== 'All Roles' ? user.role === 'filterRole' : true) &&
+            (filterStatus !== 'All Statuses' ? user.status === 'filterStatus' : true)
+        );
 
     // Pagination logic
     const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
@@ -120,71 +166,210 @@ const AdminUserList = () => {
     };
 
     // Handle bulk actions
-    const handleBulkAction = (action, value) => {
+    const handleBulkAction = async (action, value) => {
+        if (selectedUsers.length === 0) {
+            setError('No users selected.');
+            toast.error('No users selected.');
+            return;
+        }
         setIsLoading(true);
         setError('');
         setSuccess('');
-        setTimeout(() => {
-            if (selectedUsers.length === 0) {
-                setError('No users selected.');
-                setIsLoading(false);
+        try {
+            const token = localStorage.getItem('adminToken');
+            if (!token) {
+                setError('Authentication token missing. Please log in again.');
+                toast.error('Authentication token missing. Please log in again.');
+                onLogout();
+                navigate('/admin/login', { replace: true });
                 return;
             }
             if (action === 'assignRole') {
-                setUsers((prev) =>
-                    prev.map((user) =>
-                        selectedUsers.includes(user.id) ? { ...user, role: value } : user
+                await Promise.all(
+                    selectedUsers.map((id) =>
+                        axios.put(
+                            `${API_BASE_URL}/api/admin/user/${id}`,
+                            { role: mapRoleToBackend(value) },
+                            { headers: { Authorization: `Bearer ${token}` } }
+                        )
                     )
                 );
                 setSuccess(`Assigned role ${value} to selected users successfully!`);
+                toast.success(`Assigned role ${value} to selected users successfully!`);
             } else if (action === 'deactivate') {
-                setUsers((prev) =>
-                    prev.map((user) =>
-                        selectedUsers.includes(user.id) ? { ...user, status: 'Inactive' } : user
+                await Promise.all(
+                    selectedUsers.map((id) =>
+                        axios.put(
+                            `${API_BASE_URL}/api/admin/user/${id}/deactivate`,
+                            {},
+                            { headers: { Authorization: `Bearer ${token}` } }
+                        )
                     )
                 );
                 setSuccess('Selected users deactivated successfully!');
+                toast.success('Selected users deactivated successfully!');
             } else if (action === 'delete') {
-                setUsers((prev) => prev.filter((user) => !selectedUsers.includes(user.id)));
+                await Promise.all(
+                    selectedUsers.map((id) =>
+                        axios.delete(`${API_BASE_URL}/api/admin/user/${id}`, {
+                            headers: { Authorization: `Bearer ${token}` },
+                        })
+                    )
+                );
                 setSuccess('Selected users deleted successfully!');
+                toast.success('Selected users deleted successfully!');
             }
             setSelectedUsers([]);
+            fetchUsers(); // Refresh user list
+        } catch (err) {
+            console.error(`Error in bulk ${action}:`, {
+                message: err.message,
+                status: err.response?.status,
+                data: err.response?.data,
+            });
+            const message = err.response?.data?.message || `Failed to perform ${action}.`;
+            setError(message);
+            toast.error(message);
+            if (err.response?.status === 401 || err.response?.status === 403) {
+                onLogout();
+                navigate('/admin/login', { replace: true });
+            }
+        } finally {
             setIsLoading(false);
-        }, 1000);
+        }
     };
 
     // Handle individual actions
-    const handleEdit = (user) => {
-        console.log(`Editing user: ${user.name}`); // Replace with modal or form logic
-        setSuccess(`Initiated edit for ${user.name}!`);
+    const handleEdit = async (user) => {
+        const newName = prompt('Enter new name:', user.name);
+        const newEmail = prompt('Enter new email:', user.email);
+        if (!newName || !newEmail) {
+            setError('Name and email are required.');
+            toast.error('Name and email are required.');
+            return;
+        }
+        setIsLoading(true);
+        setError('');
+        setSuccess('');
+        try {
+            const token = localStorage.getItem('adminToken');
+            await axios.put(
+                `${API_BASE_URL}/api/admin/user/${user.id}`,
+                { name: newName, email: newEmail },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            setSuccess(`Updated user ${newName} successfully!`);
+            toast.success(`Updated user ${newName} successfully!`);
+            fetchUsers();
+        } catch (err) {
+            console.error('Error editing user:', {
+                message: err.message,
+                status: err.response?.status,
+                data: err.response?.data,
+            });
+            const message = err.response?.data?.message || 'Failed to update user.';
+            setError(message);
+            toast.error(message);
+            if (err.response?.status === 401 || err.response?.status === 403) {
+                onLogout();
+                navigate('/admin/login', { replace: true });
+            }
+        } finally {
+            setIsLoading(false);
+        }
     };
 
-    const handleDeactivate = (id) => {
+    const handleDeactivate = async (id) => {
         setIsLoading(true);
-        setTimeout(() => {
-            setUsers((prev) =>
-                prev.map((user) =>
-                    user.id === id ? { ...user, status: 'Inactive' } : user
-                )
+        setError('');
+        setSuccess('');
+        try {
+            const token = localStorage.getItem('adminToken');
+            await axios.put(
+                `${API_BASE_URL}/api/admin/user/${id}/deactivate`,
+                {},
+                { headers: { Authorization: `Bearer ${token}` } }
             );
             setSuccess('User deactivated successfully!');
+            toast.success('User deactivated successfully!');
+            fetchUsers();
+        } catch (err) {
+            console.error('Error deactivating user:', {
+                message: err.message,
+                status: err.response?.status,
+                data: err.response?.data,
+            });
+            const message = err.response?.data?.message || 'Failed to deactivate user.';
+            setError(message);
+            toast.error(message);
+            if (err.response?.status === 401 || err.response?.status === 403) {
+                onLogout();
+                navigate('/admin/login', { replace: true });
+            }
+        } finally {
             setIsLoading(false);
-        }, 1000);
+        }
     };
 
-    const handleResetPassword = (email) => {
-        console.log(`Resetting password for: ${email}`); // Replace with password reset logic
-        setSuccess(`Password reset initiated for ${email}!`);
+    const handleResetPassword = async (email) => {
+        setIsLoading(true);
+        setError('');
+        setSuccess('');
+        try {
+            const token = localStorage.getItem('adminToken');
+            await axios.put(
+                `${API_BASE_URL}/api/admin/user/reset-password`,
+                { email },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            setSuccess(`Password reset initiated for ${email}!`);
+            toast.success(`Password reset initiated for ${email}!`);
+        } catch (err) {
+            console.error('Error resetting password:', {
+                message: err.message,
+                status: err.response?.status,
+                data: err.response?.data,
+            });
+            const message = err.response?.data?.message || 'Failed to initiate password reset.';
+            setError(message);
+            toast.error(message);
+            if (err.response?.status === 401 || err.response?.status === 403) {
+                onLogout();
+                navigate('/admin/login', { replace: true });
+            }
+        } finally {
+            setIsLoading(false);
+        }
     };
 
-    const handleDelete = (id) => {
-        if (window.confirm('Are you sure you want to delete this user?')) {
-            setIsLoading(true);
-            setTimeout(() => {
-                setUsers((prev) => prev.filter((user) => user.id !== id));
-                setSuccess('User deleted successfully!');
-                setIsLoading(false);
-            }, 1000);
+    const handleDelete = async (id) => {
+        if (!window.confirm('Are you sure you want to delete this user?')) return;
+        setIsLoading(true);
+        setError('');
+        setSuccess('');
+        try {
+            const token = localStorage.getItem('adminToken');
+            await axios.delete(`${API_BASE_URL}/api/admin/user/${id}`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            setSuccess('User deleted successfully!');
+            toast.success('User deleted successfully!');
+            fetchUsers();
+        } catch (err) {
+            console.error('Error deleting user:', {
+                message: err.message,
+                status: err.response?.status,
+                data: err.response?.data,
+            });
+            const message = err.response?.data?.message || 'Failed to delete user.';
+            setError(message);
+            toast.error(message);
+            if (err.response?.status === 401 || err.response?.status === 403) {
+                onLogout();
+                navigate('/admin/login', { replace: true });
+            }
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -192,14 +377,17 @@ const AdminUserList = () => {
     const handleExport = (format) => {
         if (filteredUsers.length === 0) {
             setError('No users to export.');
+            toast.error('No users to export.');
             return;
         }
         setIsLoading(true);
-        setTimeout(() => {
+        setError('');
+        setSuccess('');
+        try {
             if (format === 'csv') {
                 const csvHeaders = ['name', 'email', 'role', 'registrationDate', 'status', 'lastLogin'];
                 const csvRows = filteredUsers.map((user) =>
-                    csvHeaders.map((header) => `"${user[header]}"`).join(',')
+                    csvHeaders.map((header) => `"${user[header] || ''}"`).join(',')
                 );
                 const csvContent = [csvHeaders.join(','), ...csvRows].join('\n');
                 const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -211,12 +399,36 @@ const AdminUserList = () => {
                 link.click();
                 document.body.removeChild(link);
             } else if (format === 'pdf') {
-                console.log('PDF export initiated'); // Replace with PDF generation logic (e.g., jsPDF)
-                setSuccess('PDF export initiated! (Placeholder)');
+                const doc = new jsPDF();
+                doc.setFontSize(16);
+                doc.text('User List', 10, 10);
+                doc.setFontSize(10);
+                let y = 20;
+                filteredUsers.forEach((user, index) => {
+                    doc.text(`User ${index + 1}`, 10, y);
+                    doc.text(`Name: ${user.name}`, 10, y + 5);
+                    doc.text(`Email: ${user.email}`, 10, y + 10);
+                    doc.text(`Role: ${user.role}`, 10, y + 15);
+                    doc.text(`Registration Date: ${user.registrationDate}`, 10, y + 20);
+                    doc.text(`Status: ${user.status}`, 10, y + 25);
+                    doc.text(`Last Login: ${user.lastLogin}`, 10, y + 30);
+                    y += 40;
+                    if (y > 270) {
+                        doc.addPage();
+                        y = 10;
+                    }
+                });
+                doc.save(`user_list_${Date.now()}.pdf`);
             }
             setSuccess(`Users exported as ${format.toUpperCase()} successfully!`);
+            toast.success(`Users exported as ${format.toUpperCase()} successfully!`);
+        } catch (err) {
+            console.error('Error exporting users:', err);
+            setError('Failed to export users.');
+            toast.error('Failed to export users.');
+        } finally {
             setIsLoading(false);
-        }, 1000);
+        }
     };
 
     return (
@@ -275,7 +487,7 @@ const AdminUserList = () => {
                         disabled={isLoading}
                     >
                         <option value="">Assign Role</option>
-                        <option value="Admin">Admin</option>
+                        <option value="Super Admin">Super Admin</option>
                         <option value="Manager">Manager</option>
                         <option value="User">User</option>
                     </select>
@@ -388,8 +600,7 @@ const AdminUserList = () => {
                                 <td className="p-3 text-gray-700">{user.registrationDate}</td>
                                 <td className="p-3 text-gray-700">
                                     <span
-                                        className={`px-2 py-1 rounded-full text-xs ${user.status === 'Active' ? 'bg-teal-100 text-teal-700' : 'bg-blue-100 text-blue-700'
-                                            }`}
+                                        className={`px-2 py-1 rounded-full text-xs ${user.status === 'Active' ? 'bg-teal-100 text-teal-700' : 'bg-blue-100 text-blue-700'}`}
                                     >
                                         {user.status}
                                     </span>

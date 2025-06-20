@@ -45,7 +45,7 @@ const AdminUserManagement = ({ onLogout }) => {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const usersPerPage = 5;
+    const usersPerPage = 10;
 
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
 

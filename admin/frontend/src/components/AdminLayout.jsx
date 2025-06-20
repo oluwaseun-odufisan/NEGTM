@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import AdminNavbar from './AdminNavbar';
 import AdminSidebar from './AdminSidebar';
 
-const AdminLayout = ({ children }) => {
+const AdminLayout = ({ children, admin, onLogout }) => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     // Toggle sidebar for mobile view
@@ -10,8 +10,8 @@ const AdminLayout = ({ children }) => {
         setIsSidebarOpen(!isSidebarOpen);
     };
 
-    // Placeholder for authentication check (to be integrated with backend later)
-    const isAuthenticated = true; // Mock value until backend is implemented
+    // Placeholder for authentication check
+    const isAuthenticated = !!admin;
 
     if (!isAuthenticated) {
         return (
@@ -51,8 +51,8 @@ const AdminLayout = ({ children }) => {
                 {/* Main content area */}
                 <div className="flex-1 flex flex-col md:ml-64">
                     {/* Navbar */}
-                    <header className="bg-white shadow-md z-10">
-                        <AdminNavbar toggleSidebar={toggleSidebar} />
+                    <header className="bg-teal-800 shadow-md z-10">
+                        <AdminNavbar toggleSidebar={toggleSidebar} admin={admin} onLogout={onLogout} />
                     </header>
 
                     {/* Content */}
@@ -65,7 +65,6 @@ const AdminLayout = ({ children }) => {
                         <div className="bg-white rounded-lg shadow-lg p-4 max-w-sm">
                             <h3 className="text-teal-700 font-semibold mb-2">Notifications</h3>
                             <ul className="space-y-2">
-                                {/* Placeholder notifications */}
                                 <li className="text-sm text-gray-600 border-l-4 border-teal-500 pl-2">
                                     New user registered: john.doe@example.com
                                 </li>
@@ -78,7 +77,7 @@ const AdminLayout = ({ children }) => {
 
                     {/* Footer */}
                     <footer className="bg-white text-gray-600 text-center py-2 text-sm">
-                        NEGTM Admin &copy; 2025 | Version 1.0.0
+                        NEGTM Admin © 2025 | Version 1.0.0
                     </footer>
                 </div>
             </div>

@@ -4,7 +4,7 @@ import { toast, ToastContainer } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4001';
 const INITIAL_FORM = { email: '', password: '' };
 
 const Login = ({ onSubmit, onSwitchMode }) => {
