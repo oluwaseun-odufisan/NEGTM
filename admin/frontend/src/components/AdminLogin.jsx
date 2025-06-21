@@ -60,7 +60,7 @@ const AdminLogin = ({ onSubmit }) => {
 
             <div className="relative bg-white/80 backdrop-blur-md rounded-2xl shadow-2xl p-8 w-full max-w-md transform transition-all duration-500 hover:scale-105">
                 <div className="text-center mb-8">
-                    <h1 className="text-3xl font-bold text-teal-600 animate-fade-in">NEGTM Admin</h1>
+                    <h1 className="text-3xl font-bold text-teal-600 animate-fade-in">NEGAITM Admin</h1>
                     <p className="text-sm text-blue-600 mt-2">Secure Access to Admin Portal</p>
                 </div>
 

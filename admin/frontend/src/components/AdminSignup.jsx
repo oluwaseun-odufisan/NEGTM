@@ -95,7 +95,7 @@ const AdminSignup = () => {
             <div className="relative bg-white/80 backdrop-blur-md rounded-2xl shadow-2xl p-8 w-full max-w-md transform transition-all duration-500 hover:scale-105">
                 {/* Branding */}
                 <div className="text-center mb-8">
-                    <h1 className="text-3xl font-bold text-teal-600 animate-fade-in">NEGTM Admin Signup</h1>
+                    <h1 className="text-3xl font-bold text-teal-600 animate-fade-in">NEGAITM Admin Signup</h1>
                     <p className="text-sm text-blue-600 mt-2">Create your admin account</p>
                 </div>
 

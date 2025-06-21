@@ -715,7 +715,7 @@ const AdminTaskManagement = ({ onLogout }) => {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+                        className="fixed inset-0 bg-gray-200 bg-opacity-50 flex items-center justify-center z-50"
                     >
                         <motion.div
                             initial={{ scale: 0.8, y: 50 }}
@@ -731,7 +731,7 @@ const AdminTaskManagement = ({ onLogout }) => {
                                     <label htmlFor="title" className="sr-only">
                                         Task Title
                                     </label>
-                                    <div className="flex items-center border border-teal-200 rounded-lg focus-within:ring-2 focus-within:ring-teal-400 transition-all duration-300">
+                                    <div className="flex items-center border border-teal-500 rounded-lg focus-within:ring-2 focus-within:ring-teal-400 transition-all duration-300">
                                         <FileText className="w-5 h-5 text-teal-600 ml-3" />
                                         <input
                                             type="text"

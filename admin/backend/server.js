@@ -5,6 +5,7 @@ import { connectDB } from './config/adminDb.js';
 import adminRouter from './routes/adminRoutes.js';
 import adminUserRouter from './routes/adminUserRoutes.js';
 import adminTaskRouter from './routes/adminTaskRoutes.js';
+import adminGoalRouter from './routes/adminGoalRoutes.js';
 
 const app = express();
 const port = process.env.ADMIN_PORT || 4000;
@@ -37,6 +38,7 @@ console.log(`NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
 app.use('/api/admin', adminRouter);
 app.use('/api/admin/users', adminUserRouter);
 app.use('/api/admin', adminTaskRouter);
+app.use('/api/admin', adminGoalRouter);
 
 // Health check route
 app.get('/', (req, res) => {

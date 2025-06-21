@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { List, CheckCircle, Menu, Info, X, LayoutDashboard, Clock, Calendar, MessageSquare, Link, File, FileText, CreditCard, Sparkles, AlertCircle, Bell, Target, Award, Users, Video, BookOpen } from 'lucide-react';
+import { List, CheckCircle, Menu, Info, X, LayoutDashboard, Clock, Calendar, MessageSquare, Link, File, FileText, CreditCard, Sparkles, AlertCircle, Bell, Target, Award, Users, Video, BookOpen, Instagram } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
 const Sidebar = ({ user, tasks }) => {
@@ -23,6 +23,7 @@ const Sidebar = ({ user, tasks }) => {
         { text: 'Assigned Tasks', path: '/assigned', icon: <AlertCircle className="w-6 h-6 text-teal-500" /> },
         { text: 'Calendar View', path: '/calendar', icon: <Calendar className="w-6 h-6 text-teal-500" /> },
         { text: 'Team Chat', path: '/team-chat', icon: <MessageSquare className="w-6 h-6 text-teal-500" /> },
+        { text: 'Social Feeds', path: '/social-feed', icon: <Instagram className="w-6 h-6 text-teal-500" /> },
         { text: 'URL Shortener', path: '/url-shortener', icon: <Link className="w-6 h-6 text-teal-500" /> },
         { text: 'File Storage', path: '/file-storage', icon: <File className="w-6 h-6 text-teal-500" /> },
         { text: 'Generate Report', path: '/generate-report', icon: <FileText className="w-6 h-6 text-teal-500" /> },

@@ -36,7 +36,7 @@ const AdminNavbar = ({ toggleSidebar, onLogout, admin }) => {
                     <Menu size={24} />
                 </motion.button>
                 <Link to="/admin/dashboard" className="text-2xl font-bold text-teal-200 hover:text-white transition-colors">
-                    NEGTM Admin
+                    NEGAITM Admin
                 </Link>
             </div>
 

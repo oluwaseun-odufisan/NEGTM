@@ -42,7 +42,7 @@ const AdminSidebar = ({ toggleSidebar }) => {
             >
                 {!isCollapsed && (
                     <Link to="/admin/dashboard" className="text-xl font-bold text-teal-600">
-                        NEGTM
+                        NEGAITM
                     </Link>
                 )}
                 <button
