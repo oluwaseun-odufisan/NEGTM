@@ -513,10 +513,10 @@ const TeamChat = () => {
 
       const payload = {
         name: groupName || 'Unnamed Group',
-        members: [...new Set([...validSelectedUsers, user._id])],
+        members: [...new Set(validSelectedUsers)],
       };
 
-      await axios.post(`${API_BASE_URL}/api/chats/messages`, payload, {
+      await axios.post(`${API_BASE_URL}/api/chats/groups`, payload, {
         headers: getAuthHeaders(),
       });
 
