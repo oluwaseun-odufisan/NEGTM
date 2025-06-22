@@ -1,552 +1,417 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import axios from 'axios';
+import toast from 'react-hot-toast';
+import { Toaster } from 'react-hot-toast';
 import {
-    File,
-    User,
-    FileDown,
-    Trash2,
-    Edit,
-    Search,
-    ChevronUp,
-    ChevronDown,
-    Save,
-    X,
-    Lock,
-    Unlock,
-    HardDrive,
+    Upload, Trash2, FileText, Image, Video, Download, List, Grid,
+    Search, Tag, Folder, ChevronRight, Plus, Info, Link2, FolderPlus,
+    Users, HardDrive, ChevronDown, ChevronUp, X, Edit2,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
-// Mock file data (replace with backend API call)
-const initialFiles = [
-    {
-        id: '1',
-        name: 'project_proposal.pdf',
-        owner: 'John Doe',
-        size: '2.5 MB',
-        uploadDate: '2025-06-15',
-        status: 'Public',
-        type: 'PDF',
-    },
-    {
-        id: '2',
-        name: 'marketing_plan.docx',
-        owner: 'Jane Smith',
-        size: '1.8 MB',
-        uploadDate: '2025-06-10',
-        status: 'Private',
-        type: 'Document',
-    },
-    {
-        id: '3',
-        name: 'team_photo.jpg',
-        owner: 'Alice Johnson',
-        size: '3.2 MB',
-        uploadDate: '2025-06-12',
-        status: 'Public',
-        type: 'Image',
-    },
-];
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-// Mock storage data (replace with backend API call)
-const storageData = {
-    totalUsed: '7.5 GB',
-    totalQuota: '50 GB',
-    perUserQuota: '10 GB',
-    users: [
-        { name: 'John Doe', used: '2.5 GB' },
-        { name: 'Jane Smith', used: '1.8 GB' },
-        { name: 'Alice Johnson', used: '3.2 GB' },
-    ],
-};
+const FilePreviewModal = ({ isOpen, onClose, file }) => {
+    if (!isOpen || !file) return null;
 
-// Mock available owners and file types
-const availableOwners = ['John Doe', 'Jane Smith', 'Alice Johnson'];
-const availableFileTypes = ['PDF', 'Document', 'Image'];
+    const url = `https://gateway.pinata.cloud/ipfs/${file.cid}`;
+    const type = file.type?.toLowerCase();
 
-const AdminFileManagement = () => {
-    const [files, setFiles] = useState(initialFiles);
-    const [selectedFiles, setSelectedFiles] = useState([]);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [filterOwner, setFilterOwner] = useState('');
-    const [filterType, setFilterType] = useState('');
-    const [filterStatus, setFilterStatus] = useState('');
-    const [sortConfig, setSortConfig] = useState({ key: '', direction: '' });
-    const [currentPage, setCurrentPage] = useState(1);
-    const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
-    const [editFile, setEditFile] = useState(null);
-    const [error, setError] = useState('');
-    const [success, setSuccess] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-    const filesPerPage = 5;
-
-    // Handle sorting
-    const handleSort = (key) => {
-        let direction = 'asc';
-        if (sortConfig.key === key && sortConfig.direction === 'asc') {
-            direction = 'desc';
+    const renderPreview = () => {
+        if (['jpg', 'jpeg', 'png'].includes(type)) {
+            return <img src={url} alt={file.fileName} className="w-full h-auto rounded-lg max-h-[70vh] object-contain" />;
         }
-        setSortConfig({ key, direction });
-
-        const sortedFiles = [...files].sort((a, b) => {
-            if (key === 'size') {
-                const aSize = parseFloat(a.size);
-                const bSize = parseFloat(b.size);
-                return direction === 'asc' ? aSize - bSize : bSize - aSize;
-            }
-            return direction === 'asc'
-                ? a[key].localeCompare(b[key])
-                : b[key].localeCompare(a[key]);
-        });
-        setFiles(sortedFiles);
-    };
-
-    // Handle search and filters
-    const filteredFiles = files.filter(
-        (file) =>
-            (file.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                file.owner.toLowerCase().includes(searchQuery.toLowerCase())) &&
-            (filterOwner ? file.owner === filterOwner : true) &&
-            (filterType ? file.type === filterType : true) &&
-            (filterStatus ? file.status === filterStatus : true)
-    );
-
-    // Pagination logic
-    const totalPages = Math.ceil(filteredFiles.length / filesPerPage);
-    const paginatedFiles = filteredFiles.slice(
-        (currentPage - 1) * filesPerPage,
-        currentPage * filesPerPage
-    );
-
-    // Handle bulk selection
-    const handleSelectAll = (e) => {
-        if (e.target.checked) {
-            setSelectedFiles(paginatedFiles.map((file) => file.id));
-        } else {
-            setSelectedFiles([]);
+        if (['mp4', 'webm'].includes(type)) {
+            return <video controls autoPlay muted className="w-full max-h-[70vh] rounded-lg"><source src={url} type={`video/${type}`} /></video>;
         }
-    };
-
-    const handleSelectFile = (id) => {
-        setSelectedFiles((prev) =>
-            prev.includes(id) ? prev.filter((fileId) => fileId !== id) : [...prev, id]
-        );
-    };
-
-    // Handle bulk actions
-    const handleBulkAction = (action) => {
-        setIsLoading(true);
-        setTimeout(() => {
-            if (action === 'makePublic') {
-                setFiles((prev) =>
-                    prev.map((file) =>
-                        selectedFiles.includes(file.id) ? { ...file, status: 'Public' } : file
-                    )
-                );
-                setSuccess('Selected files set to public successfully!');
-            } else if (action === 'makePrivate') {
-                setFiles((prev) =>
-                    prev.map((file) =>
-                        selectedFiles.includes(file.id) ? { ...file, status: 'Private' } : file
-                    )
-                );
-                setSuccess('Selected files set to private successfully!');
-            } else if (action === 'delete') {
-                setFiles((prev) => prev.filter((file) => !selectedFiles.includes(file.id)));
-                setSuccess('Selected files deleted successfully!');
-            }
-            setSelectedFiles([]);
-            setIsLoading(false);
-        }, 1000);
-    };
-
-    // Handle individual actions
-    const handleViewDownload = (file) => {
-        console.log(`Viewing/Downloading file: ${file.name}`); // Replace with actual file access logic
-        setSuccess(`Initiated view/download for ${file.name}!`);
-    };
-
-    const handleDelete = (id) => {
-        if (window.confirm('Are you sure you want to delete this file?')) {
-            setIsLoading(true);
-            setTimeout(() => {
-                setFiles((prev) => prev.filter((file) => file.id !== id));
-                setSuccess('File deleted successfully!');
-                setIsLoading(false);
-            }, 1000);
+        if (type === 'pdf') {
+            return <iframe src={url} className="w-full h-[70vh] rounded-lg" title="PDF Preview" />;
         }
+        return <div className="h-96 bg-gray-100 rounded-lg flex items-center justify-center"><p className="text-gray-500">No preview available</p></div>;
     };
-
-    const handleUpdate = (file) => {
-        setEditFile({ ...file });
-        setIsUpdateModalOpen(true);
-        setError('');
-        setSuccess('');
-    };
-
-    // Handle update form submission
-    const handleUpdateSubmit = (e) => {
-        e.preventDefault();
-        setError('');
-        setIsLoading(true);
-
-        // Validation
-        if (!editFile.name || editFile.name.length < 3) {
-            setError('File name must be at least 3 characters long.');
-            setIsLoading(false);
-            return;
-        }
-        if (!editFile.status) {
-            setError('Please select a status.');
-            setIsLoading(false);
-            return;
-        }
-
-        // Simulate API call
-        setTimeout(() => {
-            setFiles((prev) =>
-                prev.map((file) => (file.id === editFile.id ? editFile : file))
-            );
-            setSuccess('File updated successfully!');
-            setIsUpdateModalOpen(false);
-            setEditFile(null);
-            setIsLoading(false);
-        }, 1000);
-    };
-
-    // Calculate storage usage percentage
-    const storageUsedPercentage =
-        (parseFloat(storageData.totalUsed) / parseFloat(storageData.totalQuota)) * 100;
 
     return (
-        <div className="p-6 bg-white/80 backdrop-blur-md rounded-2xl shadow-2xl max-w-7xl mx-auto relative animate-fade-in">
-            {/* Header */}
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-teal-600">File Management</h2>
-                <div className="relative">
-                    <input
-                        type="text"
-                        placeholder="Search files..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-10 pr-4 py-2 rounded-full border border-teal-200 focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white text-gray-700 w-64"
-                        aria-label="Search files"
-                    />
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-teal-600" size={18} />
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-gray-900/80 flex items-center justify-center z-50 p-4"
+            onClick={onClose}
+        >
+            <motion.div
+                initial={{ scale: 0.9 }}
+                animate={{ scale: 1 }}
+                exit={{ scale: 0.9 }}
+                className="bg-white rounded-2xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold">{file.fileName}</h3>
+                    <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-5 h-5" /></button>
                 </div>
-            </div>
-
-            {/* Storage Usage Display */}
-            <div className="mb-6 bg-teal-50 p-4 rounded-lg animate-slide-in">
-                <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-lg font-semibold text-teal-700 flex items-center">
-                        <HardDrive className="w-5 h-5 mr-2" />
-                        Storage Usage
-                    </h3>
-                    <p className="text-sm text-gray-600">
-                        {storageData.totalUsed} / {storageData.totalQuota} used
-                    </p>
+                {renderPreview()}
+                <div className="mt-4 space-y-2 text-sm text-gray-600">
+                    <p><span className="font-medium">Size:</span> {(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                    <p><span className="font-medium">Type:</span> {file.type}</p>
+                    <p><span className="font-medium">Uploaded:</span> {new Date(file.uploadedAt).toLocaleString()}</p>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
-                    <div
-                        className="bg-teal-600 h-2.5 rounded-full transition-all duration-500"
-                        style={{ width: `${storageUsedPercentage}%` }}
-                    ></div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                    {storageData.users.map((user) => (
-                        <div key={user.name} className="text-sm text-gray-700">
-                            <span className="font-medium">{user.name}:</span> {user.used} / {storageData.perUserQuota}
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-            {/* Filters */}
-            <div className="flex flex-wrap gap-4 mb-4">
-                <select
-                    value={filterOwner}
-                    onChange={(e) => setFilterOwner(e.target.value)}
-                    className="p-2 rounded-lg border border-teal-200 focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white text-gray-700"
-                    aria-label="Filter by owner"
-                >
-                    <option value="">All Owners</option>
-                    {availableOwners.map((owner) => (
-                        <option key={owner} value={owner}>
-                            {owner}
-                        </option>
-                    ))}
-                </select>
-                <select
-                    value={filterType}
-                    onChange={(e) => setFilterType(e.target.value)}
-                    className="p-2 rounded-lg border border-teal-200 focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white text-gray-700"
-                    aria-label="Filter by file type"
-                >
-                    <option value="">All File Types</option>
-                    {availableFileTypes.map((type) => (
-                        <option key={type} value={type}>
-                            {type}
-                        </option>
-                    ))}
-                </select>
-                <select
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                    className="p-2 rounded-lg border border-teal-200 focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white text-gray-700"
-                    aria-label="Filter by status"
-                >
-                    <option value="">All Statuses</option>
-                    <option value="Public">Public</option>
-                    <option value="Private">Private</option>
-                </select>
-            </div>
-
-            {/* Success/Error Messages */}
-            {error && (
-                <div className="text-red-500 text-sm text-center animate-shake mb-4">
-                    {error}
-                </div>
-            )}
-            {success && (
-                <div className="text-teal-600 text-sm text-center animate-fade-in mb-4">
-                    {success}
-                </div>
-            )}
-
-            {/* Bulk Actions */}
-            {selectedFiles.length > 0 && (
-                <div className="flex flex-wrap gap-2 mb-4 animate-slide-in">
-                    <button
-                        onClick={() => handleBulkAction('makePublic')}
-                        className="px-4 py-2 rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition-all duration-300"
-                        disabled={isLoading}
-                    >
-                        Make Public
-                    </button>
-                    <button
-                        onClick={() => handleBulkAction('makePrivate')}
-                        className="px-4 py-2 rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition-all duration-300"
-                        disabled={isLoading}
-                    >
-                        Make Private
-                    </button>
-                    <button
-                        onClick={() => handleBulkAction('delete')}
-                        className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-all duration-300"
-                        disabled={isLoading}
-                    >
-                        Delete
-                    </button>
-                </div>
-            )}
-
-            {/* File Table */}
-            <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
-                    <thead>
-                        <tr className="bg-teal-50">
-                            <th className="p-3">
-                                <input
-                                    type="checkbox"
-                                    checked={selectedFiles.length === paginatedFiles.length && paginatedFiles.length > 0}
-                                    onChange={handleSelectAll}
-                                    className="h-4 w-4 text-teal-600 focus:ring-teal-400"
-                                    aria-label="Select all files"
-                                />
-                            </th>
-                            {['name', 'owner', 'size', 'uploadDate', 'status'].map((key) => (
-                                <th
-                                    key={key}
-                                    className="p-3 text-left text-teal-700 cursor-pointer hover:text-teal-900 transition-colors"
-                                    onClick={() => handleSort(key)}
-                                    aria-sort={sortConfig.key === key ? sortConfig.direction : 'none'}
-                                >
-                                    <div className="flex items-center space-x-1">
-                                        <span>{key.charAt(0).toUpperCase() + key.slice(1)}</span>
-                                        {sortConfig.key === key &&
-                                            (sortConfig.direction === 'asc' ? (
-                                                <ChevronUp size={16} />
-                                            ) : (
-                                                <ChevronDown size={16} />
-                                            ))}
-                                    </div>
-                                </th>
-                            ))}
-                            <th className="p-3 text-left text-teal-700">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {paginatedFiles.map((file) => (
-                            <tr
-                                key={file.id}
-                                className="border-b border-teal-100 hover:bg-teal-50 transition-all duration-200"
-                            >
-                                <td className="p-3">
-                                    <input
-                                        type="checkbox"
-                                        checked={selectedFiles.includes(file.id)}
-                                        onChange={() => handleSelectFile(file.id)}
-                                        className="h-4 w-4 text-teal-600 focus:ring-teal-400"
-                                        aria-label={`Select ${file.name}`}
-                                    />
-                                </td>
-                                <td className="p-3 text-gray-700">{file.name}</td>
-                                <td className="p-3 text-gray-700">{file.owner}</td>
-                                <td className="p-3 text-gray-700">{file.size}</td>
-                                <td className="p-3 text-gray-700">{file.uploadDate}</td>
-                                <td className="p-3 text-gray-700">
-                                    <span
-                                        className={`px-2 py-1 rounded-full text-xs ${file.status === 'Public' ? 'bg-teal-100 text-teal-700' : 'bg-blue-100 text-blue-700'
-                                            }`}
-                                    >
-                                        {file.status}
-                                    </span>
-                                </td>
-                                <td className="p-3 flex space-x-2">
-                                    <button
-                                        onClick={() => handleViewDownload(file)}
-                                        className="p-2 rounded-full bg-teal-600 text-white hover:bg-teal-700 transition-all duration-300"
-                                        aria-label={`View or download ${file.name}`}
-                                        disabled={isLoading}
-                                    >
-                                        <FileDown size={16} />
-                                    </button>
-                                    <button
-                                        onClick={() => handleUpdate(file)}
-                                        className="p-2 rounded-full bg-teal-600 text-white hover:bg-teal-700 transition-all duration-300"
-                                        aria-label={`Update ${file.name}`}
-                                        disabled={isLoading}
-                                    >
-                                        <Edit size={16} />
-                                    </button>
-                                    <button
-                                        onClick={() => handleDelete(file.id)}
-                                        className="p-2 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-all duration-300"
-                                        aria-label={`Delete ${file.name}`}
-                                        disabled={isLoading}
-                                    >
-                                        <Trash2 size={16} />
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-
-            {/* Pagination */}
-            <div className="flex justify-between items-center mt-4">
-                <p className="text-sm text-gray-600">
-                    Showing {(currentPage - 1) * filesPerPage + 1} to{' '}
-                    {Math.min(currentPage * filesPerPage, filteredFiles.length)} of {filteredFiles.length}{' '}
-                    files
-                </p>
-                <div className="flex space-x-2">
-                    <button
-                        onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                        disabled={currentPage === 1}
-                        className="px-4 py-2 rounded-lg bg-teal-600 text-white disabled:opacity-50 hover:bg-teal-700 transition-all duration-300"
-                        aria-label="Previous page"
-                    >
-                        Previous
-                    </button>
-                    <button
-                        onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                        disabled={currentPage === totalPages}
-                        className="px-4 py-2 rounded-lg bg-teal-600 text-white disabled:opacity-50 hover:bg-teal-700 transition-all duration-300"
-                        aria-label="Next page"
-                    >
-                        Next
-                    </button>
-                </div>
-            </div>
-
-            {/* Update Modal */}
-            {isUpdateModalOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
-                    <div className="bg-white/80 backdrop-blur-md rounded-2xl p-8 w-full max-w-md transform transition-all duration-500 hover:scale-105">
-                        <h3 className="text-xl font-bold text-teal-600 mb-4">Update File</h3>
-                        <form onSubmit={handleUpdateSubmit} className="space-y-4">
-                            <div className="relative">
-                                <label htmlFor="name" className="sr-only">
-                                    File Name
-                                </label>
-                                <div className="flex items-center border border-teal-200 rounded-lg focus-within:ring-2 focus-within:ring-teal-400 transition-all duration-300">
-                                    <File className="w-5 h-5 text-teal-600 ml-3" />
-                                    <input
-                                        type="text"
-                                        id="name"
-                                        value={editFile.name}
-                                        onChange={(e) => setEditFile({ ...editFile, name: e.target.value })}
-                                        placeholder="Enter file name"
-                                        className="w-full p-3 bg-transparent focus:outline-none text-gray-700 placeholder-gray-400"
-                                        aria-label="File name"
-                                        required
-                                    />
-                                </div>
-                            </div>
-                            <div className="relative">
-                                <label htmlFor="status" className="sr-only">
-                                    Status
-                                </label>
-                                <div className="flex items-center border border-teal-200 rounded-lg focus-within:ring-2 focus-within:ring-teal-400 transition-all duration-300">
-                                    {editFile.status === 'Public' ? (
-                                        <Unlock className="w-5 h-5 text-teal-600 ml-3" />
-                                    ) : (
-                                        <Lock className="w-5 h-5 text-teal-600 ml-3" />
-                                    )}
-                                    <select
-                                        id="status"
-                                        value={editFile.status}
-                                        onChange={(e) => setEditFile({ ...editFile, status: e.target.value })}
-                                        className="w-full p-3 bg-transparent focus:outline-none text-gray-700 appearance-none"
-                                        aria-label="Select status"
-                                        required
-                                    >
-                                        <option value="Public">Public</option>
-                                        <option value="Private">Private</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div className="flex space-x-4">
-                                <button
-                                    type="submit"
-                                    disabled={isLoading}
-                                    className={`w-full py-3 rounded-lg bg-teal-600 text-white font-semibold flex items-center justify-center transition-all duration-300 ${isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-teal-700 hover:shadow-lg'
-                                        }`}
-                                    aria-label="Save file"
-                                >
-                                    {isLoading ? (
-                                        <div className="flex items-center space-x-2">
-                                            <div className="w-5 h-5 border-2 border-teal-200 border-t-teal-600 rounded-full animate-spin" />
-                                            <span>Saving...</span>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <Save className="w-5 h-5 mr-2" />
-                                            Save
-                                        </>
-                                    )}
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        setIsUpdateModalOpen(false);
-                                        setEditFile(null);
-                                        setError('');
-                                        setSuccess('');
-                                    }}
-                                    className="w-full py-3 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 hover:shadow-lg transition-all duration-300"
-                                    aria-label="Cancel"
-                                >
-                                    <X className="w-5 h-5 mr-2 inline" />
-                                    Cancel
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-        </div>
+            </motion.div>
+        </motion.div>
     );
 };
 
-export default AdminFileManagement;
+const UploadModal = ({ isOpen, onClose, users, onUpload, tasks, currentFolderId }) => {
+    const [selectedFiles, setSelectedFiles] = useState([]);
+    const [selectedUserIds, setSelectedUserIds] = useState([]);
+    const [taskId, setTaskId] = useState('');
+    const [tags, setTags] = useState('');
+    const [error, setError] = useState(null);
+
+    const handleFileChange = (e) => {
+        const files = Array.from(e.target.files);
+        setSelectedFiles(files);
+        setError(null);
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!selectedFiles.length) return setError('Please select files');
+        if (!selectedUserIds.length) return setError('Please select at least one user');
+
+        try {
+            const formData = new FormData();
+            selectedFiles.forEach(file => formData.append('files', file));
+            formData.append('userIds', JSON.stringify(selectedUserIds));
+            if (taskId) formData.append('taskId', taskId);
+            if (tags) formData.append('tags', tags.split(',').map(t => t.trim()));
+            if (currentFolderId) formData.append('folderId', currentFolderId);
+
+            await onUpload(formData);
+            setSelectedFiles([]);
+            setSelectedUserIds([]);
+            setTaskId('');
+            setTags('');
+            setError(null);
+            onClose();
+        } catch (err) {
+            setError(err.message || 'Upload failed');
+        }
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-gray-900/80 flex items-center justify-center z-50"
+            onClick={onClose}
+        >
+            <motion.div
+                initial={{ scale: 0.9 }}
+                animate={{ scale: 1 }}
+                exit={{ scale: 0.9 }}
+                className="bg-white rounded-2xl p-6 max-w-md w-full"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <h3 className="text-lg font-semibold mb-4">Upload Files</h3>
+                {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label className="text-sm text-gray-600">Select Users</label>
+                        <select
+                            multiple
+                            value={selectedUserIds}
+                            onChange={(e) => setSelectedUserIds(Array.from(e.target.selectedOptions, option => option.value))}
+                            className="w-full p-2 border rounded-md"
+                        >
+                            {users.map(user => (
+                                <option key={user._id} value={user._id}>{user.name} ({user.email})</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="text-sm text-gray-600">Files</label>
+                        <input
+                            type="file"
+                            multiple
+                            onChange={handleFileChange}
+                            className="w-full p-2 border rounded-md"
+                        />
+                    </div>
+                    <div>
+                        <label className="text-sm text-gray-600">Task</label>
+                        <select
+                            value={taskId}
+                            onChange={(e) => setTaskId(e.target.value)}
+                            className="w-full p-2 border rounded-md"
+                        >
+                            <option value="">No Task</option>
+                            {tasks.map(task => (
+                                <option key={task._id} value={task._id}>{task.title}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="text-sm text-gray-600">Tags</label>
+                        <input
+                            type="text"
+                            value={tags}
+                            onChange={(e) => setTags(e.target.value)}
+                            placeholder="e.g., report, urgent"
+                            className="w-full p-2 border rounded-md"
+                        />
+                    </div>
+                    <button
+                        type="submit"
+                        disabled={!selectedFiles.length || !selectedUserIds.length}
+                        className="w-full py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-400"
+                    >
+                        Upload
+                    </button>
+                </form>
+            </motion.div>
+        </motion.div>
+    );
+};
+
+const AdminFileManager = () => {
+    const navigate = useNavigate();
+    const [users, setUsers] = useState([]);
+    const [selectedUserId, setSelectedUserId] = useState('');
+    const [files, setFiles] = useState([]);
+    const [folders, setFolders] = useState([]);
+    const [currentFolder, setCurrentFolder] = useState(null);
+    const [viewMode, setViewMode] = useState('grid');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [previewModal, setPreviewModal] = useState(false);
+    const [uploadModal, setUploadModal] = useState(false);
+    const [selectedFile, setSelectedFile] = useState(null);
+    const [storageUsage, setStorageUsage] = useState({ storageUsed: 0, totalStorage: 2 * 1024 * 1024 * 1024 });
+    const [tasks, setTasks] = useState([]);
+
+    const fetchUsers = useCallback(async () => {
+        try {
+            const { data } = await axios.get(`${API_BASE_URL}/api/admin/users`, {
+                headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` },
+            });
+            setUsers(data.users);
+        } catch (err) {
+            toast.error('Failed to fetch users');
+        }
+    }, []);
+
+    const fetchUserData = useCallback(async (userId) => {
+        if (!userId) return;
+        try {
+            const [filesRes, foldersRes, storageRes, tasksRes] = await Promise.all([
+                axios.get(`${API_BASE_URL}/api/admin/users/${userId}/files`, {
+                    headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` },
+                }),
+                axios.get(`${API_BASE_URL}/api/admin/users/${userId}/folders`, {
+                    headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` },
+                }),
+                axios.get(`${API_BASE_URL}/api/admin/users/${userId}/storage`, {
+                    headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` },
+                }),
+                axios.get(`${API_BASE_URL}/api/admin/tasks?ownerId=${userId}`, {
+                    headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` },
+                }),
+            ]);
+
+            setFiles(filesRes.data.files);
+            setFolders(foldersRes.data.folders);
+            setStorageUsage(storageRes.data);
+            setTasks(tasksRes.data.tasks);
+        } catch (err) {
+            toast.error('Failed to fetch user data');
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchUsers();
+    }, [fetchUsers]);
+
+    useEffect(() => {
+        fetchUserData(selectedUserId);
+    }, [selectedUserId, fetchUserData]);
+
+    const handleUpload = async (formData) => {
+        try {
+            const { data } = await axios.post(`${API_BASE_URL}/api/admin/users/upload`, formData, {
+                headers: {
+                    Authorization: `Bearer ${localStorage.getItem('adminToken')}`,
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
+            toast.success('Files uploaded successfully');
+            fetchUserData(selectedUserId);
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Upload failed');
+        }
+    };
+
+    const handleDelete = async (fileId, permanent = false) => {
+        if (!window.confirm(permanent ? 'Permanently delete this file?' : 'Move to trash?')) return;
+        try {
+            await axios[permanent ? 'delete' : 'patch'](
+                `${API_BASE_URL}/api/admin/users/${selectedUserId}/files/${fileId}${permanent ? '' : '/delete'}`,
+                {},
+                { headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` } }
+            );
+            toast.success(permanent ? 'File permanently deleted' : 'File moved to trash');
+            fetchUserData(selectedUserId);
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Delete failed');
+        }
+    };
+
+    const handlePreview = (file) => {
+        setSelectedFile(file);
+        setPreviewModal(true);
+    };
+
+    const formatFileSize = (bytes) => {
+        if (!bytes) return '0 B';
+        const units = ['B', 'KB', 'MB', 'GB'];
+        let size = bytes;
+        let unitIndex = 0;
+        while (size >= 1024 && unitIndex < units.length - 1) {
+            size /= 1024;
+            unitIndex++;
+        }
+        return `${size.toFixed(2)} ${units[unitIndex]}`;
+    };
+
+    const getFileIcon = (type) => {
+        type = type?.toLowerCase();
+        if (['jpg', 'jpeg', 'png'].includes(type)) return <Image className="w-6 h-6 text-blue-500" />;
+        if (['mp4', 'webm'].includes(type)) return <Video className="w-6 h-6 text-red-500" />;
+        if (type === 'pdf') return <FileText className="w-6 h-6 text-red-500" />;
+        return <FileText className="w-6 h-6 text-gray-500" />;
+    };
+
+    return (
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="min-h-screen bg-gray-100 p-6"
+        >
+            <Toaster />
+            <div className="max-w-7xl mx-auto bg-white rounded-2xl shadow-lg p-6">
+                <div className="flex justify-between items-center mb-6">
+                    <h1 className="text-2xl font-bold">User File Manager</h1>
+                    <button
+                        onClick={() => navigate('/admin/dashboard')}
+                        className="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300"
+                    >
+                        Back to Dashboard
+                    </button>
+                </div>
+
+                <div className="mb-4">
+                    <label className="text-sm text-gray-600">Select User</label>
+                    <select
+                        value={selectedUserId}
+                        onChange={(e) => setSelectedUserId(e.target.value)}
+                        className="w-full p-2 border rounded-md"
+                    >
+                        <option value="">Select a user</option>
+                        {users.map(user => (
+                            <option key={user._id} value={user._id}>{user.name} ({user.email})</option>
+                        ))}
+                    </select>
+                </div>
+
+                {selectedUserId && (
+                    <>
+                        <div className="flex justify-between items-center mb-4">
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => setUploadModal(true)}
+                                    className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+                                >
+                                    Upload Files
+                                </button>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => setViewMode('grid')}
+                                    className={`p-2 ${viewMode === 'grid' ? 'bg-blue-100' : ''} rounded-md`}
+                                >
+                                    <Grid className="w-5 h-5" />
+                                </button>
+                                <button
+                                    onClick={() => setViewMode('list')}
+                                    className={`p-2 ${viewMode === 'list' ? 'bg-blue-100' : ''} rounded-md`}
+                                >
+                                    <List className="w-5 h-5" />
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="mb-4">
+                            <p className="text-sm text-gray-600">
+                                Storage Used: {formatFileSize(storageUsage.storageUsed)} of {formatFileSize(storageUsage.totalStorage)}
+                            </p>
+                            <div className="h-2 bg-gray-200 rounded-full">
+                                <div
+                                    className="h-2 bg-blue-500 rounded-full"
+                                    style={{ width: `${(storageUsage.storageUsed / storageUsage.totalStorage) * 100}%` }}
+                                />
+                            </div>
+                        </div>
+
+                        <div className={`grid gap-4 ${viewMode === 'grid' ? 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4' : 'grid-cols-1'}`}>
+                            {files.map(file => (
+                                <motion.div
+                                    key={file._id}
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    className="border rounded-lg p-4 bg-white shadow-sm hover:shadow-md"
+                                >
+                                    <div className="flex items-center gap-2 cursor-pointer" onClick={() => handlePreview(file)}>
+                                        {getFileIcon(file.type)}
+                                        <p className="text-sm truncate">{file.fileName}</p>
+                                    </div>
+                                    <div className="flex justify-end gap-2 mt-2">
+                                        <button
+                                            onClick={() => handleDelete(file._id, false)}
+                                            className="p-1 text-red-500 hover:bg-red-100 rounded-full"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                            onClick={() => handleDelete(file._id, true)}
+                                            className="p-1 text-red-500 hover:bg-red-100 rounded-full"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            ))}
+                        </div>
+                    </>
+                )}
+            </div>
+
+            <FilePreviewModal
+                isOpen={previewModal}
+                onClose={() => setPreviewModal(false)}
+                file={selectedFile}
+            />
+            <UploadModal
+                isOpen={uploadModal}
+                onClose={() => setUploadModal(false)}
+                users={users}
+                onUpload={handleUpload}
+                tasks={tasks}
+                currentFolderId={currentFolder}
+            />
+        </motion.div>
+    );
+};
+
+export default AdminFileManager;

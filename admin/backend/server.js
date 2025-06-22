@@ -6,6 +6,7 @@ import adminRouter from './routes/adminRoutes.js';
 import adminUserRouter from './routes/adminUserRoutes.js';
 import adminTaskRouter from './routes/adminTaskRoutes.js';
 import adminGoalRouter from './routes/adminGoalRoutes.js';
+import adminFileRouter from './routes/adminFileRoutes.js';
 
 const app = express();
 const port = process.env.ADMIN_PORT || 4000;
@@ -19,7 +20,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Validate environment variables
-const requiredEnvVars = ['MONGO_URI', 'ADMIN_JWT_SECRET', 'CLIENT_URL'];
+const requiredEnvVars = ['MONGO_URI', 'ADMIN_JWT_SECRET', 'CLIENT_URL', 'USER_API_URL', 'USER_API_TOKEN'];
 const missingEnvVars = requiredEnvVars.filter((varName) => !process.env[varName]);
 if (missingEnvVars.length > 0) {
     console.error(`Missing required environment variables: ${missingEnvVars.join(', ')}`);
@@ -31,6 +32,8 @@ console.log('Environment variables loaded:');
 console.log(`ADMIN_PORT: ${process.env.ADMIN_PORT}`);
 console.log(`MONGO_URI: ${process.env.MONGO_URI ? 'Set' : 'Not set'}`);
 console.log(`ADMIN_JWT_SECRET: ${process.env.ADMIN_JWT_SECRET ? 'Set' : 'Not set'}`);
+console.log(`USER_API_URL: ${process.env.USER_API_URL ? 'Set' : 'Not set'}`);
+console.log(`USER_API_TOKEN: ${process.env.USER_API_TOKEN ? 'Set' : 'Not set'}`);
 console.log(`CLIENT_URL: ${process.env.CLIENT_URL}`);
 console.log(`NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
 
@@ -39,6 +42,7 @@ app.use('/api/admin', adminRouter);
 app.use('/api/admin/users', adminUserRouter);
 app.use('/api/admin', adminTaskRouter);
 app.use('/api/admin', adminGoalRouter);
+app.use('/api/admin', adminFileRouter);
 
 // Health check route
 app.get('/', (req, res) => {
