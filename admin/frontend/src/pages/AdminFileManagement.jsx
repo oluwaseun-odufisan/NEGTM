@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -70,22 +70,51 @@ const UploadModal = ({ isOpen, onClose, users, onUpload, tasks, currentFolderId 
 
     const handleFileChange = (e) => {
         const files = Array.from(e.target.files);
-        setSelectedFiles(files);
-        setError(null);
+        if (files.length === 0) {
+            setError('Please select at least one file');
+        } else if (files.some(file => file.size > 25 * 1024 * 1024)) {
+            setError('One or more files exceed the 25MB limit');
+        } else {
+            setSelectedFiles(files);
+            setError(null);
+        }
+    };
+
+    const handleUserChange = (e) => {
+        const userIds = Array.from(e.target.selectedOptions, option => option.value);
+        setSelectedUserIds(userIds);
+        if (userIds.length === 0) {
+            setError('Please select at least one user');
+        } else {
+            setError(null);
+        }
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!selectedFiles.length) return setError('Please select files');
-        if (!selectedUserIds.length) return setError('Please select at least one user');
+        if (!selectedFiles.length) {
+            setError('Please select at least one file');
+            return;
+        }
+        if (!selectedUserIds.length) {
+            setError('Please select at least one user');
+            return;
+        }
 
         try {
             const formData = new FormData();
-            selectedFiles.forEach(file => formData.append('files', file));
+            selectedFiles.forEach(file => {
+                formData.append('files', file);
+            });
             formData.append('userIds', JSON.stringify(selectedUserIds));
             if (taskId) formData.append('taskId', taskId);
-            if (tags) formData.append('tags', tags.split(',').map(t => t.trim()));
+            if (tags) formData.append('tags', tags);
             if (currentFolderId) formData.append('folderId', currentFolderId);
+
+            console.log('Sending FormData:');
+            for (let [key, value] of formData.entries()) {
+                console.log(`${key}:`, value instanceof File ? `${value.name} (${value.size} bytes)` : value);
+            }
 
             await onUpload(formData);
             setSelectedFiles([]);
@@ -93,9 +122,12 @@ const UploadModal = ({ isOpen, onClose, users, onUpload, tasks, currentFolderId 
             setTaskId('');
             setTags('');
             setError(null);
+            toast.success('Files uploaded successfully');
             onClose();
         } catch (err) {
-            setError(err.message || 'Upload failed');
+            console.error('Upload error:', err.response?.data || err.message);
+            setError(err.response?.data?.message || 'Upload failed');
+            toast.error(err.response?.data?.message || 'Upload failed');
         }
     };
 
@@ -124,9 +156,11 @@ const UploadModal = ({ isOpen, onClose, users, onUpload, tasks, currentFolderId 
                         <select
                             multiple
                             value={selectedUserIds}
-                            onChange={(e) => setSelectedUserIds(Array.from(e.target.selectedOptions, option => option.value))}
+                            onChange={handleUserChange}
                             className="w-full p-2 border rounded-md"
+                            required
                         >
+                            <option value="" disabled>Select users</option>
                             {users.map(user => (
                                 <option key={user._id} value={user._id}>{user.name} ({user.email})</option>
                             ))}
@@ -139,6 +173,8 @@ const UploadModal = ({ isOpen, onClose, users, onUpload, tasks, currentFolderId 
                             multiple
                             onChange={handleFileChange}
                             className="w-full p-2 border rounded-md"
+                            required
+                            accept=".pdf,.docx,.doc,.jpg,.jpeg,.png,.mp4,.webm,.xls,.xlsx"
                         />
                     </div>
                     <div>
@@ -221,11 +257,12 @@ const AdminFileManager = () => {
                 }),
             ]);
 
-            setFiles(filesRes.data.files);
-            setFolders(foldersRes.data.folders);
+            setFiles(filesRes.data.files || []);
+            setFolders(foldersRes.data.folders || []);
             setStorageUsage(storageRes.data);
-            setTasks(tasksRes.data.tasks);
+            setTasks(tasksRes.data.tasks || []);
         } catch (err) {
+            console.error('Fetch user data error:', err);
             toast.error('Failed to fetch user data');
         }
     }, []);
@@ -246,10 +283,12 @@ const AdminFileManager = () => {
                     'Content-Type': 'multipart/form-data',
                 },
             });
+            console.log('Upload response:', data);
             toast.success('Files uploaded successfully');
             fetchUserData(selectedUserId);
         } catch (err) {
-            toast.error(err.response?.data?.message || 'Upload failed');
+            console.error('Upload request error:', err.response?.data || err.message);
+            throw err;
         }
     };
 

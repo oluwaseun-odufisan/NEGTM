@@ -16,7 +16,7 @@ if (!PINATA_JWT) {
  * @param {number} retries - Number of retry attempts
  * @returns {Promise<string>} - The IPFS CID
  */
-export const uploadFileToIPFS = async (buffer, fileName, mimeType, retries = 2) => {
+export const uploadFileToIPFS = async (buffer, fileName, mimeType, retries = 3) => {
     try {
         console.log(`Preparing to upload to Pinata: ${fileName}, size: ${buffer.length}, type: ${mimeType}`);
 
@@ -25,20 +25,20 @@ export const uploadFileToIPFS = async (buffer, fileName, mimeType, retries = 2) 
             filename: fileName,
             contentType: mimeType,
         });
-
         formData.append('pinataMetadata', JSON.stringify({ name: fileName }));
 
-        const boundary = formData.getBoundary ? formData.getBoundary() : `----NodeFormDataBoundary${Date.now()}`;
-        console.log(`Using FormData boundary: ${boundary}`);
+        const headers = {
+            Authorization: `Bearer ${PINATA_JWT}`,
+            ...formData.getHeaders(), // Use form-data's built-in boundary
+        };
+
+        console.log(`Uploading to Pinata with headers:`, { Authorization: 'Bearer [REDACTED]', 'Content-Type': headers['content-type'] });
 
         const response = await axios.post(PINATA_API_URL, formData, {
-            headers: {
-                Authorization: `Bearer ${PINATA_JWT}`,
-                'Content-Type': `multipart/form-data; boundary=${boundary}`,
-            },
+            headers,
             maxContentLength: Infinity,
             maxBodyLength: Infinity,
-            timeout: 30000,
+            timeout: 60000, // Increased timeout for larger files
         });
 
         if (response.data && response.data.IpfsHash) {
@@ -48,12 +48,19 @@ export const uploadFileToIPFS = async (buffer, fileName, mimeType, retries = 2) 
             throw new Error('Pinata response missing IpfsHash');
         }
     } catch (error) {
-        console.error(`Pinata upload error for ${fileName} (retries left: ${retries}):`, error.response?.data || error.message);
+        const errorDetails = error.response?.data?.error?.details || error.message;
+        console.error(`Pinata upload error for ${fileName} (retries left: ${retries}):`, errorDetails);
+
         if (retries > 0) {
-            console.log(`Retrying upload for ${fileName}...`);
-            await new Promise((resolve) => setTimeout(resolve, 1000));
+            const delay = 2000 * (4 - retries); // Exponential backoff: 2s, 4s, 6s
+            console.log(`Retrying upload for ${fileName} after ${delay}ms...`);
+            await new Promise((resolve) => setTimeout(resolve, delay));
             return uploadFileToIPFS(buffer, fileName, mimeType, retries - 1);
         }
-        throw new Error(`Failed to upload ${fileName} to Pinata: ${error.response?.data?.error?.details || error.message}`);
+
+        const errorMessage = error.response?.status === 429
+            ? 'Pinata rate limit exceeded'
+            : `Failed to upload ${fileName} to Pinata: ${errorDetails}`;
+        throw new Error(errorMessage);
     }
 };

@@ -4,6 +4,7 @@ import Task from '../models/taskModel.js';
 import { uploadFileToIPFS } from '../pinning/pinata.js';
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
+import async from 'async'; // For concurrency control
 
 const ALLOWED_TYPES = ['pdf', 'docx', 'doc', 'jpg', 'jpeg', 'png', 'mp4', 'webm', 'xls', 'xlsx'];
 const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
@@ -14,22 +15,36 @@ const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET || 'your_jwt_secret_here';
 const verifyAdminToken = (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        console.log('Admin token missing in request');
         return res.status(401).json({ success: false, message: 'Admin token missing' });
     }
 
     const token = authHeader.split(' ')[1];
     try {
         jwt.verify(token, ADMIN_JWT_SECRET);
+        console.log('Admin token verified successfully');
         next();
     } catch (err) {
+        console.error('Invalid admin token:', err.message);
         return res.status(401).json({ success: false, message: 'Invalid admin token' });
     }
 };
 
-// Upload files to IPFS and save metadata
+// Check storage usage before upload
+const checkStorageUsage = async (userId, newFileSize) => {
+    const files = await File.find({ owner: userId, deleted: false });
+    const storageUsed = files.reduce((sum, file) => sum + (file.size || 0), 0);
+    if (storageUsed + newFileSize > TOTAL_STORAGE) {
+        throw new Error('Storage limit of 2GB exceeded');
+    }
+    return storageUsed;
+};
+
+// Upload files to IPFS and save metadata (for users)
 export const pinFileToIPFS = async (req, res) => {
     try {
         if (!req.files || req.files.length === 0) {
+            console.log('Validation failed: No files uploaded');
             return res.status(400).json({ success: false, message: 'No files uploaded' });
         }
 
@@ -40,6 +55,7 @@ export const pinFileToIPFS = async (req, res) => {
         if (taskId) {
             const task = await Task.findOne({ _id: taskId, owner: req.user._id });
             if (!task) {
+                console.log('Validation failed: Task not found or not owned by user:', taskId);
                 return res.status(404).json({ success: false, message: 'Task not found or not yours' });
             }
             taskTitle = task.title;
@@ -49,69 +65,120 @@ export const pinFileToIPFS = async (req, res) => {
         if (folderId) {
             const folder = await Folder.findOne({ _id: folderId, owner: req.user._id });
             if (!folder) {
+                console.log('Validation failed: Folder not found or not owned by user:', folderId);
                 return res.status(404).json({ success: false, message: 'Folder not found or not yours' });
             }
         }
 
         // Validate tags
-        const tagArray = tags ? JSON.parse(tags).filter(tag => tag && tag.length <= 50 && /^[a-zA-Z0-9\-_]+$/.test(tag)) : [];
+        let tagArray = [];
+        if (tags) {
+            try {
+                tagArray = typeof tags === 'string' ? JSON.parse(tags) : tags;
+                tagArray = tagArray.filter(tag => tag && tag.length <= 50 && /^[a-zA-Z0-9\-_]+$/.test(tag));
+            } catch (err) {
+                console.log('Validation failed: Invalid tags format:', tags);
+                return res.status(400).json({ success: false, message: 'Invalid tags format' });
+            }
+        }
 
-        const results = await Promise.all(
-            req.files.map(async (file) => {
-                try {
-                    const fileType = file.originalname.split('.').pop().toLowerCase();
-                    if (!ALLOWED_TYPES.includes(fileType)) {
-                        throw new Error(`Unsupported file type: ${file.originalname}`);
-                    }
-                    if (file.size > MAX_FILE_SIZE) {
-                        throw new Error(`File ${file.originalname} exceeds 25MB limit`);
-                    }
+        console.log('Processing user upload:', {
+            userId: req.user._id.toString(),
+            files: req.files.map(f => ({ name: f.originalname, size: f.size })),
+            taskId,
+            tags,
+            folderId,
+        });
 
-                    console.log(`Uploading file to Pinata: ${file.originalname}, size: ${file.size}, type: ${file.mimetype}`);
+        // Check total storage
+        const totalNewSize = req.files.reduce((sum, file) => sum + file.size, 0);
+        await checkStorageUsage(req.user._id, totalNewSize);
 
-                    // Upload to Pinata
-                    const cid = await uploadFileToIPFS(file.buffer, file.originalname, file.mimetype);
+        // Process files with concurrency limit
+        const results = await async.mapLimit(req.files, 2, async (file) => {
+            try {
+                const fileType = file.originalname.split('.').pop().toLowerCase();
+                if (!ALLOWED_TYPES.includes(fileType)) {
+                    throw new Error(`Unsupported file type: ${file.originalname}`);
+                }
+                if (file.size > MAX_FILE_SIZE) {
+                    throw new Error(`File ${file.originalname} exceeds 25MB limit`);
+                }
 
-                    // Check for existing file with same CID
-                    let existingFile = await File.findOne({ cid, owner: req.user._id, deleted: false });
-                    if (existingFile) {
-                        // Generate unique fileName by appending timestamp
-                        const timestamp = Date.now();
-                        const nameParts = file.originalname.split('.');
-                        const extension = nameParts.pop();
-                        const baseName = nameParts.join('.');
-                        file.originalname = `${baseName}_${timestamp}.${extension}`;
-                    }
+                console.log(`Uploading file to Pinata: ${file.originalname}, size: ${file.size}, type: ${file.mimetype}`);
 
-                    const newFile = new File({
-                        fileName: file.originalname,
-                        cid,
-                        size: file.size,
-                        type: fileType,
-                        owner: req.user._id,
-                        taskId: taskId || null,
-                        taskTitle,
-                        folderId: folderId || null,
-                        tags: tagArray,
-                    });
+                // Upload to Pinata
+                const cid = await uploadFileToIPFS(file.buffer, file.originalname, file.mimetype);
+                console.log(`Pinata upload successful for ${file.originalname}, CID: ${cid}`);
 
-                    const savedFile = await newFile.save();
+                // Check for existing file with same CID
+                let existingFile = await File.findOne({ cid, owner: req.user._id, deleted: false });
+                if (existingFile) {
+                    console.log(`Duplicate CID found for ${file.originalname}, reusing existing file: ${existingFile._id}`);
+                    const timestamp = Date.now();
+                    const nameParts = file.originalname.split('.');
+                    const extension = nameParts.pop();
+                    const baseName = nameParts.join('.');
+                    const newFileName = `${baseName}_${timestamp}.${extension}`;
+
+                    const updatedFile = await File.findByIdAndUpdate(
+                        existingFile._id,
+                        {
+                            fileName: newFileName,
+                            taskId: taskId || existingFile.taskId,
+                            taskTitle: taskTitle || existingFile.taskTitle,
+                            folderId: folderId || existingFile.folderId,
+                            tags: tagArray.length ? tagArray : existingFile.tags,
+                            uploadedAt: new Date(),
+                        },
+                        { new: true }
+                    );
 
                     // Update task with file reference
-                    if (taskId) {
-                        await Task.findByIdAndUpdate(taskId, { $addToSet: { files: savedFile._id } });
+                    if (taskId && taskId !== existingFile.taskId) {
+                        if (existingFile.taskId) {
+                            await Task.findByIdAndUpdate(existingFile.taskId, { $pull: { files: existingFile._id } });
+                        }
+                        await Task.findByIdAndUpdate(taskId, { $addToSet: { files: updatedFile._id } });
                     }
 
-                    return { success: true, file: savedFile };
-                } catch (err) {
-                    return { success: false, fileName: file.originalname, error: err.message };
+                    return { success: true, file: updatedFile };
                 }
-            })
-        );
+
+                const newFile = new File({
+                    fileName: file.originalname,
+                    cid,
+                    size: file.size,
+                    type: fileType,
+                    owner: req.user._id,
+                    taskId: taskId || null,
+                    taskTitle,
+                    folderId: folderId || null,
+                    tags: tagArray,
+                });
+
+                const savedFile = await newFile.save();
+
+                // Update task with file reference
+                if (taskId) {
+                    await Task.findByIdAndUpdate(taskId, { $addToSet: { files: savedFile._id } });
+                }
+
+                return { success: true, file: savedFile };
+            } catch (err) {
+                console.error(`Error processing file ${file.originalname}:`, err.message, err.stack);
+                return { success: false, fileName: file.originalname, error: err.message };
+            }
+        });
 
         // Separate successful and failed uploads
         const successfulFiles = results.filter(r => r.success).map(r => r.file);
         const failedFiles = results.filter(r => !r.success).map(r => ({ fileName: r.fileName, error: r.error }));
+
+        console.log('User upload results:', {
+            successful: successfulFiles.length,
+            failed: failedFiles.length,
+        });
 
         if (successfulFiles.length === 0) {
             return res.status(400).json({ success: false, message: 'No files uploaded successfully', errors: failedFiles });
@@ -123,8 +190,8 @@ export const pinFileToIPFS = async (req, res) => {
             errors: failedFiles.length > 0 ? failedFiles : undefined,
         });
     } catch (err) {
-        console.error('Upload error:', err);
-        res.status(400).json({ success: false, message: err.message });
+        console.error('User upload error:', err.message, err.stack);
+        res.status(500).json({ success: false, message: err.message });
     }
 };
 
@@ -132,6 +199,7 @@ export const pinFileToIPFS = async (req, res) => {
 export const adminUploadFile = async (req, res) => {
     try {
         if (!req.files || req.files.length === 0) {
+            console.log('Validation failed: No files uploaded for admin upload');
             return res.status(400).json({ success: false, message: 'No files uploaded' });
         }
 
@@ -139,7 +207,16 @@ export const adminUploadFile = async (req, res) => {
         const { taskId, tags, folderId } = req.body;
         let taskTitle = null;
 
+        console.log('Processing admin upload:', {
+            userId,
+            files: req.files.map(f => ({ name: f.originalname, size: f.size })),
+            taskId,
+            tags,
+            folderId,
+        });
+
         if (!mongoose.isValidObjectId(userId)) {
+            console.log('Validation failed: Invalid user ID:', userId);
             return res.status(400).json({ success: false, message: 'Invalid user ID' });
         }
 
@@ -147,6 +224,7 @@ export const adminUploadFile = async (req, res) => {
         if (taskId) {
             const task = await Task.findOne({ _id: taskId, owner: userId });
             if (!task) {
+                console.log('Validation failed: Task not found or not owned by user:', taskId);
                 return res.status(404).json({ success: false, message: 'Task not found or not owned by user' });
             }
             taskTitle = task.title;
@@ -156,62 +234,111 @@ export const adminUploadFile = async (req, res) => {
         if (folderId) {
             const folder = await Folder.findOne({ _id: folderId, owner: userId });
             if (!folder) {
+                console.log('Validation failed: Folder not found or not owned by user:', folderId);
                 return res.status(404).json({ success: false, message: 'Folder not found or not owned by user' });
             }
         }
 
         // Validate tags
-        const tagArray = tags ? JSON.parse(tags).filter(tag => tag && tag.length <= 50 && /^[a-zA-Z0-9\-_]+$/.test(tag)) : [];
+        let tagArray = [];
+        if (tags) {
+            try {
+                tagArray = typeof tags === 'string' ? JSON.parse(tags) : tags;
+                tagArray = tagArray.filter(tag => tag && tag.length <= 50 && /^[a-zA-Z0-9\-_]+$/.test(tag));
+            } catch (err) {
+                console.log('Validation failed: Invalid tags format:', tags);
+                return res.status(400).json({ success: false, message: 'Invalid tags format' });
+            }
+        }
 
-        const results = await Promise.all(
-            req.files.map(async (file) => {
-                try {
-                    const fileType = file.originalname.split('.').pop().toLowerCase();
-                    if (!ALLOWED_TYPES.includes(fileType)) {
-                        throw new Error(`Unsupported file type: ${file.originalname}`);
-                    }
-                    if (file.size > MAX_FILE_SIZE) {
-                        throw new Error(`File ${file.originalname} exceeds 25MB limit`);
-                    }
+        // Check total storage
+        const totalNewSize = req.files.reduce((sum, file) => sum + file.size, 0);
+        await checkStorageUsage(userId, totalNewSize);
 
-                    const cid = await uploadFileToIPFS(file.buffer, file.originalname, file.mimetype);
-
-                    let existingFile = await File.findOne({ cid, owner: userId, deleted: false });
-                    if (existingFile) {
-                        const timestamp = Date.now();
-                        const nameParts = file.originalname.split('.');
-                        const extension = nameParts.pop();
-                        const baseName = nameParts.join('.');
-                        file.originalname = `${baseName}_${timestamp}.${extension}`;
-                    }
-
-                    const newFile = new File({
-                        fileName: file.originalname,
-                        cid,
-                        size: file.size,
-                        type: fileType,
-                        owner: userId,
-                        taskId: taskId || null,
-                        taskTitle,
-                        folderId: folderId || null,
-                        tags: tagArray,
-                    });
-
-                    const savedFile = await newFile.save();
-
-                    if (taskId) {
-                        await Task.findByIdAndUpdate(taskId, { $addToSet: { files: savedFile._id } });
-                    }
-
-                    return { success: true, file: savedFile };
-                } catch (err) {
-                    return { success: false, fileName: file.originalname, error: err.message };
+        // Process files with concurrency limit
+        const results = await async.mapLimit(req.files, 2, async (file) => {
+            try {
+                const fileType = file.originalname.split('.').pop().toLowerCase();
+                if (!ALLOWED_TYPES.includes(fileType)) {
+                    throw new Error(`Unsupported file type: ${file.originalname}`);
                 }
-            })
-        );
+                if (file.size > MAX_FILE_SIZE) {
+                    throw new Error(`File ${file.originalname} exceeds 25MB limit`);
+                }
+
+                console.log(`Uploading file to Pinata: ${file.originalname}, size: ${file.size}, type: ${file.mimetype}`);
+
+                // Upload to Pinata
+                const cid = await uploadFileToIPFS(file.buffer, file.originalname, file.mimetype);
+                console.log(`Pinata upload successful for ${file.originalname}, CID: ${cid}`);
+
+                // Check for existing file with same CID
+                let existingFile = await File.findOne({ cid, owner: userId, deleted: false });
+                if (existingFile) {
+                    console.log(`Duplicate CID found for ${file.originalname}, reusing existing file: ${existingFile._id}`);
+                    const timestamp = Date.now();
+                    const nameParts = file.originalname.split('.');
+                    const extension = nameParts.pop();
+                    const baseName = nameParts.join('.');
+                    const newFileName = `${baseName}_${timestamp}.${extension}`;
+
+                    const updatedFile = await File.findByIdAndUpdate(
+                        existingFile._id,
+                        {
+                            fileName: newFileName,
+                            taskId: taskId || existingFile.taskId,
+                            taskTitle: taskTitle || existingFile.taskTitle,
+                            folderId: folderId || existingFile.folderId,
+                            tags: tagArray.length ? tagArray : existingFile.tags,
+                            uploadedAt: new Date(),
+                        },
+                        { new: true }
+                    );
+
+                    // Update task with file reference
+                    if (taskId && taskId !== existingFile.taskId) {
+                        if (existingFile.taskId) {
+                            await Task.findByIdAndUpdate(existingFile.taskId, { $pull: { files: existingFile._id } });
+                        }
+                        await Task.findByIdAndUpdate(taskId, { $addToSet: { files: updatedFile._id } });
+                    }
+
+                    return { success: true, file: updatedFile };
+                }
+
+                const newFile = new File({
+                    fileName: file.originalname,
+                    cid,
+                    size: file.size,
+                    type: fileType,
+                    owner: userId,
+                    taskId: taskId || null,
+                    taskTitle,
+                    folderId: folderId || null,
+                    tags: tagArray,
+                });
+
+                const savedFile = await newFile.save();
+
+                // Update task with file reference
+                if (taskId) {
+                    await Task.findByIdAndUpdate(taskId, { $addToSet: { files: savedFile._id } });
+                }
+
+                return { success: true, file: savedFile };
+            } catch (err) {
+                console.error(`Error processing file ${file.originalname}:`, err.message, err.stack);
+                return { success: false, fileName: file.originalname, error: err.message };
+            }
+        });
 
         const successfulFiles = results.filter(r => r.success).map(r => r.file);
         const failedFiles = results.filter(r => !r.success).map(r => ({ fileName: r.fileName, error: r.error }));
+
+        console.log('Admin upload results:', {
+            successful: successfulFiles.length,
+            failed: failedFiles.length,
+        });
 
         if (successfulFiles.length === 0) {
             return res.status(400).json({ success: false, message: 'No files uploaded successfully', errors: failedFiles });
@@ -223,8 +350,8 @@ export const adminUploadFile = async (req, res) => {
             errors: failedFiles.length > 0 ? failedFiles : undefined,
         });
     } catch (err) {
-        console.error('Admin upload error:', err);
-        res.status(400).json({ success: false, message: err.message });
+        console.error('Admin upload error:', err.message, err.stack);
+        res.status(500).json({ success: false, message: err.message });
     }
 };
 
@@ -277,7 +404,7 @@ export const getFiles = async (req, res) => {
 
         res.json({ success: true, files, hasMore });
     } catch (err) {
-        console.error('Fetch files error:', err);
+        console.error('Fetch files error:', err.message, err.stack);
         res.status(500).json({ success: false, message: err.message });
     }
 };
@@ -337,7 +464,7 @@ export const getUserFiles = async (req, res) => {
 
         res.json({ success: true, files, hasMore });
     } catch (err) {
-        console.error('Fetch user files error:', err);
+        console.error('Fetch user files error:', err.message, err.stack);
         res.status(500).json({ success: false, message: err.message });
     }
 };
@@ -345,20 +472,28 @@ export const getUserFiles = async (req, res) => {
 // Soft delete file
 export const deleteFile = async (req, res) => {
     try {
+        const fileId = req.params.id;
+        if (!mongoose.isValidObjectId(fileId)) {
+            console.log('Validation failed: Invalid file ID:', fileId);
+            return res.status(400).json({ success: false, message: 'Invalid file ID' });
+        }
+
         const file = await File.findOneAndUpdate(
-            { _id: req.params.id, owner: req.user._id, deleted: false },
+            { _id: fileId, owner: req.user._id, deleted: false },
             { deleted: true, deletedAt: new Date() },
             { new: true }
         );
 
         if (!file) {
+            console.log('Delete failed: File not found or not owned by user:', fileId);
             return res.status(404).json({ success: false, message: 'File not found or not yours' });
         }
 
+        console.log(`File soft deleted: ${fileId} for user ${req.user._id}`);
         res.json({ success: true, message: 'File moved to trash' });
     } catch (err) {
-        console.error('Delete file error:', err);
-        res.status(500).json({ success: false, message: err.message });
+        console.error('Delete file error:', err.message, err.stack);
+        res.status(500).json({ success: false, message: 'Failed to delete file' });
     }
 };
 
@@ -383,7 +518,7 @@ export const adminDeleteFile = async (req, res) => {
 
         res.json({ success: true, message: 'File moved to trash' });
     } catch (err) {
-        console.error('Admin delete file error:', err);
+        console.error('Admin delete file error:', err.message, err.stack);
         res.status(500).json({ success: false, message: err.message });
     }
 };
@@ -391,7 +526,12 @@ export const adminDeleteFile = async (req, res) => {
 // Permanently delete file
 export const permanentDeleteFile = async (req, res) => {
     try {
-        const file = await File.findOneAndDelete({ _id: req.params.id, owner: req.user._id });
+        const fileId = req.params.id;
+        if (!mongoose.isValidObjectId(fileId)) {
+            return res.status(400).json({ success: false, message: 'Invalid file ID' });
+        }
+
+        const file = await File.findOneAndDelete({ _id: fileId, owner: req.user._id });
 
         if (!file) {
             return res.status(404).json({ success: false, message: 'File not found or not yours' });
@@ -404,7 +544,7 @@ export const permanentDeleteFile = async (req, res) => {
 
         res.json({ success: true, message: 'File permanently deleted' });
     } catch (err) {
-        console.error('Permanent delete file error:', err);
+        console.error('Permanent delete file error:', err.message, err.stack);
         res.status(500).json({ success: false, message: err.message });
     }
 };
@@ -430,7 +570,7 @@ export const adminPermanentDeleteFile = async (req, res) => {
 
         res.json({ success: true, message: 'File permanently deleted' });
     } catch (err) {
-        console.error('Admin permanent delete file error:', err);
+        console.error('Admin permanent delete file error:', err.message, err.stack);
         res.status(500).json({ success: false, message: err.message });
     }
 };
@@ -450,7 +590,7 @@ export const restoreFile = async (req, res) => {
 
         res.json({ success: true, message: 'File restored' });
     } catch (err) {
-        console.error('Restore file error:', err);
+        console.error('Restore file error:', err.message, err.stack);
         res.status(500).json({ success: false, message: err.message });
     }
 };
@@ -471,7 +611,7 @@ export const clearTrash = async (req, res) => {
 
         res.json({ success: true, message: 'Trash cleared' });
     } catch (err) {
-        console.error('Clear trash error:', err);
+        console.error('Clear trash error:', err.message, err.stack);
         res.status(500).json({ success: false, message: err.message });
     }
 };
@@ -497,7 +637,7 @@ export const shareFile = async (req, res) => {
 
         res.json({ success: true, shareLink, shareExpires });
     } catch (err) {
-        console.error('Share file error:', err);
+        console.error('Share file error:', err.message, err.stack);
         res.status(500).json({ success: false, message: err.message });
     }
 };
@@ -540,7 +680,7 @@ export const associateTask = async (req, res) => {
 
         res.json({ success: true, taskId: updatedFile.taskId, taskTitle: updatedFile.taskTitle });
     } catch (err) {
-        console.error('Associate task error:', err);
+        console.error('Associate task error:', err.message, err.stack);
         res.status(500).json({ success: false, message: err.message });
     }
 };
@@ -565,7 +705,7 @@ export const updateTags = async (req, res) => {
 
         res.json({ success: true, tags: file.tags });
     } catch (err) {
-        console.error('Update tags error:', err);
+        console.error('Update tags error:', err.message, err.stack);
         res.status(500).json({ success: false, message: err.message });
     }
 };
@@ -606,7 +746,7 @@ export const moveFiles = async (req, res) => {
 
         res.json({ success: true, message: 'Files moved successfully' });
     } catch (err) {
-        console.error('Move files error:', err);
+        console.error('Move files error:', err.message, err.stack);
         res.status(500).json({ success: false, message: err.message });
     }
 };
@@ -665,7 +805,7 @@ export const adminModifyFile = async (req, res) => {
 
         res.json({ success: true, file: updatedFile });
     } catch (err) {
-        console.error('Admin modify file error:', err);
+        console.error('Admin modify file error:', err.message, err.stack);
         res.status(500).json({ success: false, message: err.message });
     }
 };
@@ -684,7 +824,7 @@ export const getUserStorageUsage = async (req, res) => {
 
         res.json({ success: true, storageUsed, totalStorage: TOTAL_STORAGE });
     } catch (err) {
-        console.error('Get storage usage error:', err);
+        console.error('Get storage usage error:', err.message, err.stack);
         res.status(500).json({ success: false, message: err.message });
     }
 };
