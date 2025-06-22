@@ -1,3 +1,4 @@
+// fileModel.js
 import mongoose from 'mongoose';
 
 const fileSchema = new mongoose.Schema({
@@ -62,9 +63,9 @@ const fileSchema = new mongoose.Schema({
     },
 });
 
-// Define indexes
+// Define indexes (ensure cid is non-unique)
 fileSchema.index({ owner: 1, uploadedAt: -1 }); // For efficient getFiles queries
-fileSchema.index({ cid: 1 }); // Non-unique index for CID lookups
+fileSchema.index({ cid: 1 }, { unique: false }); // Explicitly non-unique index for CID lookups
 
 const File = mongoose.models.File || mongoose.model('File', fileSchema);
 export default File;

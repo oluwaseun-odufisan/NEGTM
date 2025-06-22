@@ -790,10 +790,8 @@ const FileStorage = () => {
                 });
 
                 if (response.data.success) {
-                    // Optimistically update state
                     setFiles(prev => [...response.data.files, ...prev]);
                     toast.success('Files uploaded successfully!');
-                    // Refresh data to ensure consistency
                     await fetchFilesAndFolders(1, true);
                 } else {
                     throw new Error(response.data.message || 'Upload failed');
@@ -857,34 +855,38 @@ const FileStorage = () => {
                 const endpoint = isFolder
                     ? `${API_BASE_URL}/api/files/folders/${id}`
                     : permanent
-                        ? `${API_BASE_URL}/api/files/${id}`
-                        : `${API_BASE_URL}/api/files/${id}/delete`;
-                const method = isFolder || permanent ? 'delete' : 'patch';
-                await axios[method](endpoint, {}, { headers });
+                        ? `${API_BASE_URL}/api/files/permanent/${id}`
+                        : `${API_BASE_URL}/api/files/${id}`;
+                const method = isFolder || permanent ? 'delete' : 'delete';
+                const response = await axios[method](endpoint, { headers });
 
-                if (isFolder) {
-                    setFolders(prev => prev.filter(f => f._id !== id));
-                    setFiles(prev => prev.filter(f => f.folderId !== id));
-                } else {
-                    if (permanent) {
-                        setFiles(prev => prev.filter(f => f._id !== id));
+                if (response.data.success) {
+                    if (isFolder) {
+                        setFolders(prev => prev.filter(f => f._id !== id));
+                        setFiles(prev => prev.filter(f => f.folderId !== id));
                     } else {
-                        setFiles(prev =>
-                            prev.map(file =>
-                                file._id === id ? { ...file, deleted: true, deletedAt: new Date().toISOString() } : file
-                            )
-                        );
+                        if (permanent) {
+                            setFiles(prev => prev.filter(f => f._id !== id));
+                        } else {
+                            setFiles(prev =>
+                                prev.map(file =>
+                                    file._id === id ? { ...file, deleted: true, deletedAt: new Date().toISOString() } : file
+                                )
+                            );
+                        }
                     }
-                }
 
-                setSelectedItems(prev => {
-                    const newSet = new Set(prev);
-                    newSet.delete(id);
-                    return newSet;
-                });
-                if (detailsPanel?._id === id) setDetailsPanel(null);
-                toast.success(permanent ? 'Permanently deleted' : 'Moved to trash');
-                await fetchFilesAndFolders(1, true);
+                    setSelectedItems(prev => {
+                        const newSet = new Set(prev);
+                        newSet.delete(id);
+                        return newSet;
+                    });
+                    if (detailsPanel?._id === id) setDetailsPanel(null);
+                    toast.success(permanent ? 'Permanently deleted' : 'Moved to trash');
+                    await fetchFilesAndFolders(1, true);
+                } else {
+                    throw new Error(response.data.message || 'Failed to delete item');
+                }
             } catch (error) {
                 console.error('Delete error:', error);
                 toast.error(error.response?.data?.message || 'Failed to delete item');
