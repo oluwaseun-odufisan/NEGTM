@@ -7,50 +7,64 @@ import {
     Target,
     Folder,
     BarChart2,
-    ChevronLeft,
-    ChevronRight,
+    FileText,
+    PieChart,
+    User,
+    List,
 } from 'lucide-react';
 
-const AdminSidebar = ({ toggleSidebar }) => {
+const AdminSidebar = ({ toggleSidebar, onCollapse }) => {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const location = useLocation();
 
-    // Navigation links with icons and routes
+    // Navigation links with icons and routes from App.jsx
     const navLinks = [
         { name: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard },
-        { name: 'Users', path: '/admin/users', icon: Users },
-        { name: 'Tasks', path: '/admin/tasks', icon: CheckSquare },
-        { name: 'Goals', path: '/admin/goals', icon: Target },
-        { name: 'Files', path: '/admin/files', icon: Folder },
+        { name: 'User Management', path: '/admin/user-management', icon: Users },
+        { name: 'User List', path: '/admin/user-list', icon: List },
+        { name: 'Task Management', path: '/admin/task-management', icon: CheckSquare },
+        { name: 'Goal Management', path: '/admin/goal-management', icon: Target },
+        { name: 'File Management', path: '/admin/file-management', icon: Folder },
+        { name: 'Task Overview', path: '/admin/task-overview', icon: CheckSquare },
+        { name: 'Goal Overview', path: '/admin/goal-overview', icon: Target },
         { name: 'Reports', path: '/admin/reports', icon: BarChart2 },
+        { name: 'Analytics', path: '/admin/analytics', icon: PieChart },
     ];
 
-    // Toggle collapse state for desktop
+    // Toggle collapse state and notify parent
     const toggleCollapse = () => {
-        setIsCollapsed(!isCollapsed);
+        const newState = !isCollapsed;
+        setIsCollapsed(newState);
+        if (onCollapse) {
+            onCollapse(newState);
+        }
     };
 
     return (
         <div
-            className={`h-full bg-white/80 backdrop-blur-md shadow-lg flex flex-col transition-all duration-300 ${isCollapsed ? 'w-16' : 'w-64'
-                }`}
+            className={`h-full bg-gradient-to-b from-teal-700 to-teal-900 text-white flex flex-col transition-all duration-300 ${
+                isCollapsed ? 'w-16' : 'w-64'
+            } shadow-xl z-30 relative overflow-hidden`}
+            role="navigation"
+            aria-label="Admin Sidebar"
         >
             {/* Branding/Logo */}
             <div
-                className={`p-4 flex items-center justify-between border-b border-teal-100/50 ${isCollapsed ? 'justify-center' : ''
-                    }`}
+                className={`p-4 flex items-center justify-between border-b border-teal-500/30 ${
+                    isCollapsed ? 'justify-center' : ''
+                }`}
             >
                 {!isCollapsed && (
-                    <Link to="/admin/dashboard" className="text-xl font-bold text-teal-600">
+                    <Link to="/admin/dashboard" className="text-2xl font-extrabold tracking-tight">
                         NEGAITM
                     </Link>
                 )}
                 <button
                     onClick={toggleCollapse}
-                    className="p-2 rounded-full text-teal-600 hover:bg-teal-100 focus:outline-none focus:ring-2 focus:ring-teal-400"
+                    className="p-2 rounded-full hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-300"
                     aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
                 >
-                    {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+                    {isCollapsed ? <List size={20} /> : <List size={20} className="rotate-180" />}
                 </button>
             </div>
 
@@ -60,22 +74,28 @@ const AdminSidebar = ({ toggleSidebar }) => {
                     {navLinks.map((link) => {
                         const isActive = location.pathname === link.path;
                         return (
-                            <li key={link.path}>
+                            <li key={link.path} className="relative group">
                                 <Link
                                     to={link.path}
-                                    onClick={toggleSidebar} // Close sidebar on mobile after click
-                                    className={`flex items-center p-3 rounded-lg transition-all duration-200 ${isActive
-                                            ? 'bg-teal-100 text-teal-700'
-                                            : 'text-blue-600 hover:bg-teal-50 hover:text-teal-600'
-                                        } ${isCollapsed ? 'justify-center' : 'space-x-3'}`}
+                                    onClick={toggleSidebar}
+                                    className={`flex items-center p-3 rounded-lg transition-all duration-200 ${
+                                        isActive
+                                            ? 'bg-teal-500 text-white'
+                                            : 'text-teal-100 hover:bg-teal-600 hover:text-white'
+                                    } ${isCollapsed ? 'justify-center' : 'space-x-3'}`}
                                     aria-label={link.name}
                                 >
                                     <link.icon
-                                        size={20}
-                                        className={isActive ? 'text-teal-700' : 'text-teal-600'}
+                                        size={22}
+                                        className={isActive ? 'text-white' : 'text-teal-200 group-hover:text-white'}
                                     />
                                     {!isCollapsed && <span className="text-sm font-medium">{link.name}</span>}
                                 </Link>
+                                {isCollapsed && (
+                                    <span className="absolute left-16 top-1/2 -translate-y-1/2 bg-teal-800 text-white text-xs px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50">
+                                        {link.name}
+                                    </span>
+                                )}
                             </li>
                         );
                     })}
@@ -84,7 +104,7 @@ const AdminSidebar = ({ toggleSidebar }) => {
 
             {/* Decorative Element */}
             <div className="absolute inset-0 pointer-events-none">
-                <div className="absolute bottom-0 left-0 w-full h-24 bg-gradient-to-t from-teal-200/20 to-transparent" />
+                <div className="absolute bottom-0 left-0 w-full h-32 bg-gradient-to-t from-teal-800/50 to-transparent" />
             </div>
         </div>
     );
