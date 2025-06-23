@@ -8,6 +8,9 @@ export default defineConfig({
     tailwindcss(),
   ],
   server: {
+    mimeTypes: {
+      'js': 'application/javascript',
+    },
     port: 5174, // Fixed port admin frontend
     strictPort: true, 
   },

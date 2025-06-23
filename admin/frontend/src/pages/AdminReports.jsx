@@ -10,8 +10,6 @@ import {
     Download,
     Filter,
     Calendar,
-    User,
-    FileText,
 } from 'lucide-react';
 import { Bar, Pie, Line } from 'react-chartjs-2';
 import {
@@ -29,8 +27,9 @@ import {
 } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import zoomPlugin from 'chartjs-plugin-zoom';
+import axios from 'axios';
+import toast from 'react-hot-toast';
 
-// Register Chart.js components and plugins
 ChartJS.register(
     ArcElement,
     BarElement,
@@ -46,15 +45,64 @@ ChartJS.register(
     zoomPlugin
 );
 
-// Mock report data (replace with backend API calls)
-const mockReportData = {
-    'User Activity': {
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
+
+const initialSystemUsageData = {
+    chartData: {
+        labels: [],
+        datasets: [
+            {
+                data: [],
+                backgroundColor: ['#00CED1', '#1E90FF', '#FFD700', '#FF6347'],
+                borderColor: '#FFFFFF',
+                borderWidth: 1,
+            },
+        ],
+    },
+    tableColumns: ['user', 'storageUsed', 'percentQuota', 'fileCount'],
+    tableData: [],
+};
+
+const initialTaskCompletionData = {
+    chartData: {
+        labels: [],
+        datasets: [
+            {
+                label: 'Completed',
+                data: [],
+                backgroundColor: '#00CED1',
+            },
+            {
+                label: 'In Progress',
+                data: [],
+                backgroundColor: '#1E90FF',
+            },
+        ],
+    },
+    tableColumns: ['user', 'completed', 'inProgress', 'email'],
+    tableData: [],
+};
+
+const AdminReports = () => {
+    const [selectedReport, setSelectedReport] = useState('User Activity');
+    const [customReportOpen, setCustomReportOpen] = useState(false);
+    const [customMetrics, setCustomMetrics] = useState([]);
+    const [customUsers, setCustomUsers] = useState(['All Users']);
+    const [customDateRange, setCustomDateRange] = useState({ start: '2025-06-01', end: '2025-06-25' });
+    const [searchQuery, setSearchQuery] = useState('');
+    const [sortConfig, setSortConfig] = useState({ key: '', direction: '' });
+    const [selectedRows, setSelectedRows] = useState([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState('');
+    const [success, setSuccess] = useState('');
+    const [userActivityData, setUserActivityData] = useState({
         chartData: {
-            labels: ['2025-06-01', '2025-06-02', '2025-06-03', '2025-06-04', '2025-06-05'],
+            labels: [],
             datasets: [
                 {
                     label: 'Active Sessions',
-                    data: [50, 60, 55, 70, 65],
+                    data: [],
                     borderColor: '#00CED1',
                     backgroundColor: 'rgba(0, 206, 209, 0.2)',
                     fill: true,
@@ -63,100 +111,28 @@ const mockReportData = {
             ],
         },
         tableColumns: ['user', 'sessions', 'lastActive'],
-        tableData: [
-            { id: '1', user: 'John Doe', sessions: 50, lastActive: '2025-06-05' },
-            { id: '2', user: 'Jane Smith', sessions: 45, lastActive: '2025-06-04' },
-            { id: '3', user: 'Alice Johnson', sessions: 30, lastActive: '2025-06-03' },
-            { id: '4', user: 'Bob Wilson', sessions: 20, lastActive: '2025-06-02' },
-        ],
-    },
-    'Task Completion': {
-        chartData: {
-            labels: ['John Doe', 'Jane Smith', 'Alice Johnson', 'Bob Wilson'],
-            datasets: [
-                {
-                    label: 'Completed',
-                    data: [10, 8, 5, 3],
-                    backgroundColor: '#00CED1',
-                },
-                {
-                    label: 'In Progress',
-                    data: [5, 4, 3, 2],
-                    backgroundColor: '#1E90FF',
-                },
-            ],
-        },
-        tableColumns: ['user', 'completed', 'inProgress', 'overdue'],
-        tableData: [
-            { id: '1', user: 'John Doe', completed: 10, inProgress: 5, overdue: 1 },
-            { id: '2', user: 'Jane Smith', completed: 8, inProgress: 4, overdue: 0 },
-            { id: '3', user: 'Alice Johnson', completed: 5, inProgress: 3, overdue: 2 },
-            { id: '4', user: 'Bob Wilson', completed: 3, inProgress: 2, overdue: 1 },
-        ],
-    },
-    'Goal Progress': {
+        tableData: [],
+    });
+    const [taskCompletionData, setTaskCompletionData] = useState(initialTaskCompletionData);
+    const [goalProgressData, setGoalProgressData] = useState({
         chartData: {
             labels: ['0-25%', '26-50%', '51-75%', '76-100%'],
             datasets: [
                 {
-                    data: [2, 3, 4, 1],
+                    data: [0, 0, 0, 0],
                     backgroundColor: ['#FF6347', '#FFD700', '#00CED1', '#1E90FF'],
                     borderColor: '#FFFFFF',
-                    borderWidth: 2,
+                    borderWidth: 1,
                 },
             ],
         },
         tableColumns: ['goal', 'users', 'progress', 'deadline'],
-        tableData: [
-            { id: '1', goal: 'Customer Retention', users: 'John Doe, Jane Smith', progress: 60, deadline: '2025-12-31' },
-            { id: '2', goal: 'Product Launch', users: 'Alice Johnson', progress: 85, deadline: '2025-09-30' },
-            { id: '3', goal: 'Team Productivity', users: 'Company-Wide', progress: 30, deadline: '2025-11-15' },
-            { id: '4', goal: 'Market Expansion', users: 'Bob Wilson', progress: 10, deadline: '2026-03-31' },
-        ],
-    },
-    'System Usage': {
-        chartData: {
-            labels: ['Active Users', 'API Calls'],
-            datasets: [
-                {
-                    data: [100, 5000],
-                    backgroundColor: ['#00CED1', '#1E90FF'],
-                    borderColor: '#FFFFFF',
-                    borderWidth: 2,
-                },
-            ],
-        },
-        tableColumns: ['metric', 'value', 'date'],
-        tableData: [
-            { id: '1', metric: 'Active Users', value: 100, date: '2025-06-17' },
-            { id: '2', metric: 'API Calls', value: 5000, date: '2025-06-17' },
-            { id: '3', metric: 'Storage Used (GB)', value: 3.84, date: '2025-06-17' },
-        ],
-    },
-};
-
-// Mock available users for custom report
-const availableUsers = ['All Users', 'John Doe', 'Jane Smith', 'Alice Johnson', 'Bob Wilson'];
-
-// Mock available metrics for custom report
-const availableMetrics = ['Tasks Completed', 'Active Sessions', 'Goal Progress', 'Files Uploaded'];
-
-const AdminReports = () => {
-    const [selectedReport, setSelectedReport] = useState('User Activity');
-    const [customReportOpen, setCustomReportOpen] = useState(false);
-    const [customMetrics, setCustomMetrics] = useState([]);
-    const [customUsers, setCustomUsers] = useState(['All Users']);
-    const [customDateRange, setCustomDateRange] = useState({ start: '2025-06-01', end: '2025-06-17' });
-    const [searchQuery, setSearchQuery] = useState('');
-    const [sortConfig, setSortConfig] = useState({ key: '', direction: '' });
-    const [selectedRows, setSelectedRows] = useState([]);
-    const [currentPage, setCurrentPage] = useState(1);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState('');
-    const [success, setSuccess] = useState('');
+        tableData: [],
+    });
+    const [systemUsageData, setSystemUsageData] = useState(initialSystemUsageData);
+    const [availableUsers, setAvailableUsers] = useState(['All Users']);
     const rowsPerPage = 5;
 
-    // Chart options
     const lineChartOptions = {
         responsive: true,
         plugins: {
@@ -187,75 +163,499 @@ const AdminReports = () => {
 
     const pieChartOptions = {
         responsive: true,
+        maintainAspectRatio: false,
         plugins: {
-            legend: { position: 'right', labels: { color: '#2D3748' } },
-            tooltip: { backgroundColor: '#2D3748', titleColor: '#FFFFFF', bodyColor: '#FFFFFF' },
+            legend: {
+                position: 'right',
+                labels: {
+                    color: '#2D3748',
+                    font: { size: 12 },
+                    padding: 10,
+                },
+                maxWidth: 150,
+            },
+            tooltip: {
+                backgroundColor: '#2D3748',
+                titleColor: '#FFFFFF',
+                bodyColor: '#FFFFFF',
+                callbacks: {
+                    label: (context) => {
+                        const label = context.label || '';
+                        const value = context.raw || 0;
+                        const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                        const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                        return `${label}: ${value} (${percentage}%)`;
+                    },
+                },
+            },
             datalabels: {
                 color: '#FFFFFF',
+                font: { size: 10 },
                 formatter: (value, ctx) => {
                     const total = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
-                    return `${((value / total) * 100).toFixed(1)}%`;
+                    return total > 0 ? `${((value / total) * 100).toFixed(1)}%` : '';
                 },
+                anchor: 'center',
+                align: 'center',
             },
         },
     };
 
-    // Handle report selection
-    const handleReportSelect = (report) => {
+    useEffect(() => {
+        const fetchUsers = async () => {
+            try {
+                const token = localStorage.getItem('adminToken');
+                if (!token) {
+                    setError('Authentication token missing. Please log in again.');
+                    toast.error('Authentication token missing. Please log in again.');
+                    return;
+                }
+                const response = await axios.get(`${API_BASE_URL}/api/admin/users`, {
+                    headers: { Authorization: `Bearer ${token}`, 'Cache-Control': 'no-cache' },
+                });
+                if (response.data.success) {
+                    const users = response.data.users.map((user) => user.name);
+                    setAvailableUsers(['All Users', ...users]);
+                } else {
+                    setError(response.data.message || 'Failed to fetch users.');
+                    toast.error(response.data.message || 'Failed to fetch users.');
+                }
+            } catch (err) {
+                console.error('Error fetching users:', err);
+                setError('Failed to fetch users.');
+                toast.error('Failed to fetch users.');
+            }
+        };
+        fetchUsers();
+    }, []);
+
+    const handleReportSelect = async (report) => {
         setSelectedReport(report);
         setSearchQuery('');
         setSortConfig({ key: '', direction: '' });
         setCurrentPage(1);
         setSelectedRows([]);
         setIsLoading(true);
-        setTimeout(() => {
+        setError('');
+        setSuccess('');
+
+        try {
+            const token = localStorage.getItem('adminToken');
+            if (!token) {
+                setError('Authentication token missing. Please log in again.');
+                toast.error('Authentication token missing. Please log in again.');
+                setIsLoading(false);
+                return;
+            }
+
+            if (report === 'User Activity') {
+                const response = await axios.get(`${API_BASE_URL}/api/admin/users`, {
+                    headers: { Authorization: `Bearer ${token}`, 'Cache-Control': 'no-cache' },
+                });
+                if (response.data.success) {
+                    const users = response.data.users;
+                    const endDate = new Date();
+                    const startDate = new Date();
+                    startDate.setDate(endDate.getDate() - 4);
+                    const dateLabels = [];
+                    const sessionData = [];
+                    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+                        const dateStr = d.toISOString().split('T')[0];
+                        dateLabels.push(dateStr);
+                        const sessions = users.reduce((count, user) => {
+                            const loginLogs = user.activityLogs?.filter(
+                                (log) =>
+                                    log.action === 'login' &&
+                                    new Date(log.timestamp).toISOString().split('T')[0] === dateStr
+                            ) || [];
+                            return count + loginLogs.length;
+                        }, 0);
+                        sessionData.push(sessions);
+                    }
+                    const tableData = users.map((user, idx) => ({
+                        id: user._id,
+                        user: user.name,
+                        sessions: user.activityLogs?.filter((log) => log.action === 'login').length || 0,
+                        lastActive: user.lastLogin ? new Date(user.lastLogin).toISOString().split('T')[0] : 'Never',
+                    }));
+                    setUserActivityData({
+                        chartData: {
+                            labels: dateLabels,
+                            datasets: [
+                                {
+                                    label: 'Active Sessions',
+                                    data: sessionData,
+                                    borderColor: '#00CED1',
+                                    backgroundColor: 'rgba(0, 206, 209, 0.2)',
+                                    fill: true,
+                                    tension: 0.4,
+                                },
+                            ],
+                        },
+                        tableColumns: ['user', 'sessions', 'lastActive'],
+                        tableData,
+                    });
+                    setSuccess(`Loaded ${report} report successfully!`);
+                    toast.success(`Loaded ${report} report successfully!`);
+                } else {
+                    setError(response.data.message || 'Failed to fetch user activity data.');
+                    toast.error(response.data.message || 'Failed to fetch user activity data.');
+                }
+            } else if (report === 'Task Completion') {
+                const [reportResponse, tasksResponse] = await Promise.all([
+                    axios.get(`${API_BASE_URL}/api/admin/tasks/report`, {
+                        headers: { Authorization: `Bearer ${token}`, 'Cache-Control': 'no-cache' },
+                    }),
+                    axios.get(`${API_BASE_URL}/api/admin/tasks`, {
+                        headers: { Authorization: `Bearer ${token}`, 'Cache-Control': 'no-cache' },
+                    }),
+                ]);
+
+                if (reportResponse.data.success && tasksResponse.data.success) {
+                    const tasks = tasksResponse.data.tasks;
+                    const userTaskStats = {};
+                    tasks.forEach((task) => {
+                        const userEmail = task.owner?.email || 'Unassigned';
+                        if (!userTaskStats[userEmail]) {
+                            userTaskStats[userEmail] = { completed: 0, inProgress: 0, overdue: 0 };
+                        }
+                        if (task.completed) {
+                            userTaskStats[userEmail].completed += 1;
+                        } else {
+                            userTaskStats[userEmail].inProgress += 1;
+                            if (task.dueDate && new Date(task.dueDate) < new Date() && !task.completed) {
+                                userTaskStats[userEmail].overdue += 1;
+                            }
+                        }
+                    });
+
+                    const labels = Object.keys(userTaskStats);
+                    const completedData = labels.map((user) => userTaskStats[user].completed);
+                    const inProgressData = labels.map((user) => userTaskStats[user].inProgress);
+
+                    const tableData = labels.map((user, idx) => ({
+                        id: `task-${idx}`,
+                        user,
+                        completed: userTaskStats[user].completed,
+                        inProgress: userTaskStats[user].inProgress,
+                        email: userTaskStats[user].overdue,
+                    }));
+
+                    setTaskCompletionData({
+                        chartData: {
+                            labels,
+                            datasets: [
+                                {
+                                    label: 'Completed',
+                                    data: completedData,
+                                    backgroundColor: '#00CED1',
+                                },
+                                {
+                                    label: 'In Progress',
+                                    data: inProgressData,
+                                    backgroundColor: '#1E90FF',
+                                },
+                            ],
+                        },
+                        tableColumns: ['user', 'completed', 'inProgress', 'email'],
+                        tableData,
+                    });
+                    setSuccess(`Loaded ${report} report successfully!`);
+                    toast.success(`Loaded ${report} report successfully!`);
+                } else {
+                    setError('Failed to fetch task completion data.');
+                    toast.error('Failed to fetch task completion data.');
+                }
+            } else if (report === 'Goal Progress') {
+                const response = await axios.get(`${API_BASE_URL}/api/admin/goals`, {
+                    headers: { Authorization: `Bearer ${token}`, 'Cache-Control': 'no-cache' },
+                });
+                if (response.data.success) {
+                    const goals = response.data.goals;
+                    const progressRanges = {
+                        '0-25%': 0,
+                        '26-50%': 0,
+                        '51-75%': 0,
+                        '76-100%': 0,
+                    };
+                    const tableData = goals.map((goal, idx) => {
+                        const progress = goal.progress || 0;
+                        if (progress <= 25) progressRanges['0-25%'] += 1;
+                        else if (progress <= 50) progressRanges['26-50%'] += 1;
+                        else if (progress <= 75) progressRanges['51-75%'] += 1;
+                        else progressRanges['76-100%'] += 1;
+
+                        return {
+                            id: goal._id,
+                            goal: goal.title,
+                            users: goal.owner?.email || 'Unassigned',
+                            progress,
+                            deadline: goal.endDate ? new Date(goal.endDate).toISOString().split('T')[0] : 'N/A',
+                        };
+                    });
+
+                    setGoalProgressData({
+                        chartData: {
+                            labels: ['0-25%', '26-50%', '51-75%', '76-100%'],
+                            datasets: [
+                                {
+                                    data: [
+                                        progressRanges['0-25%'],
+                                        progressRanges['26-50%'],
+                                        progressRanges['51-75%'],
+                                        progressRanges['76-100%'],
+                                    ],
+                                    backgroundColor: ['#FF6347', '#FFD700', '#00CED1', '#1E90FF'],
+                                    borderColor: '#FFFFFF',
+                                    borderWidth: 1,
+                                },
+                            ],
+                        },
+                        tableColumns: ['goal', 'users', 'progress', 'deadline'],
+                        tableData,
+                    });
+                    setSuccess(`Loaded ${report} report successfully!`);
+                    toast.success(`Loaded ${report} report successfully!`);
+                } else {
+                    setError(response.data.message || 'Failed to fetch goal progress data.');
+                    toast.error(response.data.message || 'Failed to fetch goal progress data.');
+                }
+            } else if (report === 'System Usage') {
+                // Fetch users
+                const usersResponse = await axios.get(`${API_BASE_URL}/api/admin/users`, {
+                    headers: { Authorization: `Bearer ${token}`, 'Cache-Control': 'no-cache' },
+                });
+                if (!usersResponse.data.success) {
+                    throw new Error('Failed to fetch users.');
+                }
+                const users = usersResponse.data.users;
+
+                // Fetch storage usage and files for all users
+                const storagePromises = users.map(user =>
+                    axios.get(`${API_BASE_URL}/api/admin/users/${user._id}/storage`, {
+                        headers: { Authorization: `Bearer ${token}`, 'Cache-Control': 'no-cache' },
+                    })
+                );
+                const filesPromises = users.map(user =>
+                    axios.get(`${API_BASE_URL}/api/admin/users/${user._id}/files`, {
+                        headers: { Authorization: `Bearer ${token}`, 'Cache-Control': 'no-cache' },
+                        params: { limit: 1000 }, // Ensure all files are fetched
+                    })
+                );
+
+                const [storageResponses, filesResponses] = await Promise.all([
+                    Promise.all(storagePromises),
+                    Promise.all(filesPromises),
+                ]);
+
+                // Process file types for pie chart
+                const fileTypeCounts = {};
+                let totalFiles = 0;
+                const userFileData = users.map((user, idx) => {
+                    const files = filesResponses[idx].data.success ? filesResponses[idx].data.files : [];
+                    files.forEach(file => {
+                        const extension = file.fileName.split('.').pop().toUpperCase();
+                        fileTypeCounts[extension] = (fileTypeCounts[extension] || 0) + 1;
+                        totalFiles += 1;
+                    });
+                    return { userId: user._id, name: user.name, files };
+                });
+
+                const fileTypeLabels = Object.keys(fileTypeCounts);
+                const fileTypeData = Object.values(fileTypeCounts);
+
+                // Process table data
+                const tableData = users.map((user, idx) => {
+                    const storage = storageResponses[idx].data.success ? storageResponses[idx].data : { storageUsed: 0, totalStorage: 2097152 }; // Default to 2GB
+                    const files = userFileData.find(u => u.userId === user._id)?.files || [];
+                    const storageUsedMB = (storage.storageUsed / 1024).toFixed(2); // Convert KB to MB
+                    const percentQuota = ((storage.storageUsed / storage.totalStorage) * 100).toFixed(2);
+                    return {
+                        id: user._id,
+                        user: user.name,
+                        storageUsed: storageUsedMB,
+                        percentQuota,
+                        fileCount: files.length,
+                    };
+                });
+
+                setSystemUsageData({
+                    chartData: {
+                        labels: fileTypeLabels.length > 0 ? fileTypeLabels : ['No Files'],
+                        datasets: [
+                            {
+                                data: fileTypeLabels.length > 0 ? fileTypeData : [1],
+                                backgroundColor: ['#00CED1', '#1E90FF', '#FFD700', '#FF6347'],
+                                borderColor: '#FFFFFF',
+                                borderWidth: 1,
+                            },
+                        ],
+                    },
+                    tableColumns: ['user', 'storageUsed', 'percentQuota', 'fileCount'],
+                    tableData,
+                });
+                setSuccess(`Loaded ${report} report successfully!`);
+                toast.success(`Loaded ${report} report successfully!`);
+            }
+        } catch (err) {
+            console.error('Error fetching report data:', err);
+            setError('Failed to fetch report data.');
+            toast.error('Failed to fetch report data.');
+        } finally {
             setIsLoading(false);
-            setSuccess(`Loaded ${report} report successfully!`);
-        }, 1000);
+        }
     };
 
-    // Handle custom report generation
-    const handleCustomReport = (e) => {
+    const handleCustomReport = async (e) => {
         e.preventDefault();
         if (customMetrics.length === 0 || customUsers.length === 0) {
             setError('Please select at least one metric and one user.');
+            toast.error('Please select at least one metric and one user.');
             return;
         }
         setIsLoading(true);
-        setTimeout(() => {
-            setSelectedReport('Custom Report');
-            setSuccess('Custom report generated successfully!');
-            setIsLoading(false);
-            setCustomReportOpen(false);
-            // Mock custom report data
-            mockReportData['Custom Report'] = {
-                chartData: {
-                    labels: customUsers.filter((u) => u !== 'All Users'),
-                    datasets: customMetrics.map((metric, idx) => ({
+        setError('');
+        setSuccess('');
+
+        try {
+            const token = localStorage.getItem('adminToken');
+            if (!token) {
+                setError('Authentication token missing. Please log in again.');
+                toast.error('Authentication token missing. Please log in again.');
+                setIsLoading(false);
+                return;
+            }
+            const response = await axios.get(`${API_BASE_URL}/api/admin/users`, {
+                headers: { Authorization: `Bearer ${token}`, 'Cache-Control': 'no-cache' },
+            });
+            const tasksResponse = await axios.get(`${API_BASE_URL}/api/admin/tasks`, {
+                headers: { Authorization: `Bearer ${token}`, 'Cache-Control': 'no-cache' },
+            });
+            const goalsResponse = await axios.get(`${API_BASE_URL}/api/admin/goals`, {
+                headers: { Authorization: `Bearer ${token}`, 'Cache-Control': 'no-cache' },
+            });
+
+            if (response.data.success && tasksResponse.data.success && goalsResponse.data.success) {
+                const users = response.data.users.filter((user) =>
+                    customUsers.includes('All Users') || customUsers.includes(user.name)
+                );
+                const tasks = tasksResponse.data.tasks.filter((task) => {
+                    const taskDate = task.createdAt ? new Date(task.createdAt) : null;
+                    return (
+                        taskDate &&
+                        taskDate >= new Date(customDateRange.start) &&
+                        taskDate <= new Date(customDateRange.end)
+                    );
+                });
+                const goals = goalsResponse.data.goals.filter((goal) => {
+                    const goalDate = goal.createdAt ? new Date(goal.createdAt) : null;
+                    return (
+                        goalDate &&
+                        goalDate >= new Date(customDateRange.start) &&
+                        goalDate <= new Date(customDateRange.end)
+                    );
+                });
+
+                const filteredUsers = users.filter((user) =>
+                    tasks.some((task) => task.owner && task.owner._id.toString() === user._id.toString()) ||
+                    goals.some((goal) => goal.owner && goal.owner._id.toString() === user._id.toString())
+                );
+                const chartLabels = filteredUsers.map((user) => user.name);
+                const chartDatasets = customMetrics.map((metric, idx) => {
+                    const data = filteredUsers.map((user) => {
+                        if (metric === 'Active Sessions') {
+                            return (
+                                user.activityLogs?.filter(
+                                    (log) =>
+                                        log.action === 'login' &&
+                                        new Date(log.timestamp) >= new Date(customDateRange.start) &&
+                                        new Date(log.timestamp) <= new Date(customDateRange.end)
+                                ).length || 0
+                            );
+                        } else if (metric === 'Tasks Completed') {
+                            return tasks.filter(
+                                (task) =>
+                                    task.owner &&
+                                    task.owner._id.toString() === user._id.toString() &&
+                                    task.completed
+                            ).length;
+                        } else if (metric === 'Goal Progress') {
+                            const userGoals = goals.filter(
+                                (goal) =>
+                                    goal.owner &&
+                                    goal.owner._id.toString() === user._id.toString()
+                            );
+                            return userGoals.length > 0
+                                ? userGoals.reduce((sum, goal) => sum + (goal.progress || 0), 0) / userGoals.length
+                                : 0;
+                        }
+                        return Math.floor(Math.random() * 100);
+                    });
+                    return {
                         label: metric,
-                        data: Array(customUsers.length - (customUsers.includes('All Users') ? 1 : 0)).fill(Math.floor(Math.random() * 100)),
+                        data,
                         backgroundColor: idx % 2 === 0 ? '#00CED1' : '#1E90FF',
-                    })),
-                },
-                tableColumns: ['user', ...customMetrics.map((m) => m.toLowerCase().replace(' ', ''))],
-                tableData: customUsers
-                    .filter((u) => u !== 'All Users')
-                    .map((user, idx) => ({
-                        id: String(idx + 1),
-                        user,
-                        ...customMetrics.reduce(
-                            (acc, m) => ({
-                                ...acc,
-                                [m.toLowerCase().replace(' ', '')]: Math.floor(Math.random() * 100),
-                            }),
-                            {}
-                        ),
-                    })),
-            };
-        }, 1000);
+                    };
+                });
+                const tableData = filteredUsers.map((user, idx) => {
+                    const row = { id: user._id, user: user.name };
+                    customMetrics.forEach((metric) => {
+                        const key = metric.toLowerCase().replace(' ', '');
+                        if (metric === 'Active Sessions') {
+                            row[key] =
+                                user.activityLogs?.filter(
+                                    (log) =>
+                                        log.action === 'login' &&
+                                        new Date(log.timestamp) >= new Date(customDateRange.start) &&
+                                        new Date(log.timestamp) <= new Date(customDateRange.end)
+                                ).length || 0;
+                        } else if (metric === 'Tasks Completed') {
+                            row[key] = tasks.filter(
+                                (task) =>
+                                    task.owner &&
+                                    task.owner._id.toString() === user._id.toString() &&
+                                    task.completed
+                            ).length;
+                        } else if (metric === 'Goal Progress') {
+                            const userGoals = goals.filter(
+                                (goal) =>
+                                    goal.owner &&
+                                    goal.owner._id.toString() === user._id.toString()
+                            );
+                            row[key] = userGoals.length > 0
+                                ? (userGoals.reduce((sum, goal) => sum + (goal.progress || 0), 0) / userGoals.length).toFixed(1)
+                                : '0';
+                        } else {
+                            row[key] = Math.floor(Math.random() * 100);
+                        }
+                    });
+                    return row;
+                });
+                setUserActivityData({
+                    chartData: {
+                        labels: chartLabels,
+                        datasets: chartDatasets,
+                    },
+                    tableColumns: ['user', ...customMetrics.map((m) => m.toLowerCase().replace(' ', ''))],
+                    tableData,
+                });
+                setSelectedReport('Custom Report');
+                setSuccess('Custom report generated successfully!');
+                toast.success('Custom report generated successfully!');
+                setCustomReportOpen(false);
+            } else {
+                setError(response.data.message || 'Failed to generate custom report.');
+                toast.error(response.data.message || 'Failed to generate custom report.');
+            }
+        } catch (err) {
+            console.error('Error generating custom report:', err);
+            setError('Failed to generate custom report.');
+            toast.error('Failed to generate custom report.');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
-    // Handle sorting
     const handleSort = (key) => {
         let direction = 'asc';
         if (sortConfig.key === key && sortConfig.direction === 'asc') {
@@ -263,33 +663,118 @@ const AdminReports = () => {
         }
         setSortConfig({ key, direction });
 
-        const sortedData = [...mockReportData[selectedReport].tableData].sort((a, b) => {
-            if (key === 'progress' || key === 'completed' || key === 'inProgress' || key === 'overdue' || key === 'sessions' || key === 'value') {
+        let sortedData;
+        if (selectedReport === 'User Activity') {
+            sortedData = [...userActivityData.tableData];
+        } else if (selectedReport === 'Task Completion') {
+            sortedData = [...taskCompletionData.tableData];
+        } else if (selectedReport === 'Goal Progress') {
+            sortedData = [...goalProgressData.tableData];
+        } else if (selectedReport === 'System Usage') {
+            sortedData = [...systemUsageData.tableData];
+        } else {
+            sortedData = [...userActivityData.tableData];
+        }
+        sortedData.sort((a, b) => {
+            if (key === 'progress' || key === 'completed' || key === 'inProgress' || key === 'email' || key === 'sessions' || key === 'storageUsed' || key === 'percentQuota' || key === 'fileCount') {
                 return direction === 'asc' ? a[key] - b[key] : b[key] - a[key];
             }
             return direction === 'asc'
-                ? String(a[key]).localeCompare(String(b[key]))
+                ? String(a[key]).localeCompare(String(a[key]))
                 : String(b[key]).localeCompare(String(a[key]));
         });
-        mockReportData[selectedReport].tableData = sortedData;
-        setFiles([...mockReportData[selectedReport].tableData]); // Trigger re-render
+        if (selectedReport === 'User Activity') {
+            setUserActivityData({ ...userActivityData, tableData: sortedData });
+        } else if (selectedReport === 'Task Completion') {
+            setTaskCompletionData({ ...taskCompletionData, tableData: sortedData });
+        } else if (selectedReport === 'Goal Progress') {
+            setGoalProgressData({ ...goalProgressData, tableData: sortedData });
+        } else if (selectedReport === 'System Usage') {
+            setSystemUsageData({ ...systemUsageData, tableData: sortedData });
+        } else {
+            setUserActivityData({ ...userActivityData, tableData: sortedData });
+        }
     };
 
-    // Handle search and filters
-    const filteredData = mockReportData[selectedReport].tableData.filter((row) =>
+    const handleExport = (format) => {
+        const reportData =
+            selectedReport === 'User Activity'
+                ? userActivityData
+                : selectedReport === 'Task Completion'
+                ? taskCompletionData
+                : selectedReport === 'Goal Progress'
+                ? goalProgressData
+                : selectedReport === 'System Usage'
+                ? systemUsageData
+                : userActivityData;
+        if (reportData.tableData.length === 0) {
+            setError('No data to export.');
+            toast.error('No data to export.');
+            return;
+        }
+        setIsLoading(true);
+        setTimeout(() => {
+            if (format === 'csv') {
+                const csvHeaders = reportData.tableColumns;
+                const exportData = selectedRows.length > 0
+                    ? reportData.tableData.filter((row) => selectedRows.includes(row.id))
+                    : reportData.tableData;
+                const csvRows = exportData.map((row) =>
+                    csvHeaders.map((header) => `"${row[header] || ''}"`).join(',')
+                );
+                const csvContent = [csvHeaders.join(','), ...csvRows].join('\n');
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.setAttribute('download', `${selectedReport.toLowerCase().replace(' ', '_')}_${Date.now()}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } else if (format === 'pdf') {
+                console.log('PDF export initiated');
+                setSuccess('PDF export initiated! (Placeholder)');
+                toast.success('PDF export initiated!');
+            } else if (format === 'png') {
+                const canvas = document.querySelector('canvas');
+                if (canvas) {
+                    const link = document.createElement('a');
+                    link.href = canvas.toDataURL('image/png');
+                    link.download = `${selectedReport.toLowerCase().replace(' ', '_')}_${Date.now()}.png`;
+                    link.click();
+                } else {
+                    setError('No chart available to export as PNG.');
+                    toast.error('No chart available to export as PNG.');
+                }
+            }
+            setSuccess(`Report exported as ${format.toUpperCase()} successfully!`);
+            toast.success(`Report exported as ${format.toUpperCase()} successfully!`);
+            setIsLoading(false);
+        }, 1000);
+    };
+
+    const reportData =
+        selectedReport === 'User Activity'
+            ? userActivityData
+            : selectedReport === 'Task Completion'
+            ? taskCompletionData
+            : selectedReport === 'Goal Progress'
+            ? goalProgressData
+            : selectedReport === 'System Usage'
+            ? systemUsageData
+            : userActivityData;
+    const filteredData = reportData.tableData.filter((row) =>
         Object.values(row).some((value) =>
             String(value).toLowerCase().includes(searchQuery.toLowerCase())
         )
     );
 
-    // Pagination logic
     const totalPages = Math.ceil(filteredData.length / rowsPerPage);
     const paginatedData = filteredData.slice(
         (currentPage - 1) * rowsPerPage,
         currentPage * rowsPerPage
     );
 
-    // Handle row selection
     const handleSelectAll = (e) => {
         if (e.target.checked) {
             setSelectedRows(paginatedData.map((row) => row.id));
@@ -304,53 +789,8 @@ const AdminReports = () => {
         );
     };
 
-    // Handle export
-    const handleExport = (format) => {
-        if (filteredData.length === 0) {
-            setError('No data to export.');
-            return;
-        }
-        setIsLoading(true);
-        setTimeout(() => {
-            if (format === 'csv') {
-                const csvHeaders = mockReportData[selectedReport].tableColumns;
-                const exportData = selectedRows.length > 0
-                    ? filteredData.filter((row) => selectedRows.includes(row.id))
-                    : filteredData;
-                const csvRows = exportData.map((row) =>
-                    csvHeaders.map((header) => `"${row[header] || ''}"`).join(',')
-                );
-                const csvContent = [csvHeaders.join(','), ...csvRows].join('\n');
-                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.setAttribute('download', `${selectedReport.toLowerCase().replace(' ', '_')}_${Date.now()}.csv`);
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            } else if (format === 'pdf') {
-                console.log('PDF export initiated'); // Replace with jsPDF logic
-                setSuccess('PDF export initiated! (Placeholder)');
-            } else if (format === 'png') {
-                const canvas = document.querySelector('canvas');
-                if (canvas) {
-                    const link = document.createElement('a');
-                    link.href = canvas.toDataURL('image/png');
-                    link.download = `${selectedReport.toLowerCase().replace(' ', '_')}_${Date.now()}.png`;
-                    link.click();
-                } else {
-                    setError('No chart available to export as PNG.');
-                }
-            }
-            setSuccess(`Report exported as ${format.toUpperCase()} successfully!`);
-            setIsLoading(false);
-        }, 1000);
-    };
-
     return (
         <div className="p-6 bg-white/80 backdrop-blur-md rounded-2xl shadow-2xl max-w-7xl mx-auto animate-fade-in">
-            {/* Header */}
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-teal-600">Reports & Analytics</h2>
                 <div className="relative">
@@ -366,14 +806,12 @@ const AdminReports = () => {
                 </div>
             </div>
 
-            {/* Report Selection */}
             <div className="flex flex-wrap gap-2 mb-6">
                 {['User Activity', 'Task Completion', 'Goal Progress', 'System Usage'].map((report) => (
                     <button
                         key={report}
                         onClick={() => handleReportSelect(report)}
-                        className={`px-4 py-2 rounded-lg text-white transition-all duration-300 transform hover:scale-105 ${selectedReport === report ? 'bg-teal-600' : 'bg-teal-400 hover:bg-teal-500'
-                            }`}
+                        className={`px-4 py-2 rounded-lg text-white transition-all duration-300 transform hover:scale-105 ${selectedReport === report ? 'bg-teal-600' : 'bg-teal-400 hover:bg-teal-500'}`}
                         aria-label={`Select ${report} report`}
                     >
                         {report}
@@ -389,7 +827,6 @@ const AdminReports = () => {
                 </button>
             </div>
 
-            {/* Custom Report Builder */}
             {customReportOpen && (
                 <div className="bg-white/90 backdrop-blur-sm p-6 rounded-xl shadow-lg mb-6 animate-slide-in">
                     <h3 className="text-lg font-semibold text-teal-700 mb-4">Custom Report Builder</h3>
@@ -403,7 +840,7 @@ const AdminReports = () => {
                                 className="w-full p-2 rounded-lg border border-teal-200 focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white text-gray-700"
                                 aria-label="Select metrics"
                             >
-                                {availableMetrics.map((metric) => (
+                                {['Active Sessions', 'Tasks Completed', 'Goal Progress', 'Attachments'].map((metric) => (
                                     <option key={metric} value={metric}>{metric}</option>
                                 ))}
                             </select>
@@ -456,35 +893,62 @@ const AdminReports = () => {
                 </div>
             )}
 
-            {/* Charts */}
             <div className="bg-white/90 backdrop-blur-sm p-6 rounded-xl shadow-lg mb-8 animate-fade-in">
                 <h3 className="text-lg font-semibold text-teal-700 flex items-center mb-4">
                     {selectedReport === 'User Activity' && <LineChart className="w-5 h-5 mr-2" />}
                     {selectedReport === 'Task Completion' && <BarChart2 className="w-5 h-5 mr-2" />}
                     {selectedReport === 'Goal Progress' && <PieChart className="w-5 h-5 mr-2" />}
-                    {selectedReport === 'System Usage' && <Gauge className="w-5 h-5 mr-2" />}
+                    {selectedReport === 'System Usage' && <PieChart className="w-5 h-5 mr-2" />}
                     {selectedReport} Report
                 </h3>
-                <div className="h-64">
-                    {selectedReport === 'User Activity' && (
-                        <Line data={mockReportData[selectedReport].chartData} options={lineChartOptions} />
-                    )}
-                    {selectedReport === 'Task Completion' && (
-                        <Bar data={mockReportData[selectedReport].chartData} options={barChartOptions} />
-                    )}
-                    {selectedReport === 'Goal Progress' && (
-                        <Pie data={mockReportData[selectedReport].chartData} options={pieChartOptions} />
-                    )}
-                    {selectedReport === 'System Usage' && (
-                        <Pie data={mockReportData[selectedReport].chartData} options={pieChartOptions} />
-                    )}
-                    {selectedReport === 'Custom Report' && (
-                        <Bar data={mockReportData[selectedReport].chartData} options={barChartOptions} />
-                    )}
-                </div>
+                {selectedReport === 'Goal Progress' || selectedReport === 'System Usage' ? (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="relative flex justify-center items-center h-64">
+                            <div className="w-56 h-56">
+                                {selectedReport === 'Goal Progress' ? (
+                                    <Pie data={goalProgressData.chartData} options={pieChartOptions} />
+                                ) : (
+                                    <Pie data={systemUsageData.chartData} options={pieChartOptions} />
+                                )}
+                            </div>
+                        </div>
+                        <div className="flex flex-col justify-center">
+                            <h4 className="text-md font-medium text-gray-700 mb-4">
+                                {selectedReport === 'Goal Progress' ? 'Goal Progress Summary' : 'File Type Distribution'}
+                            </h4>
+                            <ul className="space-y-2">
+                                {(selectedReport === 'Goal Progress' ? goalProgressData : systemUsageData).chartData.labels.map((label, idx) => (
+                                    <li key={label} className="flex items-center justify-between text-sm">
+                                        <div className="flex items-center">
+                                            <span
+                                                className="w-3 h-3 rounded-full mr-2"
+                                                style={{ backgroundColor: (selectedReport === 'Goal Progress' ? goalProgressData : systemUsageData).chartData.datasets[0].backgroundColor[idx] }}
+                                            ></span>
+                                            <span className="text-gray-600">{label}</span>
+                                        </div>
+                                        <span className="text-gray-800 font-medium">
+                                            {(selectedReport === 'Goal Progress' ? goalProgressData : systemUsageData).chartData.datasets[0].data[idx]}
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="h-64">
+                        {selectedReport === 'User Activity' && (
+                            <Line data={userActivityData.chartData} options={lineChartOptions} />
+                        )}
+                        {selectedReport === 'Task Completion' && (
+                            <Bar data={taskCompletionData.chartData} options={barChartOptions} />
+                        )}
+                        {selectedReport === 'Custom Report' && (
+                            <Bar data={userActivityData.chartData} options={barChartOptions} />
+                        )}
+                    </div>
+                )}
             </div>
 
-            {/* Success/Error Messages */}
             {error && (
                 <div className="text-red-500 text-sm text-center animate-shake mb-4">
                     {error}
@@ -496,7 +960,6 @@ const AdminReports = () => {
                 </div>
             )}
 
-            {/* Export Options */}
             <div className="flex space-x-4 mb-6">
                 <button
                     onClick={() => handleExport('csv')}
@@ -527,7 +990,6 @@ const AdminReports = () => {
                 </button>
             </div>
 
-            {/* Data Table */}
             <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
                     <thead>
@@ -541,7 +1003,7 @@ const AdminReports = () => {
                                     aria-label="Select all rows"
                                 />
                             </th>
-                            {mockReportData[selectedReport].tableColumns.map((col) => (
+                            {reportData.tableColumns.map((col) => (
                                 <th
                                     key={col}
                                     className="p-3 text-left text-teal-700 cursor-pointer hover:text-teal-900 transition-colors"
@@ -573,28 +1035,31 @@ const AdminReports = () => {
                                         checked={selectedRows.includes(row.id)}
                                         onChange={() => handleSelectRow(row.id)}
                                         className="h-4 w-4 text-teal-600 focus:ring-teal-400"
-                                        aria-label={`Select row for ${row.user || row.goal || row.metric}`}
+                                        aria-label={`Select row for ${row.id}`}
                                     />
                                 </td>
-                                {mockReportData[selectedReport].tableColumns.map((col) => (
-                                    <td key={col} className="p-3 text-gray-700">
+                                {reportData.tableColumns.map((col) => (
+                                    <td key={`${col}-${row.id}`} className="p-3">
                                         {col === 'progress' ? (
                                             <div className="flex items-center">
                                                 <div className="w-24 bg-gray-200 rounded-full h-2.5 mr-2">
                                                     <div
                                                         className="bg-teal-600 h-2.5 rounded-full transition-all duration-300"
-                                                        style={{ width: `${row[col]}%` }}
-                                                    ></div>
+                                                        style={{ width: `${row.progress}%` }}
+                                                    />
                                                 </div>
-                                                <span className="text-xs text-gray-600">{row[col]}%</span>
+                                                <span className="text-sm text-gray-600">{row.progress}%</span>
                                             </div>
-                                        ) : col === 'overdue' ? (
+                                        ) : col === 'email' ? (
                                             <span
-                                                className={`px-2 py-1 rounded-full text-xs ${row[col] > 0 ? 'bg-red-100 text-red-700' : 'bg-teal-100 text-teal-700'
-                                                    }`}
+                                                className={`px-2 py-1 rounded-full text-xs ${row.email === 0 ? 'bg-teal-100 text-teal-700' : 'bg-red-100 text-red-700'}`}
                                             >
-                                                {row[col]}
+                                                {row.email}
                                             </span>
+                                        ) : col === 'percentQuota' ? (
+                                            <span className="text-sm text-gray-600">{row.percentQuota}%</span>
+                                        ) : col === 'storageUsed' ? (
+                                            <span className="text-sm text-gray-600">{row.storageUsed} MB</span>
                                         ) : (
                                             row[col]
                                         )}
@@ -606,8 +1071,7 @@ const AdminReports = () => {
                 </table>
             </div>
 
-            {/* Pagination */}
-            <div className="flex justify-between items-center mt-4">
+            <div className="flex justify-between items-center mt-6">
                 <p className="text-sm text-gray-600">
                     Showing {(currentPage - 1) * rowsPerPage + 1} to{' '}
                     {Math.min(currentPage * rowsPerPage, filteredData.length)} of {filteredData.length}{' '}
@@ -617,7 +1081,7 @@ const AdminReports = () => {
                     <button
                         onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                         disabled={currentPage === 1}
-                        className="px-4 py-2 rounded-lg bg-teal-600 text-white disabled:opacity-50 hover:bg-teal-700 transition-all duration-300"
+                        className="px-4 py-2 rounded-lg bg-teal-600 text-white font-bold disabled:bg-gray-300 hover:bg-teal-700 transition-all duration-300"
                         aria-label="Previous page"
                     >
                         Previous
@@ -625,7 +1089,7 @@ const AdminReports = () => {
                     <button
                         onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
                         disabled={currentPage === totalPages}
-                        className="px-4 py-2 rounded-lg bg-teal-600 text-white disabled:opacity-50 hover:bg-teal-700 transition-all duration-300"
+                        className="px-4 py-2 rounded-lg bg-teal-600 text-white font-bold disabled:bg-gray-300 hover:bg-teal-700 transition-all duration-300"
                         aria-label="Next page"
                     >
                         Next
@@ -635,7 +1099,7 @@ const AdminReports = () => {
 
             {isLoading && (
                 <div className="fixed inset-0 bg-black bg-opacity-20 flex items-center justify-center z-50">
-                    <div className="w-12 h-12 border-4 border-teal-200 border-t-teal-600 rounded-full animate-spin" />
+                    <div className="w-12 h-12 border-4 border-teal-400 border-t-teal-600 rounded-full animate-spin" />
                 </div>
             )}
         </div>
