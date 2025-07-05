@@ -12,7 +12,7 @@ const Payment = () => {
                 </div>
                 <h1 className="text-2xl font-semibold text-teal-700 mb-2">Payment</h1>
                 <p className="text-sm text-gray-600 mb-4">
-                    Payment features are coming soon! Get ready for seamless billing and subscription management.
+                    Payment features are coming soon!.
                 </p>
                 <a
                     href="/"

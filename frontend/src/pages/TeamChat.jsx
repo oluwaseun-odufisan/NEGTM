@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { Send, Smile, Paperclip, Users, Plus, X, Search, ChevronDown, Edit2, Trash2 } from 'lucide-react';
+import { Send, Smile, Paperclip, Users, Plus, X, Search, ChevronDown, Edit2, Trash2, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import io from 'socket.io-client';
@@ -39,7 +39,7 @@ const TeamChat = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [userChatMap, setUserChatMap] = useState({});
   const [showScrollButton, setShowScrollButton] = useState(false);
-  const [selectionMode, setSelectionMode] = useState(null); // 'edit' or 'delete'
+  const [selectionMode, setSelectionMode] = useState(null);
   const [selectedMessages, setSelectedMessages] = useState([]);
   const socket = useRef(null);
   const messagesEndRef = useRef(null);
@@ -74,7 +74,7 @@ const TeamChat = () => {
   const getAuthHeaders = useCallback(() => {
     const token = localStorage.getItem('token');
     if (!token) {
-      toast.error('Session expired. Please log in again.');
+      toast.error('Session expired. Please log in again.', { style: { background: '#F87171', color: '#FFFFFF' } });
       onLogout?.();
       throw new Error('No auth token');
     }
@@ -128,7 +128,7 @@ const TeamChat = () => {
       setUserChatMap(map);
     } catch (error) {
       console.error('Fetch initial chats error:', error.message);
-      toast.error('Failed to load chats.');
+      toast.error('Failed to load chats.', { style: { background: '#F87171', color: '#FFFFFF' } });
       if (error.response?.status === 401) onLogout?.();
     } finally {
       setIsLoading(false);
@@ -175,7 +175,7 @@ const TeamChat = () => {
       }));
 
       if (message.sender?._id !== user?._id && message.chatId !== selectedChat?._id) {
-        toast.success('New message received!');
+        toast.success('New message received!', { style: { background: '#2DD4BF', color: '#FFFFFF' } });
         setUnreadCounts((prev) => ({
           ...prev,
           [message.chatId]: (prev[message.chatId] || 0) + 1,
@@ -214,12 +214,12 @@ const TeamChat = () => {
           if (prev.some((g) => g._id === response.group._id)) return prev;
           return [...prev, response.group];
         });
-        toast.success('Group created!');
+        toast.success('Group created!', { style: { background: '#2DD4BF', color: '#FFFFFF' } });
         setSelectedChat({ ...response.group, type: 'group' });
         setChatMode('group');
         socket.current.emit('joinChat', response.group._id);
       } else {
-        toast.error('Failed to process group creation.');
+        toast.error('Failed to process group creation.', { style: { background: '#F87171', color: '#FFFFFF' } });
       }
     });
 
@@ -231,9 +231,9 @@ const TeamChat = () => {
         if (selectedChat?._id === response.group._id) {
           setSelectedChat({ ...response.group, type: 'group' });
         }
-        toast.success('Group updated!');
+        toast.success('Group updated!', { style: { background: '#2DD4BF', color: '#FFFFFF' } });
       } else {
-        toast.error('Failed to process group update.');
+        toast.error('Failed to process group update.', { style: { background: '#F87171', color: '#FFFFFF' } });
       }
     });
 
@@ -241,15 +241,15 @@ const TeamChat = () => {
       console.error('Socket connection error:', error.message);
       if (reconnectAttempts.current < maxReconnectAttempts) {
         reconnectAttempts.current += 1;
-        toast.error(`Connection lost. Reconnecting (${reconnectAttempts.current}/${maxReconnectAttempts})...`);
+        toast.error(`Connection lost. Reconnecting (${reconnectAttempts.current}/${maxReconnectAttempts})...`, { style: { background: '#F87171', color: '#FFFFFF' } });
       } else {
-        toast.error('Failed to reconnect to chat server. Please refresh the page.');
+        toast.error('Failed to reconnect to chat server. Please refresh the page.', { style: { background: '#F87171', color: '#FFFFFF' } });
       }
     });
 
     socket.current.on('error', (error) => {
       console.error('Socket error:', error.message);
-      toast.error('Chat error: ' + error.message);
+      toast.error('Chat error: ' + error.message, { style: { background: '#F87171', color: '#FFFFFF' } });
     });
 
     return () => {
@@ -266,7 +266,7 @@ const TeamChat = () => {
 
   const selectIndividualChat = useCallback(async (recipient) => {
     if (!recipient?._id || typeof recipient._id !== 'string') {
-      toast.error('Invalid user selected.');
+      toast.error('Invalid user selected.', { style: { background: '#F87171', color: '#FFFFFF' } });
       return;
     }
     try {
@@ -283,7 +283,7 @@ const TeamChat = () => {
       socket.current?.emit('joinChat', chat._id);
       setCurrentPage(1);
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to start chat.');
+      toast.error(error.response?.data?.message || 'Failed to start chat.', { style: { background: '#F87171', color: '#FFFFFF' } });
       if (error.response?.status === 401) onLogout?.();
     } finally {
       setIsLoading(false);
@@ -292,14 +292,14 @@ const TeamChat = () => {
 
   const selectGroupChat = useCallback((group) => {
     if (!group?._id) {
-      toast.error('Invalid group selected.');
+      toast.error('Invalid group selected.', { style: { background: '#F87171', color: '#FFFFFF' } });
       return;
     }
     setSelectedChat({ ...group, type: 'group' });
     setUnreadCounts((prev) => ({ ...prev, [group._id]: 0 }));
     socket.current?.emit('joinChat', group._id);
     setCurrentPage(1);
-  }, [selectedChat]);
+  }, []);
 
   const fetchMessages = useCallback(async () => {
     if (!selectedChat?._id) return;
@@ -330,7 +330,7 @@ const TeamChat = () => {
         }));
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to fetch messages.');
+      toast.error(error.response?.data?.message || 'Failed to fetch messages.', { style: { background: '#F87171', color: '#FFFFFF' } });
       if (error.response?.status === 401) onLogout?.();
     } finally {
       setIsLoading(false);
@@ -414,7 +414,7 @@ const TeamChat = () => {
         contentType = fileContentType;
         fileName = uploadedFileName;
       } catch (error) {
-        toast.error(error.message);
+        toast.error(error.message, { style: { background: '#F87171', color: '#FFFFFF' } });
         setFile(null);
         if (fileInputRef.current) fileInputRef.current.value = '';
         return;
@@ -424,7 +424,6 @@ const TeamChat = () => {
     try {
       setIsLoading(true);
       if (editingMessageId) {
-        // Update existing message
         const response = await axios.put(
           `${API_BASE_URL}/api/chats/messages/${editingMessageId}`,
           { content: newMessage.trim() },
@@ -434,9 +433,8 @@ const TeamChat = () => {
           chatId: selectedChat._id,
           message: response.data.message,
         });
-        toast.success('Message updated.');
+        toast.success('Message updated.', { style: { background: '#2DD4BF', color: '#FFFFFF' } });
       } else {
-        // Send new message
         const message = {
           chatId: selectedChat._id,
           content: newMessage.trim(),
@@ -463,7 +461,7 @@ const TeamChat = () => {
         [selectedChat._id]: new Date().toISOString(),
       }));
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to send or update message.');
+      toast.error(error.response?.data?.message || 'Failed to send or update message.', { style: { background: '#F87171', color: '#FFFFFF' } });
       if (error.response?.status === 401) onLogout?.();
     } finally {
       setIsLoading(false);
@@ -472,7 +470,7 @@ const TeamChat = () => {
 
   const handleDeleteMessages = async () => {
     if (selectedMessages.length === 0) {
-      toast.error('Please select at least one message to delete.');
+      toast.error('Please select at least one message to delete.', { style: { background: '#F87171', color: '#FFFFFF' } });
       return;
     }
 
@@ -488,9 +486,9 @@ const TeamChat = () => {
       );
       setSelectionMode(null);
       setSelectedMessages([]);
-      toast.success(`Deleted ${selectedMessages.length} message(s).`);
+      toast.success(`Deleted ${selectedMessages.length} message(s).`, { style: { background: '#2DD4BF', color: '#FFFFFF' } });
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to delete messages.');
+      toast.error(error.response?.data?.message || 'Failed to delete messages.', { style: { background: '#F87171', color: '#FFFFFF' } });
       if (error.response?.status === 401) onLogout?.();
     } finally {
       setIsLoading(false);
@@ -499,7 +497,7 @@ const TeamChat = () => {
 
   const handleCreateGroup = async () => {
     if (selectedUsers.length < 1) {
-      toast.error('At least one member required.');
+      toast.error('At least one member required.', { style: { background: '#F87171', color: '#FFFFFF' } });
       return;
     }
 
@@ -507,7 +505,7 @@ const TeamChat = () => {
       setIsLoading(true);
       const validSelectedUsers = selectedUsers.filter((id) => users.some((u) => u._id === id));
       if (validSelectedUsers.length === 0) {
-        toast.error('No valid members selected.');
+        toast.error('No valid members selected.', { style: { background: '#F87171', color: '#FFFFFF' } });
         return;
       }
 
@@ -524,7 +522,7 @@ const TeamChat = () => {
       setGroupName('');
       setSelectedUsers([]);
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to create group.');
+      toast.error(error.response?.data?.message || 'Failed to create group.', { style: { background: '#F87171', color: '#FFFFFF' } });
       if (error.response?.status === 401) onLogout?.();
     } finally {
       setIsLoading(false);
@@ -536,7 +534,7 @@ const TeamChat = () => {
       setIsLoading(true);
       const validNewMembers = newMembers.filter((id) => users.some((u) => u._id === id));
       if (validNewMembers.length === 0) {
-        toast.error('No valid members selected.');
+        toast.error('No valid members selected.', { style: { background: '#F87171', color: '#FFFFFF' } });
         return;
       }
 
@@ -548,8 +546,7 @@ const TeamChat = () => {
       setShowGroupModal(false);
       setSelectedUsers([]);
     } catch (error) {
-      toast.error('Add members error:', error.message);
-      toast.error('Failed to add members.');
+      toast.error(error.response?.data?.message || 'Failed to add members.', { style: { background: '#F87171', color: '#FFFFFF' } });
       if (error.response?.status === 401) onLogout?.();
     } finally {
       setIsLoading(false);
@@ -560,7 +557,7 @@ const TeamChat = () => {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
       if (selectedFile.size > 50 * 1024 * 1024) {
-        toast.error('File size exceeds 50MB.');
+        toast.error('File size exceeds 50MB.', { style: { background: '#F87171', color: '#FFFFFF' } });
         return;
       }
       setFile(selectedFile);
@@ -606,7 +603,7 @@ const TeamChat = () => {
 
     if (selectionMode === 'edit') {
       if (message.sender?._id !== user?._id) {
-        toast.error('You can only edit your own messages.');
+        toast.error('You can only edit your own messages.', { style: { background: '#F87171', color: '#FFFFFF' } });
         return;
       }
       setSelectedMessages([messageId]);
@@ -647,703 +644,819 @@ const TeamChat = () => {
 
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <p className="text-lg text-gray-600">Please log in to access the chat.</p>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-teal-50">
+        <p className="text-base sm:text-lg text-gray-600">Please log in to access the chat.</p>
       </div>
     );
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="h-[calc(95vh-4rem)] bg-gray-100 flex flex-col shadow-md"
-    >
-      <Toaster position="bottom-right" />
-      <header className="bg-white shadow-md p-4 flex justify-between items-center">
-        <div className="max-w-7xl mx-auto w-full flex justify-between items-center">
-          <h1 className="text-2xl font-semibold text-gray-900">TeamChat</h1>
-          <div className="flex items-center gap-4">
-            <button
+    <div className="min-h-screen flex flex-col max-w-[80rem] mx-auto w-full">
+      <Toaster position="bottom-right" toastOptions={{ className: 'text-xs sm:text-sm max-w-xs sm:max-w-sm' }} />
+      <header className="bg-white shadow-lg px-4 sm:px-6 py-3 sm:py-4 sticky top-0 z-30">
+        <div className="max-w-[90rem] mx-auto w-full flex flex-col sm:flex-row justify-between items-center gap-2 sm:gap-4">
+          <div className="flex items-center justify-between w-full sm:w-auto">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-teal-600 truncate">TeamChat</h1>
+          </div>
+          <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               type="button"
               onClick={() => handleChatModeChange('individual')}
-              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
+              className={`w-full sm:w-auto px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-full transition-colors duration-200 ${
                 chatMode === 'individual'
                   ? 'bg-teal-600 text-white'
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
               Individual Chats
-            </button>
-            <button
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               type="button"
               onClick={() => handleChatModeChange('group')}
-              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
+              className={`w-full sm:w-auto px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-full transition-colors duration-200 ${
                 chatMode === 'group'
                   ? 'bg-teal-600 text-white'
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
               Group Chats
-            </button>
+            </motion.button>
           </div>
         </div>
       </header>
-      <main className="flex-1 flex max-w-7xl mx-auto w-full p-6 gap-6 overflow-hidden">
-        <motion.aside
-          initial={{ x: -100 }}
-          animate={{ x: 0 }}
-          className="w-80 bg-white rounded-lg shadow-md p-4 flex flex-col h-full border border-gray-200"
-        >
-          {isLoading && <p className="text-sm text-gray-500 mb-4">Loading chats...</p>}
-          {chatMode === 'group' && (
-            <button
-              type="button"
-              onClick={() => {
-                setShowGroupModal(true);
-                setSelectedUsers([]);
-              }}
-              className="mb-4 px-4 py-2 text-sm bg-teal-600 text-white rounded-md hover:bg-teal-700 transition-colors duration-200 flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4" /> Create Group
-            </button>
-          )}
-          {chatMode === 'individual' && (
-            <div className="mb-4 flex items-center gap-2">
-              <Search className="w-4 h-4 text-gray-600" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search users..."
-                className="w-full p-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-600 transition-colors"
-              />
-            </div>
-          )}
-          <div className="flex-1 overflow-y-auto">
-            {chatMode === 'individual' && sortedUsers.length === 0 && !isLoading && (
-              <p className="text-sm text-gray-500 text-center">No users found</p>
-            )}
-            {chatMode === 'group' && sortedGroups.length === 0 && !isLoading && (
-              <p className="text-sm text-gray-500 text-center">No groups found</p>
-            )}
-            {chatMode === 'individual'
-              ? sortedUsers.map((u) => (
-                  <div
-                    key={u._id}
-                    onClick={() => selectIndividualChat(u)}
-                    className={`p-3 rounded-md cursor-pointer transition-colors duration-200 ${
-                      selectedChat?.recipient?._id === u._id ? 'bg-teal-100' : 'hover:bg-gray-200'
-                    }`}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="flex-1 flex bg-gradient-to-br from-gray-50 to-teal-50 w-full pt-4 sm:pt-6 overflow-hidden"
+      >
+        <main className="flex-1 flex max-w-[80rem] mx-auto w-full h-[calc(80vh-7rem)] sm:h-[calc(80vh-8rem)]">
+          <AnimatePresence>
+            {!mediaViewer.isOpen && !selectedChat ? (
+              <motion.aside
+                key="chat-list"
+                initial={{ x: '-100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '-100%' }}
+                transition={{ duration: 0.3 }}
+                className="w-full sm:w-64 md:w-80 bg-white sm:rounded-3xl shadow-lg p-3 sm:p-4 flex flex-col sm:border sm:border-gray-200 fixed sm:static top-[7rem] sm:top-0 left-0 z-30 sm:z-auto h-[calc(100vh-7rem)] sm:h-[calc(100vh-8rem)]"
+              >
+                {isLoading && <p className="text-xs sm:text-sm text-gray-500 mb-3 sm:mb-4">Loading chats...</p>}
+                {chatMode === 'group' && (
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    type="button"
+                    onClick={() => {
+                      setShowGroupModal(true);
+                      setSelectedUsers([]);
+                    }}
+                    className="mb-3 sm:mb-4 w-full px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm bg-teal-600 text-white rounded-full hover:bg-teal-700 transition-colors duration-200 flex items-center gap-2 justify-center"
+                    aria-label="Create Group"
                   >
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-gray-300 text-gray-800 flex items-center justify-center text-sm font-semibold">
-                            {getInitials(u.name)}
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">{u.name}</p>
-                            <p className="text-xs text-gray-500">{u.email}</p>
+                    <Plus className="w-4 h-4 sm:w-5 h-5" /> Create Group
+                  </motion.button>
+                )}
+                {chatMode === 'individual' && (
+                  <div className="mb-3 sm:mb-4 flex items-center gap-2 sm:gap-3">
+                    <Search className="w-4 h-4 sm:w-5 h-5 text-gray-600 flex-shrink-0" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search users..."
+                      className="w-full p-1.5 sm:p-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-600 transition-colors"
+                    />
+                  </div>
+                )}
+                <div className="flex-1 overflow-y-auto custom-scrollbar">
+                  {chatMode === 'individual' && sortedUsers.length === 0 && !isLoading && (
+                    <p className="text-xs sm:text-sm text-gray-500 text-center">No users found</p>
+                  )}
+                  {chatMode === 'group' && sortedGroups.length === 0 && !isLoading && (
+                    <p className="text-xs sm:text-sm text-gray-500 text-center">No groups found</p>
+                  )}
+                  {chatMode === 'individual'
+                    ? sortedUsers.map((u) => (
+                        <div
+                          key={u._id}
+                          onClick={() => selectIndividualChat(u)}
+                          className={`p-2 sm:p-3 rounded-lg cursor-pointer transition-colors duration-200 ${
+                            selectedChat?.recipient?._id === u._id ? 'bg-teal-100' : 'hover:bg-gray-200'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div className="w-7 h-7 sm:w-8 h-8 rounded-full bg-gray-300 text-gray-800 flex items-center justify-center text-xs sm:text-sm font-semibold flex-shrink-0">
+                                {getInitials(u.name)}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-xs sm:text-sm font-medium text-gray-900 truncate">{u.name}</p>
+                                <p className="text-xs text-gray-500 truncate">{u.email}</p>
+                              </div>
+                            </div>
+                            {unreadCounts[userChatMap[u._id]] > 0 && (
+                              <span className="bg-red-600 text-white text-xs font-semibold rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0">
+                                {unreadCounts[userChatMap[u._id]]}
+                              </span>
+                            )}
                           </div>
                         </div>
-                        {unreadCounts[userChatMap[u._id]] > 0 && (
-                          <span className="bg-red-600 text-white text-xs font-semibold rounded-full w-5 h-5 flex items-center justify-center">
-                            {unreadCounts[userChatMap[u._id]]}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                : sortedGroups.map((g) => (
-                    <div
-                      key={g._id}
-                      onClick={() => selectGroupChat(g)}
-                      className={`p-3 rounded-md cursor-pointer transition-colors duration-200 ${
-                        selectedChat?._id === g._id ? 'bg-teal-100' : 'hover:bg-gray-200'
-                      }`}
+                      ))
+                    : sortedGroups.map((g) => (
+                        <div
+                          key={g._id}
+                          onClick={() => selectGroupChat(g)}
+                          className={`p-2 sm:p-3 rounded-lg cursor-pointer transition-colors duration-200 ${
+                            selectedChat?._id === g._id ? 'bg-teal-100' : 'hover:bg-gray-200'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div className="w-7 h-7 sm:w-8 h-8 rounded-full bg-gray-300 text-gray-800 flex items-center justify-center text-xs sm:text-sm font-semibold flex-shrink-0">
+                                {getInitials(g.name)}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-xs sm:text-sm font-medium text-gray-900 truncate">{g.name}</p>
+                                <p className="text-xs text-gray-500 line-clamp-1">{g.members.length} members</p>
+                              </div>
+                            </div>
+                            {unreadCounts[g._id] > 0 && (
+                              <span className="bg-red-600 text-white text-xs font-semibold rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0">
+                                {unreadCounts[g._id]}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                </div>
+              </motion.aside>
+            ) : !mediaViewer.isOpen ? (
+              <motion.section
+                key="chat-view"
+                initial={{ x: '100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '100%' }}
+                transition={{ duration: 0.3 }}
+                className="w-full bg-white sm:rounded-3xl shadow-lg p-3 sm:p-4 md:p-6 flex flex-col sm:border sm:border-gray-200 fixed sm:static top-[7rem] sm:top-0 left-0 z-20 sm:z-auto h-[calc(100vh-7rem)] sm:h-[calc(100vh-8rem)]"
+              >
+                <div className="border-b border-gray-200 pb-2 sm:pb-3 mb-3 sm:mb-4 flex items-center justify-between gap-2 sm:gap-4 sticky top-0 bg-white z-10">
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      type="button"
+                      onClick={handleCloseChat}
+                      className="p-2 text-gray-600 hover:text-teal-600 sm:hidden rounded-full transition-colors duration-200"
+                      aria-label="Back to Chat List"
+                      data-tooltip-id="back-to-chats"
+                      data-tooltip-content="Back to Chats"
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-gray-300 text-gray-800 flex items-center justify-center text-sm font-semibold">
-                            {getInitials(g.name)}
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">{g.name}</p>
-                            <p className="text-xs text-gray-500">{g.members.length} members</p>
-                          </div>
-                        </div>
-                        {unreadCounts[g._id] > 0 && (
-                          <span className="bg-red-600 text-white text-xs font-semibold rounded-full w-5 h-5 flex items-center justify-center">
-                            {unreadCounts[g._id]}
-                          </span>
+                      <ArrowLeft className="w-5 h-5" />
+                      <Tooltip id="back-to-chats" />
+                    </motion.button>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-8 h-8 rounded-full bg-gray-300 text-gray-800 flex items-center justify-center text-sm font-semibold flex-shrink-0">
+                        {getInitials(
+                          chatMode === 'individual'
+                            ? selectedChat.recipient?.name || 'Anonymous'
+                            : selectedChat.name || 'Unnamed Group'
                         )}
                       </div>
-                    </div>
-                  ))}
-              </div>
-            </motion.aside>
-            <motion.section
-              initial={{ y: 0 }}
-              animate={{ y: 0 }}
-              className="flex-1 bg-white rounded-lg shadow-md p-6 flex flex-col h-full border border-gray-200 relative"
-            >
-              {selectedChat ? (
-                <>
-                  <div className="border-b border-gray-200 pb-4 mb-4 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div>
-                        <h2 className="text-lg font-semibold text-gray-900">
+                      <div className="min-w-0">
+                        <h2 className="text-base sm:text-lg md:text-xl font-semibold text-gray-900 truncate">
                           {chatMode === 'individual' ? selectedChat.recipient?.name || 'Anonymous' : selectedChat.name || 'Unnamed Group'}
                         </h2>
                         {chatMode === 'group' && (
-                          <div className="flex items-center gap-2">
-                            <p className="text-xs text-gray-600">{selectedChat.members?.length || 0} members</p>
-                            <button
-                              type="button"
-                              onClick={() => setShowMembersModal(true)}
-                              className="p-2 text-teal-600 hover:bg-teal-100 rounded-full transition-colors duration-200"
-                              data-tooltip-id="view-members"
-                              data-tooltip-content="View Members"
-                            >
-                              <Users className="w-4 h-4" />
-                              <Tooltip id="view-members" />
-                            </button>
-                          </div>
+                          <p className="text-xs sm:text-sm text-gray-600">{selectedChat.members?.length || 0} members</p>
                         )}
                       </div>
-                      {selectionMode && (
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-semibold text-gray-800">
-                            {selectedMessages.length} selected
-                          </p>
-                          {selectionMode === 'delete' && (
-                            <button
-                              type="button"
-                              onClick={handleDeleteMessages}
-                              className="px-4 py-2 text-sm bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors duration-200"
-                            >
-                              Delete
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectionMode(null);
-                              setSelectedMessages([]);
-                              setEditingMessageId(null);
-                              setNewMessage('');
-                            }}
-                            className="p-2 text-gray-600 hover:bg-gray-200 rounded-full transition-colors duration-200"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {!selectionMode && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => setSelectionMode('edit')}
-                            className="p-2 text-blue-500 bg-blue-100 hover:bg-blue-200 rounded-full transition-colors duration-200"
-                            data-tooltip-id="edit-messages"
-                            data-tooltip-content="Select to Edit"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                            <Tooltip id="edit-messages" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setSelectionMode('delete')}
-                            className="p-2 text-red-600 bg-red-100 hover:bg-red-200 rounded-full transition-colors duration-200"
-                            data-tooltip-id="delete-messages"
-                            data-tooltip-content="Select to Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                            <Tooltip id="delete-messages" />
-                          </button>
-                        </>
-                      )}
-                      {chatMode === 'group' && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setShowGroupModal(true);
-                            setSelectedUsers([]);
-                          }}
-                          className="p-2 text-teal-600 hover:bg-teal-100 rounded-full transition-colors duration-200"
-                          data-tooltip-id="add-members"
-                          data-tooltip-content="Add Members"
-                        >
-                          <Users className="w-4 h-4" />
-                          <Tooltip id="add-members" />
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={handleCloseChat}
-                        className="p-2 text-gray-600 hover:bg-gray-200 rounded-full transition-colors duration-200"
-                        data-tooltip-id="close-chat"
-                        data-tooltip-content="Close Chat"
-                      >
-                        <X className="w-4 h-4" />
-                        <Tooltip id="close-chat" />
-                      </button>
                     </div>
                   </div>
-                  <div
-                    className="flex-1 overflow-y-auto mb-4 px-2 scroll-smooth"
-                    ref={messagesContainerRef}
-                    onScroll={handleScroll}
-                  >
-                    {isLoading && <p className="text-center text-sm text-gray-500">Loading messages...</p>}
-                    {currentPage < totalPages && (
-                      <button
-                        type="button"
-                        onClick={loadMoreMessages}
-                        className="mx-auto mb-4 px-4 py-2 text-sm bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors duration-200"
-                      >
-                        Load More
-                      </button>
-                    )}
-                    {!isLoading && messages.length === 0 && (
-                      <p className="text-center text-sm text-gray-500">No messages yet</p>
-                    )}
-                    <AnimatePresence>
-                      {messages.map((msg, index) => (
-                        <motion.div
-                          key={msg._id || `msg-${index}`}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -10 }}
-                          transition={{ duration: 0.2 }}
-                          className={`mb-4 flex ${
-                            msg.sender?._id === user?._id ? 'justify-end' : 'justify-start'
-                          } items-end gap-2 relative ${selectionMode ? 'cursor-pointer' : ''}`}
-                          onClick={() => {
-                            if (selectionMode) {
-                              if (selectionMode === 'edit' && msg.sender?._id !== user?._id) {
-                                return;
-                              }
-                              if (msg.isDeleted) return;
-                              toggleMessageSelection(msg._id);
-                            }
-                          }}
-                        >
-                          {msg.sender?._id !== user?._id && (
-                            <div className="w-8 h-8 rounded-full bg-gray-300 text-gray-800 flex items-center justify-center text-sm font-semibold">
-                              {getInitials(msg.sender?.name || 'Anonymous')}
-                            </div>
-                          )}
-                          <div
-                            className={`max-w-[70%] p-3 rounded-2xl shadow-sm relative ${
-                              msg.sender?._id === user?._id
-                                ? 'bg-teal-600 text-white rounded-br-none'
-                                : 'bg-gray-100 text-gray-800 rounded-bl-none'
-                            } ${selectedMessages.includes(msg._id) ? 'ring-2 ring-blue-500' : ''}`}
+                  <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                    {selectionMode ? (
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs sm:text-sm font-semibold text-gray-800">
+                          {selectedMessages.length} selected
+                        </p>
+                        {selectionMode === 'delete' && (
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            type="button"
+                            onClick={handleDeleteMessages}
+                            className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors duration-200"
                           >
-                            {selectionMode && !msg.isDeleted && (
-                              <input
-                                type="checkbox"
-                                checked={selectedMessages.includes(msg._id)}
-                                className="absolute -left-6 top-1/2 -translate-y-1/2"
-                                readOnly
-                              />
-                            )}
-                            <p className="text-xs font-medium mb-1">
-                              {msg.sender?._id === user?._id ? 'You' : msg.sender?.name || 'Anonymous'}
-                            </p>
-                            {msg.isDeleted ? (
-                              <p className="text-sm italic text-gray-500">This message was deleted</p>
-                            ) : (
-                              <>
-                                {msg.content && <p className="text-sm break-words">{msg.content}</p>}
-                                {msg.isEdited && (
-                                  <p className="text-xs italic mt-1 ${
-                                    msg.sender?._id === user?._id ? 'text-teal-200' : 'text-gray-500'
-                                  }">(Edited)</p>
-                                )}
-                                {msg.fileUrl && (
-                                  <div className="mt-2">
-                                    {msg.contentType === 'image' && (
-                                      <div
-                                        className="cursor-pointer"
-                                        onClick={() => openMediaViewer(msg.fileUrl, 'image', msg.fileName || 'Image')}
-                                      >
-                                        <img
-                                          src={msg.fileUrl}
-                                          alt={msg.fileName || 'Shared image'}
-                                          className="max-w-full h-auto rounded-md"
-                                        />
-                                      </div>
-                                    )}
-                                    {msg.contentType === 'video' && (
-                                      <div
-                                        className="cursor-pointer"
-                                        onClick={() => openMediaViewer(msg.fileUrl, 'video', msg.fileName || 'Video')}
-                                      >
-                                        <video
-                                          src={msg.fileUrl}
-                                          controls
-                                          className="max-w-full h-auto rounded-md"
-                                        />
-                                      </div>
-                                    )}
-                                    {msg.contentType === 'audio' && (
-                                      <div
-                                        className="cursor-pointer"
-                                        onClick={() => openMediaViewer(msg.fileUrl, 'audio', msg.fileName || 'Audio')}
-                                      >
-                                        <audio src={msg.fileUrl} controls className="w-full" />
-                                      </div>
-                                    )}
-                                    {msg.contentType === 'application' && (
-                                      <div className="flex flex-col gap-2">
-                                        <button
-                                          onClick={() =>
-                                            openMediaViewer(
-                                              msg.fileUrl,
-                                              msg.fileUrl.includes('.pdf') ? 'pdf' : 'application',
-                                              msg.fileName || 'Document'
-                                            )
-                                          }
-                                          className={`flex items-center gap-1 text-sm ${
-                                            msg.sender?._id === user?._id
-                                              ? 'text-teal-200 hover:text-teal-100'
-                                              : 'text-gray-600 hover:text-gray-800'
-                                          }`}
-                                        >
-                                          <Paperclip className="w-4 h-4" /> View {msg.fileName || 'Document'}
-                                        </button>
-                                        <a
-                                          href={msg.fileUrl}
-                                          download={msg.fileName || 'Document'}
-                                          className={`flex items-center gap-1 text-sm ${
-                                            msg.sender?._id === user?._id
-                                              ? 'text-teal-200 hover:text-teal-100'
-                                              : 'text-gray-600 hover:text-gray-800'
-                                          }`}
-                                        >
-                                          <Paperclip className="w-4 h-4" /> Download {msg.fileName || 'Document'}
-                                        </a>
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-                              </>
-                            )}
-                            <p
-                              className={`text-xs text-right mt-1 ${
-                                msg.sender?._id === user?._id ? 'text-teal-300' : 'text-gray-500'
-                              }`}
-                            >
-                              {msg.createdAt
-                                ? moment.utc(msg.createdAt).tz('Africa/Lagos').format('MMM D, YYYY, h:mm A')
-                                : 'Unknown'}
-                            </p>
-                          </div>
-                          {msg.sender?._id === user?._id && (
-                            <div className="w-8 h-8 rounded-full bg-teal-400 text-teal-800 flex items-center justify-center text-sm font-semibold">
-                              {getInitials(msg.sender?.name || 'You')}
-                            </div>
-                          )}
-                        </motion.div>
-                      ))}
-                    </AnimatePresence>
-                    <div ref={messagesEndRef} />
-                    {typingUsers[selectedChat._id]?.isTyping && typingUsers[selectedChat._id]?.id !== user?._id && (
-                      <p className="text-xs text-gray-500 italic mt-2">
-                        {users.find((u) => u._id === typingUsers[selectedChat._id]?.id)?.name || 'Someone'} is typing...
-                      </p>
-                    )}
-                  </div>
-                  {showScrollButton && (
-                    <button
-                      onClick={scrollToBottom}
-                      className="absolute bottom-20 right-4 p-2 bg-teal-600 text-white rounded-full shadow-md hover:bg-teal-700 transition-colors duration-200"
-                      data-tooltip-id="scroll-to-bottom"
-                      data-tooltip-content="Scroll to Bottom"
-                    >
-                      <ChevronDown className="w-5 h-5" />
-                      <Tooltip id="scroll-to-bottom" />
-                    </button>
-                  )}
-                  <div className="flex items-end gap-2 relative">
-                    {editingMessageId && (
-                      <div className="absolute -top-10 left-0 bg-gray-100 p-2 rounded-md flex items-center gap-2">
-                        <p className="text-xs text-gray-600">Editing message...</p>
-                        <button
+                            Delete
+                          </motion.button>
+                        )}
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
                           type="button"
                           onClick={() => {
-                            setEditingMessageId(null);
-                            setNewMessage('');
                             setSelectionMode(null);
                             setSelectedMessages([]);
+                            setEditingMessageId(null);
+                            setNewMessage('');
                           }}
-                          className="p-1 text-gray-600 hover:text-gray-800"
+                          className="p-1 sm:p-2 text-gray-600 hover:bg-gray-200 rounded-full transition-colors duration-200"
                         >
-                          <X className="w-4 h-4" />
-                        </button>
+                          <X className="w-4 h-4 sm:w-5 h-5" />
+                        </motion.button>
                       </div>
+                    ) : (
+                      <>
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          type="button"
+                          onClick={() => setSelectionMode('edit')}
+                          className="p-1 sm:p-2 text-blue-500 bg-blue-100 hover:bg-blue-200 rounded-full transition-colors duration-200"
+                          data-tooltip-id="edit-messages"
+                          data-tooltip-content="Select to Edit"
+                        >
+                          <Edit2 className="w-4 h-4 sm:w-5 h-5" />
+                          <Tooltip id="edit-messages" />
+                        </motion.button>
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          type="button"
+                          onClick={() => setSelectionMode('delete')}
+                          className="p-1 sm:p-2 text-red-600 bg-red-100 hover:bg-red-200 rounded-full transition-colors duration-200"
+                          data-tooltip-id="delete-messages"
+                          data-tooltip-content="Select to Delete"
+                        >
+                          <Trash2 className="w-4 h-4 sm:w-5 h-5" />
+                          <Tooltip id="delete-messages" />
+                        </motion.button>
+                        {chatMode === 'group' && (
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            type="button"
+                            onClick={() => {
+                              setShowGroupModal(true);
+                              setSelectedUsers([]);
+                            }}
+                            className="p-1 sm:p-2 text-teal-600 hover:bg-teal-100 rounded-full transition-colors duration-200"
+                            data-tooltip-id="add-members"
+                            data-tooltip-content="Add Members"
+                          >
+                            <Users className="w-4 h-4 sm:w-5 h-5" />
+                            <Tooltip id="add-members" />
+                          </motion.button>
+                        )}
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          type="button"
+                          onClick={() => setShowMembersModal(true)}
+                          className="p-1 sm:p-2 text-teal-600 hover:bg-teal-100 rounded-full transition-colors duration-200"
+                          data-tooltip-id="view-members"
+                          data-tooltip-content="View Members"
+                        >
+                          <Users className="w-4 h-4 sm:w-5 h-5" />
+                          <Tooltip id="view-members" />
+                        </motion.button>
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          type="button"
+                          onClick={handleCloseChat}
+                          className="p-1 sm:p-2 text-gray-600 hover:bg-gray-200 rounded-full transition-colors duration-200 hidden sm:block"
+                          data-tooltip-id="close-chat"
+                          data-tooltip-content="Close Chat"
+                        >
+                          <X className="w-4 h-4 sm:w-5 h-5" />
+                          <Tooltip id="close-chat" />
+                        </motion.button>
+                      </>
                     )}
-                    {showEmojiPicker && (
-                      <div className="absolute bottom-16 left-0 z-10">
-                        <EmojiPicker onEmojiClick={(emoji) => setNewMessage((prev) => prev + emoji.emoji)} />
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                      className="p-2 text-gray-600 hover:text-teal-600 transition-colors duration-200"
-                      data-tooltip-id="emoji"
-                      data-tooltip-content="Emoji"
-                    >
-                      <Smile className="w-5 h-5" />
-                      <Tooltip id="emoji" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="p-2 text-gray-600 hover:text-teal-600 transition-colors duration-200"
-                      data-tooltip-id="attach"
-                      data-tooltip-content="Attach File"
-                    >
-                      <Paperclip className="w-5 h-5" />
-                      <Tooltip id="attach" />
-                    </button>
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      className="hidden"
-                      accept="image/*,video/*,audio/*,.pdf,.doc,.docx"
-                      onChange={handleFileChange}
-                    />
-                    {file && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <p className="truncate max-w-[150px]">{file.name}</p>
-                        <button type="button" onClick={() => setFile(null)} className="text-red-600">
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    )}
-                    {isUploading && <p className="text-sm text-gray-500">Uploading...</p>}
-                    <input
-                      type="text"
-                      value={newMessage}
-                      onChange={(e) => {
-                        setNewMessage(e.target.value);
-                        handleTyping();
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSendMessage();
-                        }
-                      }}
-                      placeholder={editingMessageId ? 'Edit your message...' : 'Type a message...'}
-                      className="flex-1 p-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-teal-600 transition-colors duration-200"
-                      disabled={selectionMode && !editingMessageId}
-                    />
-                    <button
-                      type="button"
-                      onClick={handleSendMessage}
-                      disabled={(!newMessage.trim() && !file) || isUploading || (selectionMode && !editingMessageId)}
-                      className={`p-2 rounded-md transition-colors duration-200 ${
-                        (newMessage.trim() || file) && !isUploading && (!selectionMode || editingMessageId)
-                          ? 'bg-teal-600 text-white hover:bg-teal-700'
-                          : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      }`}
-                      data-tooltip-id="send"
-                      data-tooltip-content={editingMessageId ? 'Update' : 'Send'}
-                    >
-                      <Send className="w-5 h-5" />
-                      <Tooltip id="send" />
-                    </button>
                   </div>
-                </>
-              ) : (
-                <div className="flex-1 flex items-center justify-center">
-                  <p className="text-gray-500 text-sm">Select a chat to start messaging.</p>
                 </div>
-              )}
-            </motion.section>
-          </main>
-          {showGroupModal && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center"
-            >
-              <motion.div className="bg-white rounded-lg p-6 w-full max-w-md shadow-md">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-lg font-semibold text-gray-900">
-                    {selectedChat?.type === 'group' ? 'Add Members' : 'Create Group'}
-                  </h2>
-                  <button
+                <div
+                  className="flex-1 overflow-y-auto mb-3 sm:mb-4 px-1 sm:px-2 scroll-smooth custom-scrollbar"
+                  ref={messagesContainerRef}
+                  onScroll={handleScroll}
+                >
+                  {isLoading && <p className="text-center text-xs sm:text-sm text-gray-500">Loading messages...</p>}
+                  {currentPage < totalPages && (
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      type="button"
+                      onClick={loadMoreMessages}
+                      className="mx-auto mb-3 sm:mb-4 px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 transition-colors duration-200"
+                    >
+                      Load More
+                    </motion.button>
+                  )}
+                  {!isLoading && messages.length === 0 && (
+                    <p className="text-center text-xs sm:text-sm text-gray-500">No messages yet</p>
+                  )}
+                  <AnimatePresence>
+                    {messages.map((msg, index) => (
+                      <motion.div
+                        key={msg._id || `msg-${index}`}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.2 }}
+                        className={`mb-3 sm:mb-4 flex ${
+                          msg.sender?._id === user?._id ? 'justify-end' : 'justify-start'
+                        } items-end gap-2 sm:gap-3 relative ${selectionMode ? 'cursor-pointer' : ''}`}
+                        onClick={() => {
+                          if (selectionMode) {
+                            if (selectionMode === 'edit' && msg.sender?._id !== user?._id) {
+                              return;
+                            }
+                            if (msg.isDeleted) return;
+                            toggleMessageSelection(msg._id);
+                          }
+                        }}
+                      >
+                        {msg.sender?._id !== user?._id && (
+                          <div className="w-7 h-7 sm:w-8 h-8 rounded-full bg-gray-300 text-gray-800 flex items-center justify-center text-xs sm:text-sm font-semibold flex-shrink-0">
+                            {getInitials(msg.sender?.name || 'Anonymous')}
+                          </div>
+                        )}
+                        <div
+                          className={`max-w-[80%] sm:max-w-[70%] p-2 sm:p-3 rounded-2xl shadow-sm relative ${
+                            msg.sender?._id === user?._id
+                              ? 'bg-teal-600 text-white rounded-br-none'
+                              : 'bg-gray-100 text-gray-800 rounded-bl-none'
+                          } ${selectedMessages.includes(msg._id) ? 'ring-2 ring-blue-500' : ''}`}
+                        >
+                          {selectionMode && !msg.isDeleted && (
+                            <input
+                              type="checkbox"
+                              checked={selectedMessages.includes(msg._id)}
+                              className="absolute -left-5 sm:-left-6 top-1/2 -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-teal-600"
+                              readOnly
+                            />
+                          )}
+                          <p className="text-xs sm:text-sm font-medium mb-1 truncate">
+                            {msg.sender?._id === user?._id ? 'You' : msg.sender?.name || 'Anonymous'}
+                          </p>
+                          {msg.isDeleted ? (
+                            <p className="text-xs sm:text-sm italic text-gray-500">This message was deleted</p>
+                          ) : (
+                            <>
+                              {msg.content && <p className="text-xs sm:text-sm break-words">{msg.content}</p>}
+                              {msg.isEdited && (
+                                <p
+                                  className={`text-xs italic mt-1 ${
+                                    msg.sender?._id === user?._id ? 'text-teal-200' : 'text-gray-500'
+                                  }`}
+                                >
+                                  (Edited)
+                                </p>
+                              )}
+                              {msg.fileUrl && (
+                                <div className="mt-2">
+                                  {msg.contentType === 'image' && (
+                                    <div
+                                      className="cursor-pointer"
+                                      onClick={() => openMediaViewer(msg.fileUrl, 'image', msg.fileName || 'Image')}
+                                    >
+                                      <img
+                                        src={msg.fileUrl}
+                                        alt={msg.fileName || 'Shared image'}
+                                        className="max-w-full h-auto rounded-md"
+                                      />
+                                    </div>
+                                  )}
+                                  {msg.contentType === 'video' && (
+                                    <div
+                                      className="cursor-pointer"
+                                      onClick={() => openMediaViewer(msg.fileUrl, 'video', msg.fileName || 'Video')}
+                                    >
+                                      <video
+                                        src={msg.fileUrl}
+                                        controls
+                                        className="max-w-full h-auto rounded-md"
+                                      />
+                                    </div>
+                                  )}
+                                  {msg.contentType === 'audio' && (
+                                    <div
+                                      className="cursor-pointer"
+                                      onClick={() => openMediaViewer(msg.fileUrl, 'audio', msg.fileName || 'Audio')}
+                                    >
+                                      <audio src={msg.fileUrl} controls className="w-full" />
+                                    </div>
+                                  )}
+                                  {msg.contentType === 'application' && (
+                                    <div className="flex flex-col gap-2">
+                                      <button
+                                        onClick={() =>
+                                          openMediaViewer(
+                                            msg.fileUrl,
+                                            msg.fileUrl.includes('.pdf') ? 'pdf' : 'application',
+                                            msg.fileName || 'Document'
+                                          )
+                                        }
+                                        className={`flex items-center gap-1 text-xs sm:text-sm ${
+                                          msg.sender?._id === user?._id
+                                            ? 'text-teal-200 hover:text-teal-100'
+                                            : 'text-gray-600 hover:text-gray-800'
+                                        }`}
+                                      >
+                                        <Paperclip className="w-4 h-4 sm:w-5 h-5" /> View {msg.fileName || 'Document'}
+                                      </button>
+                                      <a
+                                        href={msg.fileUrl}
+                                        download={msg.fileName || 'Document'}
+                                        className={`flex items-center gap-1 text-xs sm:text-sm ${
+                                          msg.sender?._id === user?._id
+                                            ? 'text-teal-200 hover:text-teal-100'
+                                            : 'text-gray-600 hover:text-gray-800'
+                                        }`}
+                                      >
+                                        <Paperclip className="w-4 h-4 sm:w-5 h-5" /> Download {msg.fileName || 'Document'}
+                                      </a>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </>
+                          )}
+                          <p
+                            className={`text-xs text-right mt-1 line-clamp-1 ${
+                              msg.sender?._id === user?._id ? 'text-teal-300' : 'text-gray-500'
+                            }`}
+                          >
+                            {msg.createdAt
+                              ? moment.utc(msg.createdAt).tz('Africa/Lagos').format('MMM D, YYYY, h:mm A')
+                              : 'Unknown'}
+                          </p>
+                        </div>
+                        {msg.sender?._id === user?._id && (
+                          <div className="w-7 h-7 sm:w-8 h-8 rounded-full bg-teal-400 text-teal-800 flex items-center justify-center text-xs sm:text-sm font-semibold flex-shrink-0">
+                            {getInitials(msg.sender?.name || 'You')}
+                          </div>
+                        )}
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                  <div ref={messagesEndRef} />
+                  {typingUsers[selectedChat._id]?.isTyping && typingUsers[selectedChat._id]?.id !== user?._id && (
+                    <p className="text-xs sm:text-sm text-gray-500 italic mt-2">
+                      {users.find((u) => u._id === typingUsers[selectedChat._id]?.id)?.name || 'Someone'} is typing...
+                    </p>
+                  )}
+                </div>
+                <div className="fixed sm:static bottom-0 left-0 w-full bg-white p-3 sm:p-4 md:p-6 flex items-end gap-2 sm:gap-3 z-20 sm:z-auto">
+                  {editingMessageId && (
+                    <div className="absolute -top-8 sm:-top-10 left-0 bg-gray-100 p-1 sm:p-2 rounded-lg flex items-center gap-2">
+                      <p className="text-xs sm:text-sm text-gray-600">Editing message...</p>
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        type="button"
+                        onClick={() => {
+                          setEditingMessageId(null);
+                          setNewMessage('');
+                          setSelectionMode(null);
+                          setSelectedMessages([]);
+                        }}
+                        className="p-1 text-gray-600 hover:text-gray-800"
+                      >
+                        <X className="w-4 h-4 sm:w-5 h-5" />
+                      </motion.button>
+                    </div>
+                  )}
+                  {showEmojiPicker && (
+                    <div className="absolute bottom-14 sm:bottom-16 left-0 z-[60] w-full sm:w-auto">
+                      <EmojiPicker onEmojiClick={(emoji) => setNewMessage((prev) => prev + emoji.emoji)} />
+                    </div>
+                  )}
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                     type="button"
-                    onClick={() => {
-                      setShowGroupModal(false);
-                      setSelectedUsers([]);
-                    }}
-                    className="text-gray-600 hover:text-gray-800 transition-colors duration-200"
+                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                    className="p-1 sm:p-2 text-gray-600 hover:text-teal-600 transition-colors duration-200"
+                    data-tooltip-id="emoji"
+                    data-tooltip-content="Emoji"
                   >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-                {selectedChat?.type !== 'group' && (
+                    <Smile className="w-4 h-4 sm:w-5 h-5" />
+                    <Tooltip id="emoji" />
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="p-1 sm:p-2 text-gray-600 hover:text-teal-600 transition-colors duration-200"
+                    data-tooltip-id="attach"
+                    data-tooltip-content="Attach File"
+                  >
+                    <Paperclip className="w-4 h-4 sm:w-5 h-5" />
+                    <Tooltip id="attach" />
+                  </motion.button>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    accept="image/*,video/*,audio/*,.pdf,.doc,.docx"
+                    onChange={handleFileChange}
+                  />
+                  {file && (
+                    <div className="flex items-center gap-2 text-xs sm:text-sm min-w-0">
+                      <p className="truncate max-w-[100px] sm:max-w-[150px]">{file.name}</p>
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        type="button"
+                        onClick={() => setFile(null)}
+                        className="text-red-600"
+                      >
+                        <X className="w-4 h-4 sm:w-5 h-5" />
+                      </motion.button>
+                    </div>
+                  )}
+                  {isUploading && <p className="text-xs sm:text-sm text-gray-500">Uploading...</p>}
                   <input
                     type="text"
-                    value={groupName}
-                    onChange={(e) => setGroupName(e.target.value)}
-                    placeholder="Enter group name (optional)"
-                    className="w-full p-2 mb-4 text-sm border rounded-md bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-600 transition-colors duration-200"
+                    value={newMessage}
+                    onChange={(e) => {
+                      setNewMessage(e.target.value);
+                      handleTyping();
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendMessage();
+                      }
+                    }}
+                    placeholder={editingMessageId ? 'Edit your message...' : 'Type a message...'}
+                    className="flex-1 p-1.5 sm:p-2 text-xs sm:text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-600 transition-colors min-w-0"
+                    disabled={selectionMode && !editingMessageId}
                   />
-                )}
-                <div className="mb-4">
-                  <p className="text-sm font-medium text-gray-900 mb-2">Select Members</p>
-                  <div className="max-h-40 overflow-y-auto">
-                    {users
-                      .filter((u) => !selectedChat?.members?.some((m) => m._id === u._id))
-                      .map((u) => (
-                        <label
-                          key={u._id}
-                          className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded-md cursor-pointer transition-colors duration-200"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selectedUsers.includes(u._id)}
-                            onChange={() => {
-                              if (!u._id || typeof u._id !== 'string') {
-                                toast.error('Invalid user selected.');
-                                return;
-                              }
-                              setSelectedUsers((prev) =>
-                                prev.includes(u._id) ? prev.filter((id) => id !== u._id) : [...prev, u._id]
-                              );
-                            }}
-                          />
-                          <span className="text-sm text-gray-600">{u.name}</span>
-                        </label>
-                      ))}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() =>
-                    selectedChat?.type === 'group'
-                      ? handleAddMembers(selectedChat._id, selectedUsers)
-                      : handleCreateGroup()
-                  }
-                  className="w-full px-4 py-2 bg-gray-800 text-white font-medium rounded-md hover:bg-gray-700 transition-colors duration-200"
-                >
-                  {selectedChat?.type === 'group' ? 'Add Members' : 'Create Group'}
-                </button>
-              </motion.div>
-            </motion.div>
-          )}
-          {showMembersModal && selectedChat?.type === 'group' && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50"
-            >
-              <motion.div className="bg-white rounded-lg p-6 w-full max-w-md shadow-md">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-lg font-semibold text-gray-900">
-                    {selectedChat.name || 'Unnamed Group'} Members
-                  </h2>
-                  <button
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                     type="button"
-                    onClick={() => setShowMembersModal(false)}
-                    className="text-gray-600 hover:text-gray-800 transition-colors duration-200"
+                    onClick={handleSendMessage}
+                    disabled={(!newMessage.trim() && !file) || isUploading || (selectionMode && !editingMessageId)}
+                    className={`p-1 sm:p-2 rounded-full transition-colors duration-200 ${
+                      (newMessage.trim() || file) && !isUploading && (!selectionMode || editingMessageId)
+                        ? 'bg-teal-600 text-white hover:bg-teal-700'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
+                    data-tooltip-id="send"
+                    data-tooltip-content={editingMessageId ? 'Update' : 'Send'}
                   >
-                    <X className="w-5 h-5" />
-                  </button>
+                    <Send className="w-4 h-4 sm:w-5 h-5" />
+                    <Tooltip id="send" />
+                  </motion.button>
                 </div>
-                <div className="max-h-60 overflow-y-auto">
-                  {(selectedChat.members || []).map((member) => (
-                    <div key={member._id} className="flex items-center gap-2 p-2 border-b border-gray-200">
-                      <div className="w-8 h-8 rounded-full bg-gray-300 text-gray-800 flex items-center justify-center text-sm font-semibold">
-                        {getInitials(member.name || 'Unknown')}
-                      </div>
-                      <span className="text-sm text-gray-600">{member.name || 'Anonymous'}</span>
-                    </div>
-                  ))}
+              </motion.section>
+            ) : null}
+          </AnimatePresence>
+          <style jsx>{`
+            .custom-scrollbar::-webkit-scrollbar {
+              width: 5px;
+              height: 5px;
+            }
+            .custom-scrollbar::-webkit-scrollbar-track {
+              background: rgba(20, 184, 166, 0.1);
+              border-radius: 3px;
+            }
+            .custom-scrollbar::-webkit-scrollbar-thumb {
+              background: #14B8A6;
+              border-radius: 3px;
+            }
+            .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+              background: #0D9488;
+            }
+            @media (max-width: 639px) {
+              aside, section {
+                width: 100%;
+                max-width: 100%;
+                box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
+              }
+              .input-container {
+                padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);
+              }
+            }
+            @media (min-width: 640px) {
+              .chat-container {
+                display: flex;
+                flex-direction: row;
+              }
+              aside {
+                flex-shrink: 0;
+              }
+              section {
+                flex-grow: 1;
+              }
+            }
+          `}</style>
+        </main>
+      </motion.div>
+      {showGroupModal && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 px-3 sm:px-4"
+          role="dialog"
+          aria-label={selectedChat?.type === 'group' ? 'Add Members' : 'Create Group'}
+        >
+          <motion.div className="bg-white rounded-2xl sm:rounded-3xl p-3 sm:p-4 md:p-6 w-full max-w-[90vw] sm:max-w-sm md:max-w-md h-[80vh] sm:h-auto flex flex-col shadow-lg">
+            <div className="flex justify-between items-center mb-3 sm:mb-4">
+              <h2 className="text-base sm:text-lg md:text-xl font-semibold text-gray-900 truncate">
+                {selectedChat?.type === 'group' ? 'Add Members' : 'Create Group'}
+              </h2>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                type="button"
+                onClick={() => {
+                  setShowGroupModal(false);
+                  setSelectedUsers([]);
+                }}
+                className="p-1 sm:p-2 text-gray-600 hover:text-gray-800 transition-colors duration-200"
+                aria-label="Close Modal"
+              >
+                <X className="w-4 h-4 sm:w-5 h-5" />
+              </motion.button>
+            </div>
+            <div className="flex-1 overflow-y-auto custom-scrollbar">
+              {selectedChat?.type !== 'group' && (
+                <input
+                  type="text"
+                  value={groupName}
+                  onChange={(e) => setGroupName(e.target.value)}
+                  placeholder="Enter group name (optional)"
+                  className="w-full p-1.5 sm:p-2 mb-3 sm:mb-4 text-xs sm:text-sm border rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-600 transition-colors"
+                />
+              )}
+              <div className="mb-3 sm:mb-4">
+                <p className="text-xs sm:text-sm font-medium text-gray-900 mb-2">Select Members</p>
+                <div className="max-h-40 sm:max-h-60 overflow-y-auto custom-scrollbar">
+                  {users
+                    .filter((u) => !selectedChat?.members?.some((m) => m._id === u._id))
+                    .map((u) => (
+                      <label
+                        key={u._id}
+                        className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors duration-200"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedUsers.includes(u._id)}
+                          onChange={() => {
+                            if (!u._id || typeof u._id !== 'string') {
+                              toast.error('Invalid user selected.', { style: { background: '#F87171', color: '#FFFFFF' } });
+                              return;
+                            }
+                            setSelectedUsers((prev) =>
+                              prev.includes(u._id) ? prev.filter((id) => id !== u._id) : [...prev, u._id]
+                            );
+                          }}
+                          className="h-4 w-4 sm:h-5 sm:w-5 text-teal-600"
+                        />
+                        <span className="text-xs sm:text-sm text-gray-600 truncate">{u.name}</span>
+                      </label>
+                    ))}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setShowMembersModal(false)}
-                  className="w-full px-4 py-2 mt-4 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors duration-200"
-                >
-                  Close
-                </button>
-              </motion.div>
-            </motion.div>
-          )}
-          {mediaViewer.isOpen && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50"
+              </div>
+            </div>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              type="button"
+              onClick={() =>
+                selectedChat?.type === 'group'
+                  ? handleAddMembers(selectedChat._id, selectedUsers)
+                  : handleCreateGroup()
+              }
+              className="w-full px-3 sm:px-4 py-1.5 sm:py-2 bg-teal-600 text-white font-medium rounded-full hover:bg-teal-700 transition-colors duration-200"
             >
-              <motion.div className="bg-white rounded-lg p-4 w-full max-w-4xl h-[90vh] flex flex-col shadow-md">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-lg font-semibold text-gray-900 truncate max-w-[50%]">
-                    {mediaViewer.fileName || 'Preview'}
-                  </h2>
-                  <div className="flex gap-2">
-                    <a
-                      href={mediaViewer.fileUrl}
-                      download={mediaViewer.fileName || 'Download'}
-                      className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 transition-colors duration-200"
-                    >
-                      Download
-                    </a>
-                    <button
-                      type="button"
-                      onClick={closeMediaViewer}
-                      className="p-2 text-gray-600 hover:bg-gray-200 rounded-full transition-colors duration-200"
-                    >
-                      <X className="w-6 h-6" />
-                    </button>
-                  </div>
-                </div>
-                <div className="flex-1 overflow-auto">
-                  {mediaViewer.contentType === 'image' && (
-                    <img
-                      src={mediaViewer.fileUrl}
-                      alt={mediaViewer.fileName || 'Preview'}
-                      className="max-w-full max-h-full h-auto object-contain mx-auto"
-                    />
-                  )}
-                  {mediaViewer.contentType === 'video' && (
-                    <video
-                      src={mediaViewer.fileUrl}
-                      controls
-                      autoPlay
-                      className="max-w-full max-h-full h-auto mx-auto"
-                    />
-                  )}
-                  {mediaViewer.contentType === 'audio' && (
-                    <audio src={mediaViewer.fileUrl} controls className="w-full mx-auto" />
-                  )}
-                  {mediaViewer.contentType === 'pdf' && (
-                    <iframe src={mediaViewer.fileUrl} className="w-full h-full border-none" title="PDF Preview" />
-                  )}
-                  {mediaViewer.contentType === 'application' && (
-                    <iframe
-                      src={`https://docs.google.com/viewer?url=${encodeURIComponent(mediaViewer.fileUrl)}&embedded=true`}
-                      className="w-full h-full border-none"
-                      title="Document Preview"
-                    />
-                  )}
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
+              {selectedChat?.type === 'group' ? 'Add Members' : 'Create Group'}
+            </motion.button>
+          </motion.div>
         </motion.div>
-      );
-    };
+      )}
+      {showMembersModal && selectedChat?.type === 'group' && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 px-3 sm:px-4"
+          role="dialog"
+          aria-label="Group Members"
+        >
+          <motion.div className="bg-white rounded-2xl sm:rounded-3xl p-3 sm:p-4 md:p-6 w-full max-w-[90vw] sm:max-w-sm md:max-w-md h-[80vh] sm:h-auto flex flex-col shadow-lg">
+            <div className="flex justify-between items-center mb-3 sm:mb-4">
+              <h2 className="text-base sm:text-lg md:text-xl font-semibold text-gray-900 truncate">
+                {selectedChat.name || 'Unnamed Group'} Members
+              </h2>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                type="button"
+                onClick={() => setShowMembersModal(false)}
+                className="p-1 sm:p-2 text-gray-600 hover:text-gray-800 transition-colors duration-200"
+                aria-label="Close Members Modal"
+              >
+                <X className="w-4 h-4 sm:w-5 h-5" />
+              </motion.button>
+            </div>
+            <div className="flex-1 max-h-[60vh] sm:max-h-60 overflow-y-auto custom-scrollbar">
+              {(selectedChat.members || []).map((member) => (
+                <div key={member._id} className="flex items-center gap-2 p-2 border-b border-gray-200">
+                  <div className="w-7 h-7 sm:w-8 h-8 rounded-full bg-gray-300 text-gray-800 flex items-center justify-center text-xs sm:text-sm font-semibold flex-shrink-0">
+                    {getInitials(member.name || 'Unknown')}
+                  </div>
+                  <span className="text-xs sm:text-sm text-gray-600 truncate">{member.name || 'Anonymous'}</span>
+                </div>
+              ))}
+            </div>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              type="button"
+              onClick={() => setShowMembersModal(false)}
+              className="w-full px-3 sm:px-4 py-1.5 sm:py-2 mt-3 sm:mt-4 bg-gray-200 text-gray-800 rounded-full hover:bg-gray-300 transition-colors duration-200"
+            >
+              Close
+            </motion.button>
+          </motion.div>
+        </motion.div>
+      )}
+      {mediaViewer.isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 px-3 sm:px-4"
+          role="dialog"
+          aria-label="Media Viewer"
+        >
+          <motion.div className="bg-white rounded-2xl sm:rounded-3xl p-3 sm:p-4 md:p-6 w-full max-w-[90vw] sm:max-w-[80vw] md:max-w-[70vw] max-h-[90vh] flex flex-col shadow-lg">
+            <div className="flex justify-between items-center mb-3 sm:mb-4">
+              <h2 className="text-base sm:text-lg md:text-xl font-semibold text-gray-900 truncate max-w-[60%]">
+                {mediaViewer.fileName || 'Preview'}
+              </h2>
+              <div className="flex gap-2 sm:gap-3">
+                <a
+                  href={mediaViewer.fileUrl}
+                  download={mediaViewer.fileName || 'Download'}
+                  className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm bg-teal-600 text-white rounded-full hover:bg-teal-700 transition-colors duration-200"
+                >
+                  Download
+                </a>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  type="button"
+                  onClick={closeMediaViewer}
+                  className="p-1 sm:p-2 text-gray-600 hover:bg-gray-200 rounded-full transition-colors duration-200"
+                >
+                  <X className="w-4 h-4 sm:w-5 h-5" />
+                </motion.button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-auto">
+              {mediaViewer.contentType === 'image' && (
+                <img
+                  src={mediaViewer.fileUrl}
+                  alt={mediaViewer.fileName || 'Preview'}
+                  className="max-w-full max-h-[80vh] h-auto object-contain mx-auto"
+                />
+              )}
+              {mediaViewer.contentType === 'video' && (
+                <video
+                  src={mediaViewer.fileUrl}
+                  controls
+                  autoPlay
+                  className="max-w-full max-h-[80vh] h-auto object-contain mx-auto"
+                />
+              )}
+              {mediaViewer.contentType === 'audio' && (
+                <audio src={mediaViewer.fileUrl} controls className="w-full mx-auto" />
+              )}
+              {mediaViewer.contentType === 'pdf' && (
+                <iframe src={mediaViewer.fileUrl} className="w-full h-[80vh] border-none" title="PDF Preview" />
+              )}
+              {mediaViewer.contentType === 'application' && (
+                <iframe
+                  src={`https://docs.google.com/viewer?url=${encodeURIComponent(mediaViewer.fileUrl)}&embedded=true`}
+                  className="w-full h-[80vh] border-none"
+                  title="Document Preview"
+                />
+              )}
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </div>
+  );
+};
 
-    export default TeamChat;
+export default TeamChat;

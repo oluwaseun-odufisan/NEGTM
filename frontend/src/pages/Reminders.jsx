@@ -426,51 +426,59 @@ const Reminders = () => {
         <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 font-sans"
+            className="min-h-screen bg-gradient-to-br from-gray-50 to-teal-50 font-sans"
         >
-            <Toaster position="bottom-right" />
-            <header className="bg-white shadow-sm p-4 sticky top-0 z-10">
-                <div className="max-w-5xl mx-auto flex items-center justify-between">
-                    <h1 className="text-3xl font-extrabold text-teal-600">Reminders</h1>
-                    <div className="flex items-center gap-4">
-                        <button
+            <Toaster position="bottom-right" toastOptions={{ className: 'text-xs sm:text-sm max-w-xs sm:max-w-sm' }} />
+            <header className="bg-white shadow-lg px-4 sm:px-6 py-4 sm:py-5 sticky top-0 z-20">
+                <div className="max-w-[90rem] mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
+                    <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-teal-600 truncate">Reminders</h1>
+                    <div className="flex items-center gap-2 sm:gap-3">
+                        <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
                             onClick={() => setShowCreateReminder(true)}
-                            className="px-4 py-2 rounded-full bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-all flex items-center gap-2"
+                            className="w-full sm:w-auto px-4 sm:px-5 py-2 sm:py-3 rounded-full bg-blue-600 text-white text-sm sm:text-base md:text-lg font-semibold hover:bg-blue-700 transition-all flex items-center gap-2 sm:gap-3 shadow-md"
                             aria-label="Create Reminder"
                         >
-                            <Plus className="w-5 h-5" />
+                            <Plus className="w-4 h-4 sm:w-5 h-5" />
                             Create Reminder
-                        </button>
-                        <button
+                        </motion.button>
+                        <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
                             onClick={() => setShowPreferences(true)}
-                            className="p-2 text-blue-900 hover:text-teal-600 transition-colors"
+                            className="p-1 sm:p-2 text-blue-900 hover:text-teal-600 transition-colors"
                             aria-label="Reminder Preferences"
                         >
-                            <Settings className="w-6 h-6" />
-                        </button>
-                        <button
-                            onClick={() => navigate('/dashboard')}
-                            className="px-4 py-2 rounded-full bg-teal-600 text-white font-semibold hover:bg-teal-700 transition-all flex items-center gap-2"
+                            <Settings className="w-5 h-5 sm:w-6 h-6" />
+                        </motion.button>
+                        <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => navigate('/')}
+                            className="w-full sm:w-auto px-4 sm:px-5 py-2 sm:py-3 rounded-full bg-teal-600 text-white text-sm sm:text-base md:text-lg font-semibold hover:bg-teal-700 transition-all flex items-center gap-2 sm:gap-3 shadow-md"
                             aria-label="Back to Dashboard"
                         >
-                            <ArrowLeft className="w-5 h-5" />
+                            <ArrowLeft className="w-4 h-4 sm:w-5 h-5" />
                             Back to Dashboard
-                        </button>
+                        </motion.button>
                     </div>
                 </div>
             </header>
-            <main className="max-w-5xl mx-auto w-full p-6">
+            <main className="max-w-[90rem] mx-auto w-full px-4 sm:px-6 md:px-8 py-6 sm:py-8">
                 <motion.div
                     initial={{ y: 20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ duration: 0.5 }}
-                    className="space-y-6 h-[calc(85vh-4rem)] overflow-y-auto"
+                    className="space-y-6 sm:space-y-8 max-h-[calc(100vh-14rem)] sm:max-h-[calc(100vh-16rem)] overflow-y-auto custom-scrollbar"
+                    role="region"
+                    aria-label="Reminders List"
                 >
-                    <h2 className="text-2xl font-bold text-blue-900">Your Reminders</h2>
+                    <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-blue-900 truncate">Your Reminders</h2>
                     {isLoading ? (
-                        <div className="text-center text-gray-500">Loading reminders...</div>
+                        <div className="text-center text-gray-500 text-xs sm:text-sm">Loading reminders...</div>
                     ) : reminders.length === 0 ? (
-                        <div className="text-center text-gray-500">No reminders found. Create tasks or reminders to get started!</div>
+                        <div className="text-center text-gray-500 text-xs sm:text-sm">No reminders found. Create tasks or reminders to get started!</div>
                     ) : (
                         <AnimatePresence>
                             {reminders.map((reminder) => (
@@ -479,55 +487,76 @@ const Reminders = () => {
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, y: -20 }}
-                                    className="bg-white rounded-2xl shadow-xl p-6 flex items-center gap-4 hover:shadow-2xl transition-all duration-300 border-l-4 border-teal-600 cursor-pointer"
+                                    className="bg-white rounded-2xl sm:rounded-3xl shadow-lg sm:shadow-xl p-4 sm:p-5 md:p-6 max-w-full sm:max-w-2xl mx-auto flex items-center gap-3 sm:gap-4 hover:shadow-2xl transition-all duration-300 border-l-4 border-teal-600 cursor-pointer"
                                     onClick={() => handleReminderClick(reminder)}
                                 >
                                     <ReminderIcon type={reminder.type} />
-                                    <div className="flex-1">
-                                        <p className="text-sm font-semibold text-blue-900">{reminder.message}</p>
-                                        <p className="text-xs text-gray-500">
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm sm:text-base font-semibold text-blue-900 truncate">{reminder.message}</p>
+                                        <p className="text-xs sm:text-sm text-gray-500 line-clamp-1">
                                             {moment(reminder.remindAt).tz('Africa/Lagos').format('MMM D, YYYY, h:mm A')}
                                         </p>
-                                        <p className="text-xs text-gray-400 capitalize">Status: {reminder.status}</p>
+                                        <p className="text-xs sm:text-sm text-gray-400 capitalize">Status: {reminder.status}</p>
                                         {reminder.isUserCreated && (
-                                            <p className="text-xs text-teal-600">User Created</p>
+                                            <p className="text-xs sm:text-sm text-teal-600">User Created</p>
                                         )}
                                         {reminder.repeatInterval && (
-                                            <p className="text-xs text-gray-400">Repeats every {reminder.repeatInterval} minutes</p>
+                                            <p className="text-xs sm:text-sm text-gray-400 line-clamp-1">Repeats every {reminder.repeatInterval} minutes</p>
                                         )}
                                         {reminder.emailOverride && (
-                                            <p className="text-xs text-gray-400">Sent to: {reminder.emailOverride}</p>
+                                            <p className="text-xs sm:text-sm text-gray-400 truncate">Sent to: {reminder.emailOverride}</p>
                                         )}
                                     </div>
-                                    <div className="flex gap-2">
-                                        <button
+                                    <div className="flex gap-2 sm:gap-3 flex-shrink-0">
+                                        <motion.button
+                                            whileHover={{ scale: 1.05 }}
+                                            whileTap={{ scale: 0.95 }}
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 handleSnooze(reminder._id, 15);
                                             }}
-                                            className="p-2 bg-teal-600 text-white rounded-full hover:bg-teal-700 transition-all"
+                                            className="p-1 sm:p-2 bg-teal-600 text-white rounded-full hover:bg-teal-700 transition-all"
                                             aria-label="Snooze Reminder"
                                             disabled={reminder.status === 'dismissed'}
                                         >
-                                            <Clock className="w-4 h-4" />
-                                        </button>
-                                        <button
+                                            <Clock className="w-4 h-4 sm:w-5 h-5" />
+                                        </motion.button>
+                                        <motion.button
+                                            whileHover={{ scale: 1.05 }}
+                                            whileTap={{ scale: 0.95 }}
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 handleDismiss(reminder._id);
                                             }}
-                                            className="p-2 bg-red-600 text-white rounded-full hover:bg-red-500 transition-all"
+                                            className="p-1 sm:p-2 bg-red-600 text-white rounded-full hover:bg-red-500 transition-all"
                                             aria-label="Dismiss Reminder"
                                             disabled={reminder.status === 'dismissed'}
                                         >
-                                            <X className="w-4 h-4" />
-                                        </button>
+                                            <X className="w-4 h-4 sm:w-5 h-5" />
+                                        </motion.button>
                                     </div>
                                 </motion.div>
                             ))}
                         </AnimatePresence>
                     )}
                 </motion.div>
+                <style jsx>{`
+                    .custom-scrollbar::-webkit-scrollbar {
+                        width: 5px;
+                        height: 5px;
+                    }
+                    .custom-scrollbar::-webkit-scrollbar-track {
+                        background: rgba(20, 184, 166, 0.1);
+                        border-radius: 3px;
+                    }
+                    .custom-scrollbar::-webkit-scrollbar-thumb {
+                        background: #14B8A6;
+                        border-radius: 3px;
+                    }
+                    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                        background: #0D9488;
+                    }
+                `}</style>
             </main>
 
             {/* Preferences Modal */}
@@ -538,30 +567,32 @@ const Reminders = () => {
                         animate="visible"
                         exit="exit"
                         variants={modalVariants}
-                        className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
+                        className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 px-4 sm:px-6"
                         role="dialog"
                         aria-label="Reminder Preferences"
                         ref={modalRef}
                         tabIndex={-1}
                     >
                         <div
-                            className="bg-white rounded-2xl p-6 max-w-lg w-full"
+                            className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 max-w-xs sm:max-w-sm md:max-w-lg w-full bg-opacity-95 backdrop-blur-sm"
                             onClick={(e) => e.stopPropagation()}
                         >
-                            <div className="flex justify-between items-center mb-4">
-                                <h2 className="text-lg font-semibold text-blue-900">Reminder Preferences</h2>
-                                <button
+                            <div className="flex justify-between items-center mb-3 sm:mb-4">
+                                <h2 className="text-lg sm:text-xl md:text-2xl font-semibold text-blue-900 truncate">Reminder Preferences</h2>
+                                <motion.button
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
                                     onClick={() => setShowPreferences(false)}
-                                    className="p-2 text-blue-900 hover:text-teal-600"
+                                    className="p-1 sm:p-2 text-blue-900 hover:text-teal-600"
                                     aria-label="Close Preferences"
                                 >
-                                    <X className="w-5 h-5" />
-                                </button>
+                                    <X className="w-4 h-4 sm:w-5 h-5" />
+                                </motion.button>
                             </div>
-                            <div className="space-y-4">
-                                <h3 className="text-sm font-semibold text-gray-800">Delivery Channels</h3>
+                            <div className="space-y-4 sm:space-y-6">
+                                <h3 className="text-sm sm:text-base font-semibold text-gray-800">Delivery Channels</h3>
                                 {Object.keys(preferences.defaultDeliveryChannels).map((channel) => (
-                                    <label key={channel} className="flex items-center gap-2">
+                                    <label key={channel} className="flex items-center gap-2 sm:gap-3">
                                         <input
                                             type="checkbox"
                                             checked={preferences.defaultDeliveryChannels[channel]}
@@ -574,15 +605,15 @@ const Reminders = () => {
                                                     },
                                                 }))
                                             }
-                                            className="h-4 w-4 text-teal-600"
+                                            className="h-4 w-4 sm:h-5 sm:w-5 text-teal-600"
                                         />
-                                        <span className="text-sm text-gray-800 capitalize">{channel}</span>
+                                        <span className="text-xs sm:text-sm text-gray-800 capitalize">{channel}</span>
                                     </label>
                                 ))}
-                                <h3 className="text-sm font-semibold text-gray-800 mt-4">Reminder Times (minutes before)</h3>
+                                <h3 className="text-sm sm:text-base font-semibold text-gray-800 mt-4 sm:mt-6">Reminder Times (minutes before)</h3>
                                 {Object.keys(preferences.defaultReminderTimes).map((type) => (
-                                    <div key={type} className="flex items-center gap-2">
-                                        <label className="text-sm text-gray-800 capitalize flex-1">
+                                    <div key={type} className="flex items-center gap-2 sm:gap-3">
+                                        <label className="text-xs sm:text-sm text-gray-800 capitalize flex-1 truncate">
                                             {type.replace('_', ' ')}
                                         </label>
                                         <input
@@ -597,27 +628,31 @@ const Reminders = () => {
                                                     },
                                                 }))
                                             }
-                                            className="w-20 p-2 border border-gray-200 rounded-lg text-sm"
+                                            className="w-20 sm:w-24 p-1 sm:p-2 border border-gray-200 rounded-lg text-xs sm:text-sm"
                                             min="0"
                                         />
                                     </div>
                                 ))}
                             </div>
-                            <div className="flex justify-end gap-2 mt-6">
-                                <button
+                            <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 mt-4 sm:mt-6">
+                                <motion.button
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
                                     onClick={() => setShowPreferences(false)}
-                                    className="px-4 py-2 rounded-full bg-gray-200 text-gray-800 font-semibold hover:bg-gray-300 transition-all"
+                                    className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 rounded-full bg-gray-200 text-gray-800 text-sm sm:text-base font-semibold hover:bg-gray-300 transition-all"
                                     aria-label="Cancel"
                                 >
                                     Cancel
-                                </button>
-                                <button
+                                </motion.button>
+                                <motion.button
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
                                     onClick={handleUpdatePreferences}
-                                    className="px-4 py-2 rounded-full bg-teal-600 text-white font-semibold hover:bg-teal-700 transition-all"
+                                    className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 rounded-full bg-teal-600 text-white text-sm sm:text-base font-semibold hover:bg-teal-700 transition-all"
                                     aria-label="Save Preferences"
                                 >
                                     Save
-                                </button>
+                                </motion.button>
                             </div>
                         </div>
                     </motion.div>
@@ -632,42 +667,44 @@ const Reminders = () => {
                         animate="visible"
                         exit="exit"
                         variants={modalVariants}
-                        className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
+                        className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 px-4 sm:px-6"
                         role="dialog"
                         aria-label="Create Reminder"
                         ref={modalRef}
                         tabIndex={-1}
                     >
                         <div
-                            className="bg-white rounded-2xl p-6 max-w-lg w-full"
+                            className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 max-w-xs sm:max-w-sm md:max-w-lg w-full bg-opacity-95 backdrop-blur-sm"
                             onClick={(e) => e.stopPropagation()}
                         >
-                            <div className="flex justify-between items-center mb-4">
-                                <h2 className="text-lg font-semibold text-blue-900">Create New Reminder</h2>
-                                <button
+                            <div className="flex justify-between items-center mb-3 sm:mb-4">
+                                <h2 className="text-lg sm:text-xl md:text-2xl font-semibold text-blue-900 truncate">Create New Reminder</h2>
+                                <motion.button
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
                                     onClick={() => setShowCreateReminder(false)}
-                                    className="p-2 text-blue-900 hover:text-teal-600"
+                                    className="p-1 sm:p-2 text-blue-900 hover:text-teal-600"
                                     aria-label="Close Create Reminder"
                                 >
-                                    <X className="w-5 h-5" />
-                                </button>
+                                    <X className="w-4 h-4 sm:w-5 h-5" />
+                                </motion.button>
                             </div>
-                            <div className="space-y-4">
+                            <div className="space-y-4 sm:space-y-6">
                                 <div>
-                                    <label className="text-sm font-semibold text-gray-800">Message</label>
+                                    <label className="text-xs sm:text-sm font-semibold text-gray-800">Message</label>
                                     <input
                                         type="text"
                                         value={newReminder.message}
                                         onChange={(e) =>
                                             setNewReminder((prev) => ({ ...prev, message: e.target.value }))
                                         }
-                                        className="w-full p-2 border border-gray-200 rounded-lg text-sm"
+                                        className="w-full p-2 sm:p-3 border border-gray-200 rounded-lg text-xs sm:text-sm"
                                         placeholder="Enter reminder message"
                                         maxLength={200}
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-sm font-semibold text-gray-800">Attach Task (Optional)</label>
+                                    <label className="text-xs sm:text-sm font-semibold text-gray-800">Attach Task (Optional)</label>
                                     <select
                                         value={newReminder.targetId}
                                         onChange={(e) =>
@@ -677,18 +714,18 @@ const Reminders = () => {
                                                 targetModel: e.target.value ? 'Task' : '',
                                             }))
                                         }
-                                        className="w-full p-2 border border-gray-200 rounded-lg text-sm"
+                                        className="w-full p-2 sm:p-3 border border-gray-200 rounded-lg text-xs sm:text-sm"
                                     >
                                         <option value="">No Task</option>
                                         {tasks.map((task) => (
-                                            <option key={task._id} value={task._id}>
+                                            <option key={task._id} value={task._id} className="truncate">
                                                 {task.title}
                                             </option>
                                         ))}
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="text-sm font-semibold text-gray-800">Reminder Date & Time</label>
+                                    <label className="text-xs sm:text-sm font-semibold text-gray-800">Reminder Date & Time</label>
                                     <DatePicker
                                         selected={newReminder.remindAt}
                                         onChange={(date) =>
@@ -697,40 +734,41 @@ const Reminders = () => {
                                         showTimeSelect
                                         timeIntervals={15}
                                         dateFormat="MMMM d, yyyy h:mm aa"
-                                        className="w-full p-2 border border-gray-200 rounded-lg text-sm"
+                                        className="w-full p-2 sm:p-3 border border-gray-200 rounded-lg text-xs sm:text-sm"
                                         minDate={new Date()}
+                                        popperClassName="z-[60]"
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-sm font-semibold text-gray-800">Repeat Interval (minutes, optional)</label>
+                                    <label className="text-xs sm:text-sm font-semibold text-gray-800">Repeat Interval (minutes, optional)</label>
                                     <input
                                         type="number"
                                         value={newReminder.repeatInterval}
                                         onChange={(e) =>
                                             setNewReminder((prev) => ({ ...prev, repeatInterval: e.target.value }))
                                         }
-                                        className="w-full p-2 border border-gray-200 rounded-lg text-sm"
+                                        className="w-full p-2 sm:p-3 border border-gray-200 rounded-lg text-xs sm:text-sm"
                                         placeholder="e.g., 20"
                                         min="5"
                                         max="1440"
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-sm font-semibold text-gray-800">Email Address (Optional)</label>
+                                    <label className="text-xs sm:text-sm font-semibold text-gray-800">Email Address (Optional)</label>
                                     <input
                                         type="email"
                                         value={newReminder.emailOverride}
                                         onChange={(e) =>
                                             setNewReminder((prev) => ({ ...prev, emailOverride: e.target.value }))
                                         }
-                                        className="w-full p-2 border border-gray-200 rounded-lg text-sm"
+                                        className="w-full p-2 sm:p-3 border border-gray-200 rounded-lg text-xs sm:text-sm"
                                         placeholder={`Default: ${user.email}`}
                                     />
                                 </div>
                                 <div>
-                                    <h3 className="text-sm font-semibold text-gray-800">Delivery Channels</h3>
+                                    <h3 className="text-xs sm:text-sm font-semibold text-gray-800">Delivery Channels</h3>
                                     {Object.keys(newReminder.deliveryChannels).map((channel) => (
-                                        <label key={channel} className="flex items-center gap-2">
+                                        <label key={channel} className="flex items-center gap-2 sm:gap-3">
                                             <input
                                                 type="checkbox"
                                                 checked={newReminder.deliveryChannels[channel]}
@@ -743,28 +781,32 @@ const Reminders = () => {
                                                         },
                                                     }))
                                                 }
-                                                className="h-4 w-4 text-teal-600"
+                                                className="h-4 w-4 sm:h-5 sm:w-5 text-teal-600"
                                             />
-                                            <span className="text-sm text-gray-800 capitalize">{channel}</span>
+                                            <span className="text-xs sm:text-sm text-gray-800 capitalize">{channel}</span>
                                         </label>
                                     ))}
                                 </div>
                             </div>
-                            <div className="flex justify-end gap-2 mt-6">
-                                <button
+                            <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 mt-4 sm:mt-6">
+                                <motion.button
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
                                     onClick={() => setShowCreateReminder(false)}
-                                    className="px-4 py-2 rounded-full bg-gray-200 text-gray-800 font-semibold hover:bg-gray-300 transition-all"
+                                    className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 rounded-full bg-gray-200 text-gray-800 text-sm sm:text-base font-semibold hover:bg-gray-300 transition-all"
                                     aria-label="Cancel"
                                 >
                                     Cancel
-                                </button>
-                                <button
+                                </motion.button>
+                                <motion.button
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
                                     onClick={handleCreateReminder}
-                                    className="px-4 py-2 rounded-full bg-teal-600 text-white font-semibold hover:bg-teal-700 transition-all"
+                                    className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 rounded-full bg-teal-600 text-white text-sm sm:text-base font-semibold hover:bg-teal-700 transition-all"
                                     aria-label="Create Reminder"
                                 >
                                     Create
-                                </button>
+                                </motion.button>
                             </div>
                         </div>
                     </motion.div>
@@ -779,48 +821,50 @@ const Reminders = () => {
                         animate="visible"
                         exit="exit"
                         variants={modalVariants}
-                        className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
+                        className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 px-4 sm:px-6"
                         role="dialog"
                         aria-label="Reminder Details"
                         ref={modalRef}
                         tabIndex={-1}
                     >
                         <div
-                            className="bg-white rounded-2xl p-6 max-w-lg w-full"
+                            className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 max-w-xs sm:max-w-sm md:max-w-lg w-full bg-opacity-95 backdrop-blur-sm"
                             onClick={(e) => e.stopPropagation()}
                         >
-                            <div className="flex justify-between items-center mb-4">
-                                <h2 className="text-lg font-semibold text-blue-900">
+                            <div className="flex justify-between items-center mb-3 sm:mb-4">
+                                <h2 className="text-lg sm:text-xl md:text-2xl font-semibold text-blue-900 truncate">
                                     {isEditing ? 'Edit Reminder' : 'Reminder Details'}
                                 </h2>
-                                <button
+                                <motion.button
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
                                     onClick={() => {
                                         setShowReminderDetails(false);
                                         setIsEditing(false);
                                     }}
-                                    className="p-2 text-blue-900 hover:text-teal-600"
+                                    className="p-1 sm:p-2 text-blue-900 hover:text-teal-600"
                                     aria-label="Close Reminder Details"
                                 >
-                                    <X className="w-5 h-5" />
-                                </button>
+                                    <X className="w-4 h-4 sm:w-5 h-5" />
+                                </motion.button>
                             </div>
                             {isEditing ? (
-                                <div className="space-y-4">
+                                <div className="space-y-4 sm:space-y-6">
                                     <div>
-                                        <label className="text-sm font-semibold text-gray-800">Message</label>
+                                        <label className="text-xs sm:text-sm font-semibold text-gray-800">Message</label>
                                         <input
                                             type="text"
                                             value={editReminder.message}
                                             onChange={(e) =>
                                                 setEditReminder((prev) => ({ ...prev, message: e.target.value }))
                                             }
-                                            className="w-full p-2 border border-gray-200 rounded-lg text-sm"
+                                            className="w-full p-2 sm:p-3 border border-gray-200 rounded-lg text-xs sm:text-sm"
                                             placeholder="Enter reminder message"
                                             maxLength={200}
                                         />
                                     </div>
                                     <div>
-                                        <label className="text-sm font-semibold text-gray-800">Attach Task (Optional)</label>
+                                        <label className="text-xs sm:text-sm font-semibold text-gray-800">Attach Task (Optional)</label>
                                         <select
                                             value={editReminder.targetId}
                                             onChange={(e) =>
@@ -830,18 +874,18 @@ const Reminders = () => {
                                                     targetModel: e.target.value ? 'Task' : '',
                                                 }))
                                             }
-                                            className="w-full p-2 border border-gray-200 rounded-lg text-sm"
+                                            className="w-full p-2 sm:p-3 border border-gray-200 rounded-lg text-xs sm:text-sm"
                                         >
                                             <option value="">No Task</option>
                                             {tasks.map((task) => (
-                                                <option key={task._id} value={task._id}>
+                                                <option key={task._id} value={task._id} className="truncate">
                                                     {task.title}
                                                 </option>
                                             ))}
                                         </select>
                                     </div>
                                     <div>
-                                        <label className="text-sm font-semibold text-gray-800">Reminder Date & Time</label>
+                                        <label className="text-xs sm:text-sm font-semibold text-gray-800">Reminder Date & Time</label>
                                         <DatePicker
                                             selected={editReminder.remindAt}
                                             onChange={(date) =>
@@ -850,40 +894,41 @@ const Reminders = () => {
                                             showTimeSelect
                                             timeIntervals={15}
                                             dateFormat="MMMM d, yyyy h:mm aa"
-                                            className="w-full p-2 border border-gray-200 rounded-lg text-sm"
+                                            className="w-full p-2 sm:p-3 border border-gray-200 rounded-lg text-xs sm:text-sm"
                                             minDate={new Date()}
+                                            popperClassName="z-[60]"
                                         />
                                     </div>
                                     <div>
-                                        <label className="text-sm font-semibold text-gray-800">Repeat Interval (minutes, optional)</label>
+                                        <label className="text-xs sm:text-sm font-semibold text-gray-800">Repeat Interval (minutes, optional)</label>
                                         <input
                                             type="number"
                                             value={editReminder.repeatInterval}
                                             onChange={(e) =>
                                                 setEditReminder((prev) => ({ ...prev, repeatInterval: e.target.value }))
                                             }
-                                            className="w-full p-2 border border-gray-200 rounded-lg text-sm"
+                                            className="w-full p-2 sm:p-3 border border-gray-200 rounded-lg text-xs sm:text-sm"
                                             placeholder="e.g., 20"
                                             min="5"
                                             max="1440"
                                         />
                                     </div>
                                     <div>
-                                        <label className="text-sm font-semibold text-gray-800">Email Address (Optional)</label>
+                                        <label className="text-xs sm:text-sm font-semibold text-gray-800">Email Address (Optional)</label>
                                         <input
                                             type="email"
                                             value={editReminder.emailOverride}
                                             onChange={(e) =>
                                                 setEditReminder((prev) => ({ ...prev, emailOverride: e.target.value }))
                                             }
-                                            className="w-full p-2 border border-gray-200 rounded-lg text-sm"
+                                            className="w-full p-2 sm:p-3 border border-gray-200 rounded-lg text-xs sm:text-sm"
                                             placeholder={`Default: ${user.email}`}
                                         />
                                     </div>
                                     <div>
-                                        <h3 className="text-sm font-semibold text-gray-800">Delivery Channels</h3>
+                                        <h3 className="text-xs sm:text-sm font-semibold text-gray-800">Delivery Channels</h3>
                                         {Object.keys(editReminder.deliveryChannels).map((channel) => (
-                                            <label key={channel} className="flex items-center gap-2">
+                                            <label key={channel} className="flex items-center gap-2 sm:gap-3">
                                                 <input
                                                     type="checkbox"
                                                     checked={editReminder.deliveryChannels[channel]}
@@ -896,91 +941,99 @@ const Reminders = () => {
                                                             },
                                                         }))
                                                     }
-                                                    className="h-4 w-4 text-teal-600"
+                                                    className="h-4 w-4 sm:h-5 sm:w-5 text-teal-600"
                                                 />
-                                                <span className="text-sm text-gray-800 capitalize">{channel}</span>
+                                                <span className="text-xs sm:text-sm text-gray-800 capitalize">{channel}</span>
                                             </label>
                                         ))}
                                     </div>
-                                    <div className="flex justify-end gap-2 mt-6">
-                                        <button
+                                    <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 mt-4 sm:mt-6">
+                                        <motion.button
+                                            whileHover={{ scale: 1.05 }}
+                                            whileTap={{ scale: 0.95 }}
                                             onClick={() => setIsEditing(false)}
-                                            className="px-4 py-2 rounded-full bg-gray-200 text-gray-800 font-semibold hover:bg-gray-300 transition-all"
+                                            className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 rounded-full bg-gray-200 text-gray-800 text-sm sm:text-base font-semibold hover:bg-gray-300 transition-all"
                                             aria-label="Cancel"
                                         >
                                             Cancel
-                                        </button>
-                                        <button
+                                        </motion.button>
+                                        <motion.button
+                                            whileHover={{ scale: 1.05 }}
+                                            whileTap={{ scale: 0.95 }}
                                             onClick={handleEditReminder}
-                                            className="px-4 py-2 rounded-full bg-teal-600 text-white font-semibold hover:bg-teal-700 transition-all"
+                                            className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 rounded-full bg-teal-600 text-white text-sm sm:text-base font-semibold hover:bg-teal-700 transition-all"
                                             aria-label="Save Reminder"
                                         >
                                             Save
-                                        </button>
+                                        </motion.button>
                                     </div>
                                 </div>
                             ) : (
-                                <div className="space-y-4">
+                                <div className="space-y-4 sm:space-y-6">
                                     <div>
-                                        <p className="text-sm font-semibold text-gray-800">Message</p>
-                                        <p className="text-sm text-gray-600">{selectedReminder.message}</p>
+                                        <p className="text-xs sm:text-sm font-semibold text-gray-800">Message</p>
+                                        <p className="text-xs sm:text-sm text-gray-600 break-words">{selectedReminder.message}</p>
                                     </div>
                                     <div>
-                                        <p className="text-sm font-semibold text-gray-800">Type</p>
-                                        <p className="text-sm text-gray-600 capitalize">{selectedReminder.type.replace('_', ' ')}</p>
+                                        <p className="text-xs sm:text-sm font-semibold text-gray-800">Type</p>
+                                        <p className="text-xs sm:text-sm text-gray-600 capitalize">{selectedReminder.type.replace('_', ' ')}</p>
                                     </div>
                                     {selectedReminder.targetId && (
                                         <div>
-                                            <p className="text-sm font-semibold text-gray-800">Attached Task</p>
-                                            <p className="text-sm text-gray-600">
+                                            <p className="text-xs sm:text-sm font-semibold text-gray-800">Attached Task</p>
+                                            <p className="text-xs sm:text-sm text-gray-600 truncate">
                                                 {tasks.find((task) => task._id === selectedReminder.targetId)?.title || 'Task not found'}
                                             </p>
                                         </div>
                                     )}
                                     <div>
-                                        <p className="text-sm font-semibold text-gray-800">Reminder Time</p>
-                                        <p className="text-sm text-gray-600">
+                                        <p className="text-xs sm:text-sm font-semibold text-gray-800">Reminder Time</p>
+                                        <p className="text-xs sm:text-sm text-gray-600 line-clamp-1">
                                             {moment(selectedReminder.remindAt).tz('Africa/Lagos').format('MMM D, YYYY, h:mm A')}
                                         </p>
                                     </div>
                                     {selectedReminder.repeatInterval && (
                                         <div>
-                                            <p className="text-sm font-semibold text-gray-800">Repeat Interval</p>
-                                            <p className="text-sm text-gray-600">{selectedReminder.repeatInterval} minutes</p>
+                                            <p className="text-xs sm:text-sm font-semibold text-gray-800">Repeat Interval</p>
+                                            <p className="text-xs sm:text-sm text-gray-600">{selectedReminder.repeatInterval} minutes</p>
                                         </div>
                                     )}
                                     <div>
-                                        <p className="text-sm font-semibold text-gray-800">Email</p>
-                                        <p className="text-sm text-gray-600">
+                                        <p className="text-xs sm:text-sm font-semibold text-gray-800">Email</p>
+                                        <p className="text-xs sm:text-sm text-gray-600 truncate">
                                             {selectedReminder.emailOverride || user.email}
                                         </p>
                                     </div>
                                     <div>
-                                        <p className="text-sm font-semibold text-gray-800">Delivery Channels</p>
-                                        <p className="text-sm text-gray-600">
+                                        <p className="text-xs sm:text-sm font-semibold text-gray-800">Delivery Channels</p>
+                                        <p className="text-xs sm:text-sm text-gray-600 truncate">
                                             {Object.keys(selectedReminder.deliveryChannels)
                                                 .filter((key) => selectedReminder.deliveryChannels[key])
                                                 .map((key) => key)
                                                 .join(', ')}
                                         </p>
                                     </div>
-                                    <div className="flex justify-end gap-2 mt-6">
-                                        <button
+                                    <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 mt-4 sm:mt-6">
+                                        <motion.button
+                                            whileHover={{ scale: 1.05 }}
+                                            whileTap={{ scale: 0.95 }}
                                             onClick={() => setIsEditing(true)}
-                                            className="px-4 py-2 rounded-full bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-all flex items-center gap-2"
+                                            className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 rounded-full bg-blue-600 text-white text-sm sm:text-base font-semibold hover:bg-blue-700 transition-all flex items-center gap-2 sm:gap-3"
                                             aria-label="Edit Reminder"
                                         >
-                                            <Edit className="w-4 h-4" />
+                                            <Edit className="w-4 h-4 sm:w-5 h-5" />
                                             Edit
-                                        </button>
-                                        <button
+                                        </motion.button>
+                                        <motion.button
+                                            whileHover={{ scale: 1.05 }}
+                                            whileTap={{ scale: 0.95 }}
                                             onClick={handleDeleteReminder}
-                                            className="px-4 py-2 rounded-full bg-red-600 text-white font-semibold hover:bg-red-500 transition-all flex items-center gap-2"
+                                            className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 rounded-full bg-red-600 text-white text-sm sm:text-base font-semibold hover:bg-red-500 transition-all flex items-center gap-2 sm:gap-3"
                                             aria-label="Delete Reminder"
                                         >
-                                            <Trash className="w-4 h-4" />
+                                            <Trash className="w-4 h-4 sm:w-5 h-5" />
                                             Delete
-                                        </button>
+                                        </motion.button>
                                     </div>
                                 </div>
                             )}

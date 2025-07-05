@@ -150,7 +150,7 @@ const Goals = () => {
             return;
         }
         try {
-            const response = await axios.post(`${API_BASE_URL}/api/goals`, newGoal, { headers: getAuthHeaders() });
+            await axios.post(`${API_BASE_URL}/api/goals`, newGoal, { headers: getAuthHeaders() });
             setShowCreateGoal(false);
             setNewGoal({
                 title: '',
@@ -182,7 +182,7 @@ const Goals = () => {
             return;
         }
         try {
-            const response = await axios.put(
+            await axios.put(
                 `${API_BASE_URL}/api/goals/${selectedGoal._id}`,
                 editGoal,
                 { headers: getAuthHeaders() }
@@ -278,11 +278,11 @@ const Goals = () => {
             animate={{ opacity: 1 }}
             className="min-h-screen bg-gradient-to-br from-gray-50 to-teal-50 font-sans"
         >
-            <Toaster position="bottom-right" />
-            <header className="bg-white shadow-lg p-6 sticky top-0 z-10">
-                <div className="max-w-6xl mx-auto flex items-center justify-between">
-                    <h1 className="text-4xl font-extrabold text-teal-700">Your Goals</h1>
-                    <div className="flex items-center gap-6">
+            <Toaster position="bottom-right" toastOptions={{ className: 'text-sm sm:text-base max-w-xs sm:max-w-sm' }} />
+            <header className="bg-white shadow-lg px-4 sm:px-6 py-4 sm:py-5 sticky top-0 z-20">
+                <div className="max-w-[90rem] mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
+                    <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-teal-700 truncate">Your Goals</h1>
+                    <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 md:gap-4 w-full sm:w-auto">
                         <motion.button
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
@@ -290,37 +290,37 @@ const Goals = () => {
                                 setShowCreateGoal(true);
                                 setDefaultDates('daily');
                             }}
-                            className="px-6 py-3 rounded-full bg-blue-600 text-white text-lg font-semibold hover:bg-blue-700 transition-all flex items-center gap-3 shadow-md"
+                            className="w-full sm:w-auto px-4 sm:px-5 py-2 sm:py-3 rounded-full bg-blue-600 text-white text-sm sm:text-base md:text-lg font-semibold hover:bg-blue-700 transition-all flex items-center gap-2 sm:gap-3 shadow-md"
                             aria-label="Create Goal"
                         >
-                            <Plus className="w-6 h-6" />
+                            <Plus className="w-4 h-4 sm:w-5 h-5 md:w-6 h-6" />
                             New Goal
                         </motion.button>
                         <motion.button
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
-                            onClick={() => navigate('/dashboard')}
-                            className="px-6 py-3 rounded-full bg-teal-600 text-white text-lg font-semibold hover:bg-teal-700 transition-all flex items-center gap-3 shadow-md"
+                            onClick={() => navigate('/')}
+                            className="w-full sm:w-auto px-4 sm:px-5 py-2 sm:py-3 rounded-full bg-teal-600 text-white text-sm sm:text-base md:text-lg font-semibold hover:bg-teal-700 transition-all flex items-center gap-2 sm:gap-3 shadow-md"
                             aria-label="Back to Dashboard"
                         >
-                            <ArrowLeft className="w-6 h-6" />
+                            <ArrowLeft className="w-4 h-4 sm:w-5 h-5 md:w-6 h-6" />
                             Dashboard
                         </motion.button>
                     </div>
                 </div>
             </header>
-            <main className="max-w-6xl mx-auto w-full p-8">
+            <main className="max-w-[90rem] mx-auto w-full px-4 sm:px-6 md:px-8 py-6 sm:py-8">
                 <motion.div
                     initial={{ y: 30, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ duration: 0.6 }}
-                    className="space-y-8 h-[calc(85vh-6rem)] overflow-y-auto"
+                    className="space-y-6 sm:space-y-8 max-h-[calc(100vh-12rem)] sm:max-h-[calc(100vh-14rem)] overflow-y-auto custom-scrollbar"
                 >
-                    <h2 className="text-3xl font-bold text-blue-900">All Goals</h2>
+                    <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-blue-900 truncate">All Goals</h2>
                     {isLoading ? (
-                        <div className="text-center text-gray-600 text-lg">Loading goals...</div>
+                        <div className="text-center text-gray-600 text-sm sm:text-base md:text-lg">Loading goals...</div>
                     ) : goals.length === 0 ? (
-                        <div className="text-center text-gray-600 text-lg">No goals found. Create a goal to get started!</div>
+                        <div className="text-center text-gray-600 text-sm sm:text-base md:text-lg">No goals found. Create a goal to get started!</div>
                     ) : (
                         <AnimatePresence>
                             {goals.map((goal) => (
@@ -329,30 +329,30 @@ const Goals = () => {
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, y: -20 }}
-                                    className="bg-white rounded-3xl shadow-xl p-6 flex items-center gap-6 hover:shadow-2xl transition-all duration-300 border-l-6 border-teal-600 cursor-pointer bg-opacity-90 backdrop-blur-sm"
+                                    className="bg-white rounded-2xl sm:rounded-3xl shadow-lg sm:shadow-xl p-4 sm:p-5 md:p-6 flex items-center gap-3 sm:gap-4 md:gap-6 hover:shadow-2xl transition-all duration-300 border-l-4 sm:border-l-6 border-teal-600 cursor-pointer bg-opacity-90 backdrop-blur-sm"
                                     onClick={() => handleGoalClick(goal)}
                                 >
-                                    <Target className="w-8 h-8 text-teal-400 flex-shrink-0" />
-                                    <div className="flex-1">
-                                        <p className="text-lg font-semibold text-blue-900">{goal.title}</p>
-                                        <p className="text-base text-gray-600">
+                                    <Target className="w-6 h-6 sm:w-7 h-7 md:w-8 h-8 text-teal-400 flex-shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-base sm:text-lg md:text-xl font-semibold text-blue-900 truncate">{goal.title}</p>
+                                        <p className="text-sm sm:text-base text-gray-600 line-clamp-1">
                                             {moment(goal.startDate).tz('Africa/Lagos').format('MMM D, YYYY')} -{' '}
                                             {moment(goal.endDate).tz('Africa/Lagos').format('MMM D, YYYY')}
                                         </p>
-                                        <p className="text-base text-gray-500 capitalize">Type: {goal.type}</p>
-                                        <div className="mt-2 flex items-center gap-2">
-                                            <div className="w-full bg-gray-200 rounded-full h-3">
+                                        <p className="text-sm sm:text-base text-gray-500 capitalize line-clamp-1">Type: {goal.type}</p>
+                                        <div className="mt-2 flex items-center gap-2 sm:gap-3">
+                                            <div className="w-full bg-gray-200 rounded-full h-2 sm:h-3">
                                                 <motion.div
-                                                    className="bg-teal-600 h-3 rounded-full"
+                                                    className="bg-teal-600 h-2 sm:h-3 rounded-full"
                                                     initial={{ width: 0 }}
                                                     animate={{ width: `${calculateProgress(goal.subGoals)}%` }}
                                                     transition={{ duration: 0.5 }}
                                                 />
                                             </div>
-                                            <p className="text-base text-gray-600">{calculateProgress(goal.subGoals)}%</p>
+                                            <p className="text-sm sm:text-base text-gray-600 flex-shrink-0">{calculateProgress(goal.subGoals)}%</p>
                                         </div>
                                         {calculateProgress(goal.subGoals) === 100 && (
-                                            <p className="text-base text-teal-600 font-semibold mt-1">Goal Completed!</p>
+                                            <p className="text-sm sm:text-base text-teal-600 font-semibold mt-1 line-clamp-1">Goal Completed!</p>
                                         )}
                                     </div>
                                 </motion.div>
@@ -360,6 +360,23 @@ const Goals = () => {
                         </AnimatePresence>
                     )}
                 </motion.div>
+                <style jsx>{`
+                    .custom-scrollbar::-webkit-scrollbar {
+                        width: 5px;
+                        height: 5px;
+                    }
+                    .custom-scrollbar::-webkit-scrollbar-track {
+                        background: rgba(20, 184, 166, 0.1);
+                        border-radius: 3px;
+                    }
+                    .custom-scrollbar::-webkit-scrollbar-thumb {
+                        background: #14B8A6;
+                        border-radius: 3px;
+                    }
+                    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                        background: #0D9488;
+                    }
+                `}</style>
             </main>
 
             {/* Create Goal Modal */}
@@ -370,45 +387,45 @@ const Goals = () => {
                         animate="visible"
                         exit="exit"
                         variants={modalVariants}
-                        className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
+                        className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 px-4 sm:px-6"
                         role="dialog"
                         aria-label="Create Goal"
                         ref={modalRef}
                         tabIndex={-1}
                     >
-                        <div className="bg-white bg-opacity-95 backdrop-blur-lg rounded-3xl p-8 max-w-xl w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
-                            <div className="flex justify-between items-center mb-6">
-                                <h2 className="text-2xl font-semibold text-blue-900">Create New Goal</h2>
+                        <div className="bg-white bg-opacity-95 backdrop-blur-lg rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 max-w-xs sm:max-w-sm md:max-w-lg w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex justify-between items-center mb-4 sm:mb-6">
+                                <h2 className="text-lg sm:text-xl md:text-2xl font-semibold text-blue-900 truncate">Create New Goal</h2>
                                 <motion.button
                                     whileHover={{ scale: 1.1 }}
                                     whileTap={{ scale: 0.9 }}
                                     onClick={() => setShowCreateGoal(false)}
-                                    className="p-2 text-blue-900 hover:text-teal-600"
+                                    className="p-1 sm:p-2 text-blue-900 hover:text-teal-600"
                                     aria-label="Close Create Goal"
                                 >
-                                    <X className="w-6 h-6" />
+                                    <X className="w-5 h-5 sm:w-6 h-6" />
                                 </motion.button>
                             </div>
-                            <div className="space-y-6">
+                            <div className="space-y-4 sm:space-y-6">
                                 <div>
-                                    <label className="text-base font-semibold text-gray-800">Goal Title</label>
+                                    <label className="text-sm sm:text-base font-semibold text-gray-800">Goal Title</label>
                                     <input
                                         type="text"
                                         value={newGoal.title}
                                         onChange={(e) => setNewGoal((prev) => ({ ...prev, title: e.target.value }))}
-                                        className="w-full p-3 border border-gray-200 rounded-xl text-base focus:ring-2 focus:ring-teal-500"
+                                        className="w-full p-2 sm:p-3 border border-gray-200 rounded-xl text-sm sm:text-base focus:ring-2 focus:ring-teal-500"
                                         placeholder="Enter goal title"
                                         maxLength={100}
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-base font-semibold text-gray-800">Sub-Goals</label>
-                                    <div className="flex gap-3">
+                                    <label className="text-sm sm:text-base font-semibold text-gray-800">Sub-Goals</label>
+                                    <div className="flex gap-2 sm:gap-3">
                                         <input
                                             type="text"
                                             value={newSubGoal}
                                             onChange={(e) => setNewSubGoal(e.target.value)}
-                                            className="flex-1 p-3 border border-gray-200 rounded-xl text-base focus:ring-2 focus:ring-teal-500"
+                                            className="flex-1 p-2 sm:p-3 border border-gray-200 rounded-xl text-sm sm:text-base focus:ring-2 focus:ring-teal-500"
                                             placeholder="Enter sub-goal"
                                             maxLength={200}
                                         />
@@ -416,21 +433,21 @@ const Goals = () => {
                                             whileHover={{ scale: 1.05 }}
                                             whileTap={{ scale: 0.95 }}
                                             onClick={handleAddSubGoal}
-                                            className="p-3 bg-teal-600 text-white rounded-full hover:bg-teal-700 transition-all shadow-md"
+                                            className="p-2 sm:p-3 bg-teal-600 text-white rounded-full hover:bg-teal-700 transition-all shadow-md"
                                             aria-label="Add Sub-Goal"
                                         >
-                                            <Plus className="w-5 h-5" />
+                                            <Plus className="w-4 h-4 sm:w-5 h-5" />
                                         </motion.button>
                                     </div>
-                                    <div className="mt-3 max-h-48 overflow-y-auto">
+                                    <div className="mt-2 sm:mt-3 max-h-32 sm:max-h-48 overflow-y-auto custom-scrollbar">
                                         {newGoal.subGoals.map((subGoal, index) => (
                                             <motion.div
                                                 key={index}
                                                 initial={{ opacity: 0, x: -20 }}
                                                 animate={{ opacity: 1, x: 0 }}
-                                                className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl mb-3"
+                                                className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-gray-50 rounded-xl mb-2 sm:mb-3"
                                             >
-                                                <p className="text-base text-gray-800 flex-1">{subGoal.title}</p>
+                                                <p className="text-sm sm:text-base text-gray-800 flex-1 truncate">{subGoal.title}</p>
                                                 <motion.button
                                                     whileHover={{ scale: 1.1 }}
                                                     whileTap={{ scale: 0.9 }}
@@ -443,18 +460,18 @@ const Goals = () => {
                                                     className="p-1 text-red-600 hover:text-red-500"
                                                     aria-label="Remove Sub-Goal"
                                                 >
-                                                    <X className="w-5 h-5" />
+                                                    <X className="w-4 h-4 sm:w-5 h-5" />
                                                 </motion.button>
                                             </motion.div>
                                         ))}
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="text-base font-semibold text-gray-800">Goal Type</label>
+                                    <label className="text-sm sm:text-base font-semibold text-gray-800">Goal Type</label>
                                     <select
                                         value={newGoal.type}
                                         onChange={(e) => setNewGoal((prev) => ({ ...prev, type: e.target.value }))}
-                                        className="w-full p-3 border border-gray-200 rounded-xl text-base focus:ring-2 focus:ring-teal-500"
+                                        className="w-full p-2 sm:p-3 border border-gray-200 rounded-xl text-sm sm:text-base focus:ring-2 focus:ring-teal-500"
                                     >
                                         <option value="personal">Personal</option>
                                         <option value="task">Task</option>
@@ -462,10 +479,10 @@ const Goals = () => {
                                 </div>
                                 {newGoal.type === 'task' && (
                                     <div>
-                                        <label className="text-base font-semibold text-gray-800">Attach Task to Sub-Goals</label>
+                                        <label className="text-sm sm:text-base font-semibold text-gray-800">Attach Task to Sub-Goals</label>
                                         {newGoal.subGoals.map((subGoal, index) => (
-                                            <div key={index} className="flex items-center gap-3 mb-3">
-                                                <p className="text-base text-gray-800 flex-1">{subGoal.title}</p>
+                                            <div key={index} className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
+                                                <p className="text-sm sm:text-base text-gray-800 flex-1 truncate">{subGoal.title}</p>
                                                 <select
                                                     value={subGoal.taskId || ''}
                                                     onChange={(e) => {
@@ -473,7 +490,7 @@ const Goals = () => {
                                                         updatedSubGoals[index].taskId = e.target.value || null;
                                                         setNewGoal((prev) => ({ ...prev, subGoals: updatedSubGoals }));
                                                     }}
-                                                    className="w-1/2 p-3 border border-gray-200 rounded-xl text-base focus:ring-2 focus:ring-teal-500"
+                                                    className="w-full sm:w-1/2 p-2 sm:p-3 border border-gray-200 rounded-xl text-sm sm:text-base focus:ring-2 focus:ring-teal-500"
                                                 >
                                                     <option value="">No Task</option>
                                                     {tasks.map((task) => (
@@ -487,14 +504,14 @@ const Goals = () => {
                                     </div>
                                 )}
                                 <div>
-                                    <label className="text-base font-semibold text-gray-800">Timeframe</label>
+                                    <label className="text-sm sm:text-base font-semibold text-gray-800">Timeframe</label>
                                     <select
                                         value={newGoal.timeframe}
                                         onChange={(e) => {
                                             setNewGoal((prev) => ({ ...prev, timeframe: e.target.value }));
                                             setDefaultDates(e.target.value);
                                         }}
-                                        className="w-full p-3 border border-gray-200 rounded-xl text-base focus:ring-2 focus:ring-teal-500"
+                                        className="w-full p-2 sm:p-3 border border-gray-200 rounded-xl text-sm sm:text-base focus:ring-2 focus:ring-teal-500"
                                     >
                                         <option value="daily">Daily</option>
                                         <option value="weekly">Weekly</option>
@@ -504,32 +521,34 @@ const Goals = () => {
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="text-base font-semibold text-gray-800">Start Date</label>
+                                    <label className="text-sm sm:text-base font-semibold text-gray-800">Start Date</label>
                                     <DatePicker
                                         selected={newGoal.startDate}
                                         onChange={(date) => setNewGoal((prev) => ({ ...prev, startDate: date }))}
-                                        dateFormat="MMMM d, yyyy"
-                                        className="w-full p-3 border border-gray-200 rounded-xl text-base focus:ring-2 focus:ring-teal-500"
+                                        dateFormat="MMM d, yyyy"
+                                        className="w-full p-2 sm:p-3 border border-gray-200 rounded-xl text-sm sm:text-base focus:ring-2 focus:ring-teal-500"
+                                        wrapperClassName="w-full"
                                         minDate={new Date()}
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-base font-semibold text-gray-800">End Date</label>
+                                    <label className="text-sm sm:text-base font-semibold text-gray-800">End Date</label>
                                     <DatePicker
                                         selected={newGoal.endDate}
                                         onChange={(date) => setNewGoal((prev) => ({ ...prev, endDate: date }))}
-                                        dateFormat="MMMM d, yyyy"
-                                        className="w-full p-3 border border-gray-200 rounded-xl text-base focus:ring-2 focus:ring-teal-500"
+                                        dateFormat="MMM d, yyyy"
+                                        className="w-full p-2 sm:p-3 border border-gray-200 rounded-xl text-sm sm:text-base focus:ring-2 focus:ring-teal-500"
+                                        wrapperClassName="w-full"
                                         minDate={newGoal.startDate}
                                     />
                                 </div>
                             </div>
-                            <div className="flex justify-end gap-3 mt-8">
+                            <div className="flex justify-end gap-2 sm:gap-3 mt-6 sm:mt-8">
                                 <motion.button
                                     whileHover={{ scale: 1.05 }}
                                     whileTap={{ scale: 0.95 }}
                                     onClick={() => setShowCreateGoal(false)}
-                                    className="px-6 py-3 rounded-full bg-gray-200 text-gray-800 text-lg font-semibold hover:bg-gray-300 transition-all"
+                                    className="px-4 sm:px-6 py-2 sm:py-3 rounded-full bg-gray-200 text-gray-800 text-sm sm:text-base font-semibold hover:bg-gray-300 transition-all"
                                     aria-label="Cancel"
                                 >
                                     Cancel
@@ -538,7 +557,7 @@ const Goals = () => {
                                     whileHover={{ scale: 1.05 }}
                                     whileTap={{ scale: 0.95 }}
                                     onClick={handleCreateGoal}
-                                    className="px-6 py-3 rounded-full bg-teal-600 text-white text-lg font-semibold hover:bg-teal-700 transition-all shadow-md"
+                                    className="px-4 sm:px-6 py-2 sm:py-3 rounded-full bg-teal-600 text-white text-sm sm:text-base font-semibold hover:bg-teal-700 transition-all shadow-md"
                                     aria-label="Create Goal"
                                 >
                                     Create Goal
@@ -557,15 +576,15 @@ const Goals = () => {
                         animate="visible"
                         exit="exit"
                         variants={modalVariants}
-                        className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
+                        className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 px-4 sm:px-6"
                         role="dialog"
                         aria-label="Goal Details"
                         ref={modalRef}
                         tabIndex={-1}
                     >
-                        <div className="bg-white bg-opacity-95 backdrop-blur-lg rounded-3xl p-8 max-w-xl w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
-                            <div className="flex justify-between items-center mb-6">
-                                <h2 className="text-2xl font-semibold text-blue-900">
+                        <div className="bg-white bg-opacity-95 backdrop-blur-lg rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 max-w-xs sm:max-w-sm md:max-w-lg w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex justify-between items-center mb-4 sm:mb-6">
+                                <h2 className="text-lg sm:text-xl md:text-2xl font-semibold text-blue-900 truncate">
                                     {isEditing ? 'Edit Goal' : 'Goal Details'}
                                 </h2>
                                 <motion.button
@@ -575,33 +594,33 @@ const Goals = () => {
                                         setShowGoalDetails(false);
                                         setIsEditing(false);
                                     }}
-                                    className="p-2 text-blue-900 hover:text-teal-600"
+                                    className="p-1 sm:p-2 text-blue-900 hover:text-teal-600"
                                     aria-label="Close Goal Details"
                                 >
-                                    <X className="w-6 h-6" />
+                                    <X className="w-5 h-5 sm:w-6 h-6" />
                                 </motion.button>
                             </div>
                             {isEditing ? (
-                                <div className="space-y-6">
+                                <div className="space-y-4 sm:space-y-6">
                                     <div>
-                                        <label className="text-base font-semibold text-gray-800">Goal Title</label>
+                                        <label className="text-sm sm:text-base font-semibold text-gray-800">Goal Title</label>
                                         <input
                                             type="text"
                                             value={editGoal.title}
                                             onChange={(e) => setEditGoal((prev) => ({ ...prev, title: e.target.value }))}
-                                            className="w-full p-3 border border-gray-200 rounded-xl text-base focus:ring-2 focus:ring-teal-500"
+                                            className="w-full p-2 sm:p-3 border border-gray-200 rounded-xl text-sm sm:text-base focus:ring-2 focus:ring-teal-500"
                                             placeholder="Enter goal title"
                                             maxLength={100}
                                         />
                                     </div>
                                     <div>
-                                        <label className="text-base font-semibold text-gray-800">Sub-Goals</label>
-                                        <div className="flex gap-3">
+                                        <label className="text-sm sm:text-base font-semibold text-gray-800">Sub-Goals</label>
+                                        <div className="flex gap-2 sm:gap-3">
                                             <input
                                                 type="text"
                                                 value={newSubGoal}
                                                 onChange={(e) => setNewSubGoal(e.target.value)}
-                                                className="flex-1 p-3 border border-gray-200 rounded-xl text-base focus:ring-2 focus:ring-teal-500"
+                                                className="flex-1 p-2 sm:p-3 border border-gray-200 rounded-xl text-sm sm:text-base focus:ring-2 focus:ring-teal-500"
                                                 placeholder="Enter sub-goal"
                                                 maxLength={200}
                                             />
@@ -622,21 +641,21 @@ const Goals = () => {
                                                     }));
                                                     setNewSubGoal('');
                                                 }}
-                                                className="p-3 bg-teal-600 text-white rounded-full hover:bg-teal-700 transition-all shadow-md"
+                                                className="p-2 sm:p-3 bg-teal-600 text-white rounded-full hover:bg-teal-700 transition-all shadow-md"
                                                 aria-label="Add Sub-Goal"
                                             >
-                                                <Plus className="w-5 h-5" />
+                                                <Plus className="w-4 h-4 sm:w-5 h-5" />
                                             </motion.button>
                                         </div>
-                                        <div className="mt-3 max-h-48 overflow-y-auto">
+                                        <div className="mt-2 sm:mt-3 max-h-32 sm:max-h-48 overflow-y-auto custom-scrollbar">
                                             {editGoal.subGoals.map((subGoal, index) => (
                                                 <motion.div
                                                     key={index}
                                                     initial={{ opacity: 0, x: -20 }}
                                                     animate={{ opacity: 1, x: 0 }}
-                                                    className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl mb-3"
+                                                    className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-gray-50 rounded-xl mb-2 sm:mb-3"
                                                 >
-                                                    <p className="text-base text-gray-800 flex-1">{subGoal.title}</p>
+                                                    <p className="text-sm sm:text-base text-gray-800 flex-1 truncate">{subGoal.title}</p>
                                                     <motion.button
                                                         whileHover={{ scale: 1.1 }}
                                                         whileTap={{ scale: 0.9 }}
@@ -649,18 +668,18 @@ const Goals = () => {
                                                         className="p-1 text-red-600 hover:text-red-500"
                                                         aria-label="Remove Sub-Goal"
                                                     >
-                                                        <X className="w-5 h-5" />
+                                                        <X className="w-4 h-4 sm:w-5 h-5" />
                                                     </motion.button>
                                                 </motion.div>
                                             ))}
                                         </div>
                                     </div>
                                     <div>
-                                        <label className="text-base font-semibold text-gray-800">Goal Type</label>
+                                        <label className="text-sm sm:text-base font-semibold text-gray-800">Goal Type</label>
                                         <select
                                             value={editGoal.type}
                                             onChange={(e) => setEditGoal((prev) => ({ ...prev, type: e.target.value }))}
-                                            className="w-full p-3 border border-gray-200 rounded-xl text-base focus:ring-2 focus:ring-teal-500"
+                                            className="w-full p-2 sm:p-3 border border-gray-200 rounded-xl text-sm sm:text-base focus:ring-2 focus:ring-teal-500"
                                         >
                                             <option value="personal">Personal</option>
                                             <option value="task">Task</option>
@@ -668,10 +687,10 @@ const Goals = () => {
                                     </div>
                                     {editGoal.type === 'task' && (
                                         <div>
-                                            <label className="text-base font-semibold text-gray-800">Attach Task to Sub-Goals</label>
+                                            <label className="text-sm sm:text-base font-semibold text-gray-800">Attach Task to Sub-Goals</label>
                                             {editGoal.subGoals.map((subGoal, index) => (
-                                                <div key={index} className="flex items-center gap-3 mb-3">
-                                                    <p className="text-base text-gray-800 flex-1">{subGoal.title}</p>
+                                                <div key={index} className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
+                                                    <p className="text-sm sm:text-base text-gray-800 flex-1 truncate">{subGoal.title}</p>
                                                     <select
                                                         value={subGoal.taskId || ''}
                                                         onChange={(e) => {
@@ -679,7 +698,7 @@ const Goals = () => {
                                                             updatedSubGoals[index].taskId = e.target.value || null;
                                                             setEditGoal((prev) => ({ ...prev, subGoals: updatedSubGoals }));
                                                         }}
-                                                        className="w-1/2 p-3 border border-gray-200 rounded-xl text-base focus:ring-2 focus:ring-teal-500"
+                                                        className="w-full sm:w-1/2 p-2 sm:p-3 border border-gray-200 rounded-xl text-sm sm:text-base focus:ring-2 focus:ring-teal-500"
                                                     >
                                                         <option value="">No Task</option>
                                                         {tasks.map((task) => (
@@ -693,11 +712,11 @@ const Goals = () => {
                                         </div>
                                     )}
                                     <div>
-                                        <label className="text-base font-semibold text-gray-800">Timeframe</label>
+                                        <label className="text-sm sm:text-base font-semibold text-gray-800">Timeframe</label>
                                         <select
                                             value={editGoal.timeframe}
                                             onChange={(e) => setEditGoal((prev) => ({ ...prev, timeframe: e.target.value }))}
-                                            className="w-full p-3 border border-gray-200 rounded-xl text-base focus:ring-2 focus:ring-teal-500"
+                                            className="w-full p-2 sm:p-3 border border-gray-200 rounded-xl text-sm sm:text-base focus:ring-2 focus:ring-teal-500"
                                         >
                                             <option value="daily">Daily</option>
                                             <option value="weekly">Weekly</option>
@@ -707,31 +726,33 @@ const Goals = () => {
                                         </select>
                                     </div>
                                     <div>
-                                        <label className="text-base font-semibold text-gray-800">Start Date</label>
+                                        <label className="text-sm sm:text-base font-semibold text-gray-800">Start Date</label>
                                         <DatePicker
                                             selected={editGoal.startDate}
                                             onChange={(date) => setEditGoal((prev) => ({ ...prev, startDate: date }))}
-                                            dateFormat="MMMM d, yyyy"
-                                            className="w-full p-3 border border-gray-200 rounded-xl text-base focus:ring-2 focus:ring-teal-500"
+                                            dateFormat="MMM d, yyyy"
+                                            className="w-full p-2 sm:p-3 border border-gray-200 rounded-xl text-sm sm:text-base focus:ring-2 focus:ring-teal-500"
+                                            wrapperClassName="w-full"
                                             minDate={new Date()}
                                         />
                                     </div>
                                     <div>
-                                        <label className="text-base font-semibold text-gray-800">End Date</label>
+                                        <label className="text-sm sm:text-base font-semibold text-gray-800">End Date</label>
                                         <DatePicker
                                             selected={editGoal.endDate}
                                             onChange={(date) => setEditGoal((prev) => ({ ...prev, endDate: date }))}
-                                            dateFormat="MMMM d, yyyy"
-                                            className="w-full p-3 border border-gray-200 rounded-xl text-base focus:ring-2 focus:ring-teal-500"
+                                            dateFormat="MMM d, yyyy"
+                                            className="w-full p-2 sm:p-3 border border-gray-200 rounded-xl text-sm sm:text-base focus:ring-2 focus:ring-teal-500"
+                                            wrapperClassName="w-full"
                                             minDate={editGoal.startDate}
                                         />
                                     </div>
-                                    <div className="flex justify-end gap-3 mt-8">
+                                    <div className="flex justify-end gap-2 sm:gap-3 mt-6 sm:mt-8">
                                         <motion.button
                                             whileHover={{ scale: 1.05 }}
                                             whileTap={{ scale: 0.95 }}
                                             onClick={() => setIsEditing(false)}
-                                            className="px-6 py-3 rounded-full bg-gray-200 text-gray-800 text-lg font-semibold hover:bg-gray-300 transition-all"
+                                            className="px-4 sm:px-6 py-2 sm:py-3 rounded-full bg-gray-200 text-gray-800 text-sm sm:text-base font-semibold hover:bg-gray-300 transition-all"
                                             aria-label="Cancel"
                                         >
                                             Cancel
@@ -740,7 +761,7 @@ const Goals = () => {
                                             whileHover={{ scale: 1.05 }}
                                             whileTap={{ scale: 0.95 }}
                                             onClick={handleUpdateGoal}
-                                            className="px-6 py-3 rounded-full bg-teal-600 text-white text-lg font-semibold hover:bg-teal-700 transition-all shadow-md"
+                                            className="px-4 sm:px-6 py-2 sm:py-3 rounded-full bg-teal-600 text-white text-sm sm:text-base font-semibold hover:bg-teal-700 transition-all shadow-md"
                                             aria-label="Save Goal"
                                         >
                                             Save Goal
@@ -748,92 +769,94 @@ const Goals = () => {
                                     </div>
                                 </div>
                             ) : (
-                                <div className="space-y-6">
+                                <div className="space-y-4 sm:space-y-6">
                                     <div>
-                                        <p className="text-base font-semibold text-gray-800">Goal Title</p>
-                                        <p className="text-lg text-gray-600">{selectedGoal.title}</p>
+                                        <p className="text-sm sm:text-base font-semibold text-gray-800">Goal Title</p>
+                                        <p className="text-base sm:text-lg text-gray-600 truncate">{selectedGoal.title}</p>
                                     </div>
                                     <div>
-                                        <p className="text-base font-semibold text-gray-800">Sub-Goals</p>
-                                        {selectedGoal.subGoals.map((subGoal, index) => (
-                                            <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={subGoal.completed}
-                                                    onChange={(e) => handleUpdateSubGoalStatus(index, e.target.checked)}
-                                                    className="h-5 w-5 text-teal-600 focus:ring-teal-500"
-                                                />
-                                                <p className="text-base text-gray-600 flex-1">
-                                                    {subGoal.title}
-                                                    {subGoal.taskId && (
-                                                        <span className="text-sm text-gray-400">
-                                                            {' '}
-                                                            (Task: {tasks.find((t) => t._id === subGoal.taskId)?.title || 'Not found'})
-                                                        </span>
-                                                    )}
-                                                </p>
-                                            </div>
-                                        ))}
+                                        <p className="text-sm sm:text-base font-semibold text-gray-800">Sub-Goals</p>
+                                        <div className="max-h-32 sm:max-h-48 overflow-y-auto custom-scrollbar">
+                                            {selectedGoal.subGoals.map((subGoal, index) => (
+                                                <div key={index} className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-gray-50 rounded-xl mb-2 sm:mb-3">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={subGoal.completed}
+                                                        onChange={(e) => handleUpdateSubGoalStatus(index, e.target.checked)}
+                                                        className="h-4 w-4 sm:h-5 sm:w-5 text-teal-600 focus:ring-teal-500 flex-shrink-0"
+                                                    />
+                                                    <p className="text-sm sm:text-base text-gray-600 flex-1 truncate">
+                                                        {subGoal.title}
+                                                        {subGoal.taskId && (
+                                                            <span className="text-xs sm:text-sm text-gray-400">
+                                                                {' '}
+                                                                (Task: {tasks.find((t) => t._id === subGoal.taskId)?.title || 'Not found'})
+                                                            </span>
+                                                        )}
+                                                    </p>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
                                     <div>
-                                        <p className="text-base font-semibold text-gray-800">Progress</p>
-                                        <div className="w-full bg-gray-200 rounded-full h-3">
+                                        <p className="text-sm sm:text-base font-semibold text-gray-800">Progress</p>
+                                        <div className="w-full bg-gray-200 rounded-full h-2 sm:h-3">
                                             <motion.div
-                                                className="bg-teal-600 h-3 rounded-full"
+                                                className="bg-teal-600 h-2 sm:h-3 rounded-full"
                                                 initial={{ width: 0 }}
                                                 animate={{ width: `${calculateProgress(selectedGoal.subGoals)}%` }}
                                                 transition={{ duration: 0.5 }}
                                             />
                                         </div>
-                                        <p className="text-base text-gray-600 mt-1">{calculateProgress(selectedGoal.subGoals)}%</p>
+                                        <p className="text-sm sm:text-base text-gray-600 mt-1">{calculateProgress(selectedGoal.subGoals)}%</p>
                                         {calculateProgress(selectedGoal.subGoals) === 100 && (
-                                            <p className="text-base text-teal-600 font-semibold mt-1">Goal Completed!</p>
+                                            <p className="text-sm sm:text-base text-teal-600 font-semibold mt-1 line-clamp-1">Goal Completed!</p>
                                         )}
                                     </div>
                                     <div>
-                                        <p className="text-base font-semibold text-gray-800">Type</p>
-                                        <p className="text-base text-gray-600 capitalize">{selectedGoal.type}</p>
+                                        <p className="text-sm sm:text-base font-semibold text-gray-800">Type</p>
+                                        <p className="text-sm sm:text-base text-gray-600 capitalize line-clamp-1">{selectedGoal.type}</p>
                                     </div>
                                     <div>
-                                        <p className="text-base font-semibold text-gray-800">Timeframe</p>
-                                        <p className="text-base text-gray-600 capitalize">{selectedGoal.timeframe}</p>
+                                        <p className="text-sm sm:text-base font-semibold text-gray-800">Timeframe</p>
+                                        <p className="text-sm sm:text-base text-gray-600 capitalize line-clamp-1">{selectedGoal.timeframe}</p>
                                     </div>
                                     <div>
-                                        <p className="text-base font-semibold text-gray-800">Duration</p>
-                                        <p className="text-base text-gray-600">
+                                        <p className="text-sm sm:text-base font-semibold text-gray-800">Duration</p>
+                                        <p className="text-sm sm:text-base text-gray-600 line-clamp-1">
                                             {moment(selectedGoal.startDate).tz('Africa/Lagos').format('MMM D, YYYY')} -{' '}
                                             {moment(selectedGoal.endDate).tz('Africa/Lagos').format('MMM D, YYYY')}
                                         </p>
                                     </div>
-                                    <div className="flex justify-end gap-3 mt-8">
+                                    <div className="flex flex-wrap justify-end gap-2 sm:gap-3 mt-6 sm:mt-8">
                                         <motion.button
                                             whileHover={{ scale: 1.05 }}
                                             whileTap={{ scale: 0.95 }}
                                             onClick={() => setIsEditing(true)}
-                                            className="px-6 py-3 rounded-full bg-blue-600 text-white text-lg font-semibold hover:bg-blue-700 transition-all flex items-center gap-3 shadow-md"
+                                            className="px-4 sm:px-5 py-2 sm:py-3 rounded-full bg-blue-600 text-white text-sm sm:text-base font-semibold hover:bg-blue-700 transition-all flex items-center gap-2 sm:gap-3 shadow-md"
                                             aria-label="Edit Goal"
                                         >
-                                            <Edit className="w-5 h-5" />
+                                            <Edit className="w-4 h-4 sm:w-5 h-5" />
                                             Edit
                                         </motion.button>
                                         <motion.button
                                             whileHover={{ scale: 1.05 }}
                                             whileTap={{ scale: 0.95 }}
                                             onClick={handleUpdateGoal}
-                                            className="px-6 py-3 rounded-full bg-teal-600 text-white text-lg font-semibold hover:bg-teal-700 transition-all flex items-center gap-3 shadow-md"
+                                            className="px-4 sm:px-5 py-2 sm:py-3 rounded-full bg-teal-600 text-white text-sm sm:text-base font-semibold hover:bg-teal-700 transition-all flex items-center gap-2 sm:gap-3 shadow-md"
                                             aria-label="Update Progress"
                                         >
-                                            <CheckCircle className="w-5 h-5" />
+                                            <CheckCircle className="w-4 h-4 sm:w-5 h-5" />
                                             Update
                                         </motion.button>
                                         <motion.button
                                             whileHover={{ scale: 1.05 }}
                                             whileTap={{ scale: 0.95 }}
                                             onClick={handleDeleteGoal}
-                                            className="px-6 py-3 rounded-full bg-red-600 text-white text-lg font-semibold hover:bg-red-500 transition-all flex items-center gap-3 shadow-md"
+                                            className="px-4 sm:px-5 py-2 sm:py-3 rounded-full bg-red-600 text-white text-sm sm:text-base font-semibold hover:bg-red-500 transition-all flex items-center gap-2 sm:gap-3 shadow-md"
                                             aria-label="Delete Goal"
                                         >
-                                            <Trash className="w-5 h-5" />
+                                            <Trash className="w-4 h-4 sm:w-5 h-5" />
                                             Delete
                                         </motion.button>
                                     </div>
