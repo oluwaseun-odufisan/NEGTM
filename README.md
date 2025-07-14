@@ -14,7 +14,6 @@ This README provides a detailed overview of the project, including its structure
 7. [Backend Architecture](#backend-architecture)
 8. [Testing](#testing)
 9. [Contributing](#contributing)
-10. [License](#license)
 
 ---
 
