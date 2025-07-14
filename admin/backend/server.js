@@ -69,4 +69,10 @@ async function startServer() {
     }
 }
 
-startServer();
+// Export app for testing
+export { app };
+
+// Start server only when run directly
+if (process.env.NODE_ENV !== 'test') {
+    startServer();
+}

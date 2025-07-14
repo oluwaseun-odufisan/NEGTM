@@ -123,14 +123,25 @@ const TaskItem = ({ task, onRefresh, showCompleteCheckbox = true, onLogout }) =>
 
                 <div className='flex items-center gap-2 sm:gap-3'>
                     <div className='relative'>
-                        <button onClick={() => setShowMenu(!showMenu)} className='p-1 sm:p-2 text-gray-500 hover:text-teal-500 hover:bg-teal-50 rounded-full transition-colors duration-200'>
+                        <button
+                            data-testid="dropdown-button"
+                            onClick={() => setShowMenu(!showMenu)}
+                            className='p-1 sm:p-2 text-gray-500 hover:text-teal-500 hover:bg-teal-50 rounded-full transition-colors duration-200'
+                        >
                             <MoreVertical className='w-4 h-4 sm:w-5 sm:h-5' />
                         </button>
                         {showMenu && (
-                            <div className='absolute top-8 right-0 w-36 bg-white/90 backdrop-blur-md rounded-lg shadow-xl border border-teal-100 z-50 overflow-hidden'>
+                            <div
+                                data-testid="dropdown-menu"
+                                className='absolute top-8 right-0 w-36 bg-white/90 backdrop-blur-md rounded-lg shadow-xl border border-teal-100 z-50 overflow-hidden'
+                            >
                                 {MENU_OPTIONS.map(opt => (
-                                    <button key={opt.action} onClick={() => handleAction(opt.action)}
-                                        className='w-full px-3 sm:px-4 py-2 text-left text-xs sm:text-sm hover:bg-teal-50 flex items-center gap-2 transition-colors duration-200'>
+                                    <button
+                                        key={opt.action}
+                                        data-testid={`${opt.action}-button`}
+                                        onClick={() => handleAction(opt.action)}
+                                        className='w-full px-3 sm:px-4 py-2 text-left text-xs sm:text-sm hover:bg-teal-50 flex items-center gap-2 transition-colors duration-200'
+                                    >
                                         {opt.icon}{opt.label}
                                     </button>
                                 ))}
@@ -152,10 +163,12 @@ const TaskItem = ({ task, onRefresh, showCompleteCheckbox = true, onLogout }) =>
                 </div>
             </div>
 
-            <TaskModal isOpen={showEditModal}
+            <TaskModal
+                isOpen={showEditModal}
                 onClose={() => setShowEditModal(false)}
                 taskToEdit={task}
-                onSave={handleSave} />
+                onSave={handleSave}
+            />
         </>
     );
 };
