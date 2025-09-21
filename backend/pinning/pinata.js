@@ -2,11 +2,6 @@ import axios from 'axios';
 import FormData from 'form-data';
 
 const PINATA_API_URL = 'https://api.pinata.cloud/pinning/pinFileToIPFS';
-const PINATA_JWT = process.env.PINATA_JWT;
-
-if (!PINATA_JWT) {
-    throw new Error('PINATA_JWT is not defined in environment variables');
-}
 
 /**
  * Uploads a file buffer to Pinata IPFS and returns the CID
@@ -17,6 +12,11 @@ if (!PINATA_JWT) {
  * @returns {Promise<string>} - The IPFS CID
  */
 export const uploadFileToIPFS = async (buffer, fileName, mimeType, retries = 3) => {
+    const PINATA_JWT = process.env.PINATA_JWT;
+    if (!PINATA_JWT) {
+        throw new Error('PINATA_JWT is not defined in environment variables');
+    }
+
     try {
         console.log(`Preparing to upload to Pinata: ${fileName}, size: ${buffer.length}, type: ${mimeType}`);
 

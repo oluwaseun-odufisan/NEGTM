@@ -1,6 +1,8 @@
 import admin from 'firebase-admin';
 import User from '../models/userModel.js';
 
+//console.log('FIREBASE_CREDENTIALS:', process.env.FIREBASE_CREDENTIALS); // Debug
+
 if (!admin.apps.length) {
     try {
         admin.initializeApp({
