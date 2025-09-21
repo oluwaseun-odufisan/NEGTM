@@ -355,6 +355,22 @@ const Goals = () => {
                                             <p className="text-sm sm:text-base text-teal-600 font-semibold mt-1 line-clamp-1">Goal Completed!</p>
                                         )}
                                     </div>
+                                    <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-300 z-10 overflow-hidden">
+                                        <div className="bg-white/95 backdrop-blur-md p-4 rounded-lg shadow-lg max-w-[90%] max-h-[90%] overflow-y-auto text-gray-900">
+                                            <h3 className="text-lg font-bold mb-2">{goal.title}</h3>
+                                            <p className="text-sm mb-2">Type: {goal.type}</p>
+                                            <p className="text-sm mb-2">Timeframe: {goal.timeframe}</p>
+                                            <p className="text-sm mb-2">From {moment(goal.startDate).tz('Africa/Lagos').format('MMM D, YYYY')} to {moment(goal.endDate).tz('Africa/Lagos').format('MMM D, YYYY')}</p>
+                                            <h4 className="text-md font-semibold mb-1">Sub-goals:</h4>
+                                            <ul className="list-disc pl-4 text-sm">
+                                                {goal.subGoals.map((sg, i) => (
+                                                    <li key={i} className={sg.completed ? 'line-through' : ''}>
+                                                        {sg.title} {sg.taskId ? `(Task: ${tasks.find(t => t._id === sg.taskId)?.title || 'Unknown'})` : ''}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    </div>
                                 </motion.div>
                             ))}
                         </AnimatePresence>

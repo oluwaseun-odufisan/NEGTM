@@ -514,6 +514,13 @@ const Dashboard = () => {
                                         </div>
                                         {/* Hover Overlay */}
                                         <div className="absolute inset-0 bg-gradient-to-r from-teal-500/10 to-blue-500/10 opacity-0 hover:opacity-100 transition-opacity duration-300 rounded-2xl" />
+                                        {/* Hover Full Task Details */}
+                                        <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-300 z-10 overflow-hidden">
+                                            <div className="bg-white/95 backdrop-blur-md p-4 rounded-lg shadow-lg max-w-[90%] max-h-[90%] overflow-y-auto text-gray-900">
+                                                <h3 className="text-lg font-bold mb-2">{task.title}</h3>
+                                                <p className="text-sm whitespace-pre-wrap">{task.description || 'No description provided.'}</p>
+                                            </div>
+                                        </div>
                                     </div>
                                 ))
                             )}
