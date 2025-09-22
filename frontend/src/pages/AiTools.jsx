@@ -86,7 +86,7 @@ const AiTools = () => {
 # AI-Generated Task Report
 **User**: ${user?.name || 'User'}
 **Period**: ${periodFilter.charAt(0).toUpperCase() + periodFilter.slice(1)}
-**Generated At**: ${new Date().toLocaleString()}
+**Generated At**: ${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}
 
 ## Overview
 - **Total Tasks**: ${filteredTasks.length}
@@ -157,265 +157,298 @@ ${aiInsights.length > 0 ? aiInsights.map(i => `- ${i}`).join('\n') : '- No recom
         <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.5 }}
-            className="min-h-screen bg-gradient-to-br from-teal-50/50 via-white to-emerald-50/50 flex flex-col"
+            transition={{ duration: 0.6, ease: 'easeOut' }}
+            className="min-h-screen bg-gradient-to-br from-teal-50 via-blue-50 to-teal-100 flex flex-col font-sans"
         >
-            {/* Header */}
-            <header className="sticky top-0 z-10 bg-white/95 backdrop-blur-lg shadow-md border-b border-teal-100/20 px-4 py-3 md:px-6 md:py-4">
-                <div className="max-w-7xl mx-auto flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <Sparkles className="w-6 h-6 text-teal-500 animate-pulse" />
-                        <h1 className="text-xl md:text-2xl font-bold text-gray-900">AI Tools</h1>
-                    </div>
-                    <button
-                        onClick={() => navigate('/dashboard')}
-                        className="flex items-center gap-2 px-3 py-1.5 text-sm bg-teal-100 text-teal-700 rounded-lg hover:bg-teal-200 transition-all duration-200"
-                        aria-label="Back to Dashboard"
-                    >
-                        <ArrowLeft className="w-4 h-4" />
-                        Back
-                    </button>
-                </div>
-            </header>
-
-            {/* Main Content */}
-            <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-6 md:px-6 md:py-8 flex flex-col lg:flex-row gap-6">
-                {/* Main Section: Report and Tools */}
-                <div className="flex-1 flex flex-col gap-6">
-                    {/* Generate Report Section */}
-                    <motion.section
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.1 }}
-                        className="bg-white/95 backdrop-blur-lg rounded-xl p-4 md:p-6 shadow-lg border border-teal-100/20"
-                    >
-                        <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-4">
-                            <Sparkles className="w-5 h-5 text-teal-500" />
-                            Generate Report with AI
-                        </h2>
-                        <div className="flex flex-col gap-3">
+            <div className="flex-1 max-w-[1600px] mx-auto w-full px-8 py-12">
+                <motion.div
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ duration: 0.5 }}
+                    className="bg-white/95 backdrop-blur-lg border border-teal-100/50 rounded-3xl shadow-lg flex flex-col min-h-[calc(100vh-6rem)] lg:min-h-[900px] overflow-hidden"
+                >
+                    {/* Header */}
+                    <header className="bg-teal-50/50 border-b border-teal-200/50 px-8 py-6 flex items-center justify-between">
+                        <div className="flex items-center gap-6">
+                            <Sparkles className="w-8 h-8 text-teal-600 animate-pulse" />
+                            <div className="min-w-0">
+                                <h1 className="text-3xl font-bold text-blue-900 tracking-tight truncate">AI Tools</h1>
+                                <p className="text-base text-teal-600 tracking-tight line-clamp-1">Optimize Your Workflow</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-4">
                             <button
-                                onClick={handleGenerateReport}
-                                disabled={isGeneratingReport}
-                                className={`w-full max-w-xs mx-auto px-4 py-2 text-sm font-medium rounded-lg flex items-center justify-center gap-2 transition-all duration-200 ${isGeneratingReport ? 'bg-teal-300 cursor-not-allowed' : 'bg-teal-500 text-white hover:bg-teal-600'
-                                    }`}
-                                aria-label="Generate Report"
+                                onClick={() => navigate('/dashboard')}
+                                className="flex items-center gap-3 bg-teal-100 text-teal-700 px-6 py-3 rounded-lg hover:bg-teal-200 transition-all duration-300 text-base"
+                                aria-label="Back to Dashboard"
                             >
-                                {isGeneratingReport ? (
-                                    <>
-                                        <Loader2 className="w-5 h-5 animate-spin" />
-                                        Generating...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Sparkles className="w-5 h-5" />
-                                        Generate Report
-                                    </>
-                                )}
+                                <ArrowLeft className="w-6 h-6" />
+                                Back to Dashboard
                             </button>
-                            {reportError && (
-                                <p className="text-center text-sm text-red-600">{reportError}</p>
-                            )}
-                            <textarea
-                                className="w-full h-80 md:h-96 p-4 text-sm bg-teal-50/50 border border-teal-200 rounded-lg resize-none focus:ring-2 focus:ring-teal-500 scrollbar-thin scrollbar-thumb-teal-500 scrollbar-track-teal-100"
-                                value={reportContent}
-                                readOnly
-                                placeholder={isGeneratingReport ? 'Generating report...' : 'Your AI-generated report will appear here...'}
-                                aria-label="AI Generated Report"
+                            <img
+                                src={user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}`}
+                                alt="User Avatar"
+                                className="w-12 h-12 rounded-full border-2 border-teal-400/50 hover:shadow-sm transition-all duration-200 flex-shrink-0"
                             />
                         </div>
-                    </motion.section>
+                    </header>
 
-                    {/* AI Tools Section */}
-                    <motion.section
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.3 }}
-                        className="bg-white/95 backdrop-blur-lg rounded-xl p-4 md:p-6 shadow-lg border border-teal-100/20"
-                    >
-                        <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-4">
-                            <Sparkles className="w-5 h-5 text-teal-500" />
-                            AI Tools
-                        </h2>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {/* Task Prioritization AI */}
-                            <div className="p-4 bg-teal-50/50 rounded-lg shadow-sm border border-teal-100/50 hover:bg-teal-100 transition-all duration-200">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <Star className="w-5 h-5 text-teal-500" />
-                                    <p className="text-sm font-medium text-gray-800">Task Prioritization AI</p>
-                                </div>
-                                <p className="text-xs text-gray-600 mb-3">Rank tasks by urgency and importance.</p>
-                                <form onSubmit={handlePrioritizeTask} className="space-y-2">
-                                    <input
-                                        type="text"
-                                        value={priorityTask.title}
-                                        onChange={(e) => setPriorityTask({ ...priorityTask, title: e.target.value })}
-                                        placeholder="Enter task title..."
-                                        className="w-full p-2 text-sm border border-teal-200 rounded-md focus:ring-2 focus:ring-teal-500"
-                                        aria-label="Task Title"
-                                    />
-                                    <select
-                                        value={priorityTask.priority}
-                                        onChange={(e) => setPriorityTask({ ...priorityTask, priority: e.target.value })}
-                                        className="w-full p-2 text-sm border border-teal-200 rounded-md focus:ring-2 focus:ring-teal-500"
-                                        aria-label="Task Priority"
-                                    >
-                                        <option value="high">High</option>
-                                        <option value="medium">Medium</option>
-                                        <option value="low">Low</option>
-                                    </select>
-                                    <input
-                                        type="date"
-                                        value={priorityTask.dueDate}
-                                        onChange={(e) => setPriorityTask({ ...priorityTask, dueDate: e.target.value })}
-                                        className="w-full p-2 text-sm border border-teal-200 rounded-md focus:ring-2 focus:ring-teal-500"
-                                        aria-label="Due Date"
-                                    />
-                                    <button
-                                        type="submit"
-                                        className="w-full px-3 py-1.5 text-sm bg-teal-500 text-white rounded-md hover:bg-teal-600 transition-all duration-200"
-                                        aria-label="Prioritize Task"
-                                    >
-                                        Prioritize
-                                    </button>
-                                </form>
-                                {prioritizedTasks.length > 0 && (
-                                    <div className="mt-3">
-                                        <p className="text-xs font-medium text-gray-800">Prioritized Tasks:</p>
-                                        <ul className="list-disc list-inside text-xs text-gray-600">
-                                            {prioritizedTasks.map((task) => (
-                                                <li key={task.id}>
-                                                    {task.title} ({task.priority}, {task.dueDate || 'No due date'})
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Effort Estimation AI */}
-                            <div className="p-4 bg-teal-50/50 rounded-lg shadow-sm border border-teal-100/50 hover:bg-teal-100 transition-all duration-200">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <Gauge className="w-5 h-5 text-teal-500" />
-                                    <p className="text-sm font-medium text-gray-800">Effort Estimation AI</p>
-                                </div>
-                                <p className="text-xs text-gray-600 mb-3">Estimate task effort based on description.</p>
-                                <input
-                                    type="text"
-                                    value={effortTask}
-                                    onChange={(e) => setEffortTask(e.target.value)}
-                                    placeholder="Describe task (e.g., 'Complex report analysis')..."
-                                    className="w-full p-2 text-sm border border-teal-200 rounded-md focus:ring-2 focus:ring-teal-500"
-                                    aria-label="Task Description"
-                                />
-                                <button
-                                    onClick={handleEstimateEffort}
-                                    className="w-full mt-2 px-3 py-1.5 text-sm bg-teal-500 text-white rounded-md hover:bg-teal-600 transition-all duration-200"
-                                    aria-label="Estimate Effort"
-                                >
-                                    Estimate Effort
-                                </button>
-                                {estimatedEffort && (
-                                    <p className="mt-3 text-xs text-gray-600">
-                                        Estimated Effort: <span className="font-medium">{estimatedEffort} hours</span>
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-                    </motion.section>
-                </div>
-
-                {/* Sidebar: Task Summaries and Insights */}
-                <aside className="w-full lg:w-80 flex flex-col gap-6">
-                    {/* AI Task Summaries */}
-                    <motion.section
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.2 }}
-                        className="bg-white/95 backdrop-blur-lg rounded-xl p-4 md:p-6 shadow-lg border border-teal-100/20"
-                    >
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                                <List className="w-5 h-5 text-teal-500" />
-                                AI Task Summaries
-                            </h2>
-                            <select
-                                value={periodFilter}
-                                onChange={(e) => setPeriodFilter(e.target.value)}
-                                className="px-2 py-1 text-xs bg-teal-50 border border-teal-200 rounded-md focus:ring-2 focus:ring-teal-500"
-                                aria-label="Period filter"
+                    {/* Main Content */}
+                    <main className="flex-1 flex flex-col lg:flex-row overflow-hidden p-8 gap-8">
+                        {/* Main Section: Report and Tools */}
+                        <div className="flex-1 flex flex-col gap-8">
+                            {/* Generate Report Section */}
+                            <motion.section
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.1 }}
+                                className="bg-white/95 backdrop-blur-md border border-teal-200/50 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300"
                             >
-                                <option value="all">All</option>
-                                <option value="daily">Daily</option>
-                                <option value="weekly">Weekly</option>
-                                <option value="monthly">Monthly</option>
-                            </select>
-                        </div>
-                        <div className="space-y-3 max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-teal-500 scrollbar-track-teal-100">
-                            <AnimatePresence>
-                                {taskSummaries.length > 0 ? (
-                                    taskSummaries.map((task) => (
-                                        <motion.div
-                                            key={task.id}
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            exit={{ opacity: 0, y: -10 }}
-                                            className="p-3 bg-teal-50/50 rounded-md shadow-sm border border-teal-100/50 hover:bg-teal-100 transition-all duration-200"
-                                        >
-                                            <p className="text-sm font-medium text-gray-800 truncate">{task.title}</p>
-                                            <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
-                                                <span className={`px-2 py-0.5 rounded-full ${task.status === 'Completed' ? 'bg-blue-100 text-blue-700' : 'bg-teal-100 text-teal-700'}`}>
-                                                    {task.status}
-                                                </span>
-                                                <span className="truncate">{task.dueDate}</span>
-                                            </div>
-                                        </motion.div>
-                                    ))
-                                ) : (
-                                    <motion.div
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        className="text-center py-4"
+                                <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-4 mb-6">
+                                    <Sparkles className="w-6 h-6 text-teal-400 animate-pulse" />
+                                    Generate Report with AI
+                                </h2>
+                                <div className="flex flex-col gap-4">
+                                    <button
+                                        onClick={handleGenerateReport}
+                                        disabled={isGeneratingReport}
+                                        className={`w-full max-w-md mx-auto px-6 py-3 text-base font-medium rounded-lg flex items-center justify-center gap-3 transition-all duration-300 ${isGeneratingReport ? 'bg-teal-300 cursor-not-allowed' : 'bg-gradient-to-r from-teal-500 to-blue-500 text-white hover:from-teal-600 hover:to-blue-600 hover:scale-105 hover:shadow-md'}`}
+                                        aria-label="Generate Report"
                                     >
-                                        <List className="w-6 h-6 mx-auto text-teal-500 animate-pulse" />
-                                        <p className="text-xs font-medium text-gray-600 mt-1">No tasks for this period</p>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
-                    </motion.section>
-
-                    {/* AI Insights */}
-                    <motion.section
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.2 }}
-                        className="bg-white/95 backdrop-blur-lg rounded-xl p-4 md:p-6 shadow-lg border border-teal-100/20"
-                    >
-                        <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-4">
-                            <Zap className="w-5 h-5 text-teal-500" />
-                            AI Insights
-                        </h2>
-                        <div className="space-y-3 max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-teal-500 scrollbar-track-teal-100">
-                            {aiInsights.length > 0 ? (
-                                aiInsights.map((insight, idx) => (
-                                    <div
-                                        key={`insight-${idx}`}
-                                        className="p-3 bg-teal-50/50 rounded-md shadow-sm border border-teal-100/50 hover:bg-teal-100 transition-all duration-200"
-                                    >
-                                        <p className="text-xs text-gray-800">{insight}</p>
-                                    </div>
-                                ))
-                            ) : (
-                                <div className="text-center py-4">
-                                    <Zap className="w-6 h-6 mx-auto text-teal-500 animate-pulse" />
-                                    <p className="text-xs font-medium text-gray-600 mt-1">No insights available</p>
+                                        {isGeneratingReport ? (
+                                            <>
+                                                <Loader2 className="w-6 h-6 animate-spin" />
+                                                Generating...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Sparkles className="w-6 h-6" />
+                                                Generate Report
+                                            </>
+                                        )}
+                                    </button>
+                                    {reportError && (
+                                        <p className="text-center text-base text-red-600">{reportError}</p>
+                                    )}
+                                    <textarea
+                                        className="w-full h-[400px] lg:h-[600px] p-6 text-base bg-teal-50/50 border border-teal-200/50 rounded-lg resize-none focus:ring-2 focus:ring-teal-400 scrollbar-thin transition-all duration-300"
+                                        value={reportContent}
+                                        readOnly
+                                        placeholder={isGeneratingReport ? 'Generating report...' : 'Your AI-generated report will appear here...'}
+                                        aria-label="AI Generated Report"
+                                    />
                                 </div>
-                            )}
+                            </motion.section>
+
+                            {/* AI Tools Section */}
+                            <motion.section
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.2 }}
+                                className="bg-white/95 backdrop-blur-md border border-teal-200/50 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300"
+                            >
+                                <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-4 mb-6">
+                                    <Sparkles className="w-6 h-6 text-teal-400 animate-pulse" />
+                                    AI Tools
+                                </h2>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                    {/* Task Prioritization AI */}
+                                    <div className="p-6 bg-teal-50/50 rounded-lg shadow-sm border border-teal-200/50 hover:bg-teal-100 transition-all duration-300">
+                                        <div className="flex items-center gap-3 mb-4">
+                                            <Star className="w-6 h-6 text-teal-400 animate-pulse" />
+                                            <p className="text-base font-semibold text-gray-900">Task Prioritization AI</p>
+                                        </div>
+                                        <p className="text-base text-gray-600 mb-4">Rank tasks by urgency and importance.</p>
+                                        <form onSubmit={handlePrioritizeTask} className="space-y-4">
+                                            <input
+                                                type="text"
+                                                value={priorityTask.title}
+                                                onChange={(e) => setPriorityTask({ ...priorityTask, title: e.target.value })}
+                                                placeholder="Enter task title..."
+                                                className="w-full p-3 text-base border border-teal-300/50 rounded-lg focus:ring-2 focus:ring-teal-400 transition-all duration-300"
+                                                aria-label="Task Title"
+                                            />
+                                            <select
+                                                value={priorityTask.priority}
+                                                onChange={(e) => setPriorityTask({ ...priorityTask, priority: e.target.value })}
+                                                className="w-full p-3 text-base border border-teal-300/50 rounded-lg focus:ring-2 focus:ring-teal-400 transition-all duration-300"
+                                                aria-label="Task Priority"
+                                            >
+                                                <option value="high">High</option>
+                                                <option value="medium">Medium</option>
+                                                <option value="low">Low</option>
+                                            </select>
+                                            <input
+                                                type="date"
+                                                value={priorityTask.dueDate}
+                                                onChange={(e) => setPriorityTask({ ...priorityTask, dueDate: e.target.value })}
+                                                className="w-full p-3 text-base border border-teal-300/50 rounded-lg focus:ring-2 focus:ring-teal-400 transition-all duration-300"
+                                                aria-label="Due Date"
+                                            />
+                                            <button
+                                                type="submit"
+                                                className="w-full px-6 py-3 text-base bg-gradient-to-r from-teal-500 to-blue-500 text-white rounded-lg hover:from-teal-600 hover:to-blue-600 transition-all duration-300 hover:scale-105 hover:shadow-md"
+                                                aria-label="Prioritize Task"
+                                            >
+                                                Prioritize
+                                            </button>
+                                        </form>
+                                        {prioritizedTasks.length > 0 && (
+                                            <div className="mt-4">
+                                                <p className="text-base font-semibold text-gray-900">Prioritized Tasks:</p>
+                                                <ul className="list-disc list-inside text-base text-gray-600 mt-2">
+                                                    {prioritizedTasks.map((task) => (
+                                                        <li key={task.id} className="truncate">
+                                                            {task.title} ({task.priority}, {task.dueDate || 'No due date'})
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Effort Estimation AI */}
+                                    <div className="p-6 bg-teal-50/50 rounded-lg shadow-sm border border-teal-200/50 hover:bg-teal-100 transition-all duration-300">
+                                        <div className="flex items-center gap-3 mb-4">
+                                            <Gauge className="w-6 h-6 text-teal-400 animate-pulse" />
+                                            <p className="text-base font-semibold text-gray-900">Effort Estimation AI</p>
+                                        </div>
+                                        <p className="text-base text-gray-600 mb-4">Estimate task effort based on description.</p>
+                                        <input
+                                            type="text"
+                                            value={effortTask}
+                                            onChange={(e) => setEffortTask(e.target.value)}
+                                            placeholder="Describe task (e.g., 'Complex report analysis')..."
+                                            className="w-full p-3 text-base border border-teal-300/50 rounded-lg focus:ring-2 focus:ring-teal-400 transition-all duration-300"
+                                            aria-label="Task Description"
+                                        />
+                                        <button
+                                            onClick={handleEstimateEffort}
+                                            className="w-full mt-4 px-6 py-3 text-base bg-gradient-to-r from-teal-500 to-blue-500 text-white rounded-lg hover:from-teal-600 hover:to-blue-600 transition-all duration-300 hover:scale-105 hover:shadow-md"
+                                            aria-label="Estimate Effort"
+                                        >
+                                            Estimate Effort
+                                        </button>
+                                        {estimatedEffort && (
+                                            <p className="mt-4 text-base text-gray-600">
+                                                Estimated Effort: <span className="font-semibold">{estimatedEffort} hours</span>
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            </motion.section>
                         </div>
-                    </motion.section>
-                </aside>
-            </main>
+
+                        {/* Sidebar: Task Summaries and Insights */}
+                        <aside className="w-full lg:w-96 flex flex-col gap-8">
+                            {/* AI Task Summaries */}
+                            <motion.section
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.3 }}
+                                className="bg-white/95 backdrop-blur-md border border-teal-200/50 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300"
+                            >
+                                <div className="flex items-center justify-between mb-6">
+                                    <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-4">
+                                        <List className="w-6 h-6 text-teal-400 animate-pulse" />
+                                        AI Task Summaries
+                                    </h2>
+                                    <select
+                                        value={periodFilter}
+                                        onChange={(e) => setPeriodFilter(e.target.value)}
+                                        className="px-4 py-2 text-base bg-teal-50/50 border border-teal-300/50 rounded-lg focus:ring-2 focus:ring-teal-400 transition-all duration-300"
+                                        aria-label="Period filter"
+                                    >
+                                        <option value="all">All</option>
+                                        <option value="daily">Daily</option>
+                                        <option value="weekly">Weekly</option>
+                                        <option value="monthly">Monthly</option>
+                                    </select>
+                                </div>
+                                <div className="max-h-[calc(100vh-24rem)] lg:max-h-[700px] overflow-y-auto scrollbar-thin">
+                                    <AnimatePresence>
+                                        {taskSummaries.length > 0 ? (
+                                            taskSummaries.map((task) => (
+                                                <motion.div
+                                                    key={task.id}
+                                                    initial={{ opacity: 0, y: 10 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    exit={{ opacity: 0, y: -10 }}
+                                                    className="p-4 bg-teal-50/50 rounded-lg shadow-sm border border-teal-200/50 hover:bg-teal-100 transition-all duration-300 mb-4"
+                                                >
+                                                    <p className="text-base font-semibold text-gray-900 truncate">{task.title}</p>
+                                                    <div className="flex items-center gap-3 mt-2 text-base text-gray-600">
+                                                        <span className={`px-3 py-1 rounded-full text-sm ${task.status === 'Completed' ? 'bg-blue-100 text-blue-700' : 'bg-teal-100 text-teal-700'}`}>
+                                                            {task.status}
+                                                        </span>
+                                                        <span className="truncate">{task.dueDate}</span>
+                                                    </div>
+                                                </motion.div>
+                                            ))
+                                        ) : (
+                                            <motion.div
+                                                initial={{ opacity: 0 }}
+                                                animate={{ opacity: 1 }}
+                                                className="text-center py-10"
+                                            >
+                                                <List className="w-12 h-12 mx-auto text-teal-400 animate-pulse" />
+                                                <p className="text-base font-semibold text-gray-600 mt-4">No tasks for this period</p>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+                            </motion.section>
+
+                            {/* AI Insights */}
+                            <motion.section
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.4 }}
+                                className="bg-white/95 backdrop-blur-md border border-teal-200/50 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300"
+                            >
+                                <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-4 mb-6">
+                                    <Zap className="w-6 h-6 text-teal-400 animate-pulse" />
+                                    AI Insights
+                                </h2>
+                                <div className="max-h-[calc(100vh-24rem)] lg:max-h-[700px] overflow-y-auto scrollbar-thin">
+                                    {aiInsights.length > 0 ? (
+                                        aiInsights.map((insight, idx) => (
+                                            <div
+                                                key={`insight-${idx}`}
+                                                className="p-4 bg-teal-50/50 rounded-lg shadow-sm border border-teal-200/50 hover:bg-teal-100 transition-all duration-300 mb-4"
+                                            >
+                                                <p className="text-base text-gray-900">{insight}</p>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="text-center py-10">
+                                            <Zap className="w-12 h-12 mx-auto text-teal-400 animate-pulse" />
+                                            <p className="text-base font-semibold text-gray-600 mt-4">No insights available</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </motion.section>
+                        </aside>
+                    </main>
+                </motion.div>
+            </div>
+
+            <style jsx>{`
+                .scrollbar-thin::-webkit-scrollbar {
+                    width: 6px;
+                }
+                .scrollbar-thin::-webkit-scrollbar-track {
+                    background: rgba(20, 184, 166, 0.1);
+                    border-radius: 3px;
+                }
+                .scrollbar-thin::-webkit-scrollbar-thumb {
+                    background: #14B8A6;
+                    border-radius: 3px;
+                }
+                .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+                    background: #0D9488;
+                }
+            `}</style>
         </motion.div>
     );
 };
