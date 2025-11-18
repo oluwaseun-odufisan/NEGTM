@@ -8,182 +8,181 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4001';
 const INITIAL_FORM = { email: '', password: '' };
 
 const Login = ({ onSubmit, onSwitchMode }) => {
-    const [showPassword, setShowPassword] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const [formData, setFormData] = useState(INITIAL_FORM);
-    const [rememberMe, setRememberMe] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState(INITIAL_FORM);
+  const [rememberMe, setRememberMe] = useState(false);
+  const navigate = useNavigate();
 
-    const navigate = useNavigate();
-
-    useEffect(() => {
-        const token = localStorage.getItem('token');
-        const userId = localStorage.getItem('userId');
-        if (token && userId) {
-            (async () => {
-                try {
-                    const { data } = await axios.get(`${API_URL}/api/user/me`, {
-                        headers: { Authorization: `Bearer ${token}` },
-                    });
-                    if (data.success) {
-                        onSubmit?.({ token, userId, ...data.user });
-                        toast.success('Welcome back! Redirecting...');
-                        navigate('/');
-                    } else {
-                        localStorage.clear();
-                        toast.error('Session invalid. Please log in again.');
-                    }
-                } catch (err) {
-                    localStorage.clear();
-                    toast.error('Unable to verify session. Please log in again.');
-                }
-            })();
-        }
-    }, [navigate, onSubmit]);
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (!rememberMe) {
-            toast.error('Please enable "Remember Me" to continue.');
-            return;
-        }
-        setLoading(true);
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const userId = localStorage.getItem('userId');
+    if (token && userId) {
+      (async () => {
         try {
-            const { data } = await axios.post(`${API_URL}/api/user/login`, formData);
-            if (!data.success || !data.token) {
-                throw new Error(data.message || 'Login failed');
-            }
-            localStorage.setItem('token', data.token);
-            localStorage.setItem('userId', data.user.id);
-            onSubmit?.({ token: data.token, userId: data.user.id, ...data.user });
-            toast.success('Login successful! Redirecting...');
-            setFormData(INITIAL_FORM);
-            setTimeout(() => navigate('/'), 1000);
+          const { data } = await axios.get(`${API_URL}/api/user/me`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (data.success) {
+            onSubmit?.({ token, userId, ...data.user });
+            toast.success('Welcome back! Redirecting...');
+            navigate('/');
+          } else {
+            localStorage.clear();
+            toast.error('Session invalid. Please log in again.');
+          }
         } catch (err) {
-            toast.error(err.response?.data?.message || 'Login failed. Please try again.');
-        } finally {
-            setLoading(false);
+          localStorage.clear();
+          toast.error('Unable to verify session. Please log in again.');
         }
-    };
+      })();
+    }
+  }, [navigate, onSubmit]);
 
-    const handleSwitchMode = () => {
-        toast.dismiss();
-        onSwitchMode?.();
-    };
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const { data } = await axios.post(`${API_URL}/api/user/login`, formData);
+      if (!data.success || !data.token) {
+        throw new Error(data.message || 'Login failed');
+      }
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('userId', data.user.id);
+      onSubmit?.({ token: data.token, userId: data.user.id, ...data.user });
+      toast.success('Login successful! Redirecting...');
+      setFormData(INITIAL_FORM);
+      setTimeout(() => navigate('/'), 1000);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Login failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const handleKeyDown = (e) => {
-        if (e.key === 'Enter') {
-            handleSubmit(e);
-        }
-    };
+  const handleSwitchMode = () => {
+    toast.dismiss();
+    onSwitchMode?.();
+  };
 
-    const fields = [
-        {
-            name: 'email',
-            type: 'email',
-            placeholder: 'Your Email Address',
-            icon: Mail,
-        },
-        {
-            name: 'password',
-            type: showPassword ? 'text' : 'password',
-            placeholder: 'Your Password',
-            icon: Lock,
-            isPassword: true,
-        },
-    ];
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      handleSubmit(e);
+    }
+  };
 
-    return (
-        <div className="min-h-screen w-screen bg-gradient-to-br from-teal-100 via-lime-100 to-emerald-100 flex items-center justify-center p-4 sm:p-6 lg:p-8 overflow-hidden">
-            <ToastContainer position="top-center" autoClose={3000} hideProgressBar />
-            <div className="w-full max-w-md bg-white/95 backdrop-blur-xl shadow-2xl rounded-3xl p-6 sm:p-8 border border-teal-200 transform transition-all duration-500 hover:scale-105 hover:shadow-3xl">
-                <div className="mb-10 text-center">
-                    <div className="w-24 h-24 bg-gradient-to-br from-teal-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-2xl animate-bounce-slow transition-transform duration-300 hover:scale-110">
-                        <LogIn className="w-12 h-12 text-white transform transition-transform duration-300 hover:rotate-12" />
-                    </div>
-                    <h2 className="text-4xl sm:text-5xl font-extrabold text-gray-900 tracking-tight bg-gradient-to-r from-teal-600 to-emerald-700 bg-clip-text text-transparent animate-gradient">
-                        Welcome Back
-                    </h2>
-                    <p className="text-teal-600 text-lg sm:text-xl mt-3 font-semibold animate-fade-in">
-                        Access Your TaskManager Dashboard
-                    </p>
-                </div>
+  const fields = [
+    {
+      name: 'email',
+      type: 'email',
+      placeholder: 'Your Email Address',
+      icon: Mail,
+    },
+    {
+      name: 'password',
+      type: showPassword ? 'text' : 'password',
+      placeholder: 'Your Password',
+      icon: Lock,
+      isPassword: true,
+    },
+  ];
 
-                <form onSubmit={handleSubmit} onKeyDown={handleKeyDown} className="space-y-6">
-                    {fields.map(({ name, type, placeholder, icon: Icon, isPassword }) => (
-                        <div key={name} className="relative group">
-                            <div className="flex items-center border border-teal-200 rounded-2xl px-5 py-3 bg-teal-50/70 focus-within:border-emerald-400 focus-within:ring-4 focus-within:ring-emerald-200/50 transition-all duration-300 group-hover:shadow-md">
-                                {Icon && <Icon className="text-teal-500 w-6 h-6 mr-4 transform transition-transform duration-300 group-hover:scale-110" />}
-                                <input
-                                    type={type}
-                                    placeholder={placeholder}
-                                    value={formData[name]}
-                                    onChange={(e) => setFormData({ ...formData, [name]: e.target.value })}
-                                    className="w-full focus:outline-none text-lg text-gray-800 placeholder-gray-500 bg-transparent transition-all duration-300"
-                                    required
-                                />
-                                {isPassword && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowPassword((prev) => !prev)}
-                                        className="ml-2 text-gray-500 hover:text-teal-600 transition-colors duration-300 transform hover:scale-110"
-                                    >
-                                        {showPassword ? <EyeOff className="w-6 h-6" /> : <Eye className="w-6 h-6" />}
-                                    </button>
-                                )}
-                            </div>
-                            <div className="absolute inset-x-0 -bottom-0.5 h-0.5 bg-gradient-to-r from-teal-500 to-emerald-500 scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-center" />
-                        </div>
-                    ))}
+  return (
+    <div className="min-h-screen w-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-blue-100 flex items-center justify-center p-4 sm:p-6 lg:p-8 overflow-hidden">
+      <ToastContainer position="top-center" autoClose={3000} hideProgressBar />
 
-                    <div className="flex items-center group">
-                        <input
-                            type="checkbox"
-                            id="rememberMe"
-                            checked={rememberMe}
-                            onChange={() => setRememberMe(!rememberMe)}
-                            className="h-5 w-5 text-teal-600 border-teal-300 rounded focus:ring-emerald-400 transition-all duration-300 cursor-pointer group-hover:scale-110"
-                            required
-                        />
-                        <label htmlFor="rememberMe" className="ml-3 text-lg text-gray-700 group-hover:text-teal-600 transition-colors duration-300">
-                            Remember me on this device
-                        </label>
-                    </div>
-
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full py-3.5 flex items-center justify-center gap-3 text-white bg-gradient-to-r from-teal-500 to-emerald-600 rounded-2xl shadow-lg font-bold text-xl transition-all duration-500 hover:from-teal-600 hover:to-emerald-700 hover:shadow-xl hover:scale-105 disabled:opacity-70 disabled:cursor-not-allowed animate-pulse-slow"
-                    >
-                        {loading ? (
-                            <span className="flex items-center gap-2">
-                                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-                                </svg>
-                                Logging you in...
-                            </span>
-                        ) : (
-                            <>
-                                <LogIn className="w-6 h-6 transform transition-transform duration-300 group-hover:rotate-12" />
-                                Log In
-                            </>
-                        )}
-                    </button>
-                </form>
-
-                <p className="text-center text-base sm:text-lg text-gray-600 mt-10 animate-fade-in">
-                    Don't have an account yet?{' '}
-                    <button
-                        type="button"
-                        onClick={handleSwitchMode}
-                        className="text-teal-600 hover:text-emerald-700 font-bold hover:underline transition-all duration-300 hover:scale-105 inline-block"
-                    >
-                        Create an account
-                    </button>
-                </p>
-            </div>
+      <div className="w-full max-w-md bg-white shadow-xl rounded-3xl p-6 sm:p-8 border border-blue-200">
+        {/* Logo & Title */}
+        <div className="mb-10 text-center">
+          <div className="w-24 h-24 bg-blue-700 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+            <LogIn className="w-12 h-12 text-white" />
+          </div>
+          <h2 className="text-4xl sm:text-5xl font-extrabold text-gray-900 tracking-tight">
+            Welcome Back
+          </h2>
+          <p className="text-blue-700 text-lg sm:text-xl mt-3 font-semibold">
+            Access Your TaskManager Dashboard
+          </p>
         </div>
-    );
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} onKeyDown={handleKeyDown} className="space-y-6">
+          {fields.map(({ name, type, placeholder, icon: Icon, isPassword }) => (
+            <div key={name} className="relative group">
+              <div className="flex items-center border border-blue-200 rounded-2xl px-5 py-3 bg-blue-50/30 focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-100 transition-all duration-300">
+                {Icon && <Icon className="text-blue-700 w-6 h-6 mr-4" />}
+                <input
+                  type={type}
+                  placeholder={placeholder}
+                  value={formData[name]}
+                  onChange={(e) => setFormData({ ...formData, [name]: e.target.value })}
+                  className="w-full focus:outline-none text-lg text-gray-800 placeholder-gray-500 bg-transparent"
+                  required
+                />
+                {isPassword && (
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="ml-2 text-gray-500 hover:text-blue-700 transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="w-6 h-6" /> : <Eye className="w-6 h-6" />}
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+
+          {/* Remember Me */}
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="rememberMe"
+              checked={rememberMe}
+              onChange={() => setRememberMe(!rememberMe)}
+              className="h-5 w-5 text-blue-700 border-blue-300 rounded focus:ring-blue-500 cursor-pointer"
+            />
+            <label htmlFor="rememberMe" className="ml-3 text-lg text-gray-700">
+              Remember me on this device
+            </label>
+          </div>
+
+          {/* Submit Button */}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3.5 flex items-center justify-center gap-3 text-white bg-blue-700 hover:bg-blue-800 rounded-2xl shadow-md font-bold text-xl transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed"
+          >
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                </svg>
+                Logging you in...
+              </span>
+            ) : (
+              <>
+                <LogIn className="w-6 h-6" />
+                Log In
+              </>
+            )}
+          </button>
+        </form>
+
+        {/* Sign Up Link */}
+        <p className="text-center text-base sm:text-lg text-gray-600 mt-10">
+          Don't have an account yet?{' '}
+          <button
+            type="button"
+            onClick={handleSwitchMode}
+            className="text-blue-700 hover:text-blue-800 font-bold hover:underline transition-all duration-300"
+          >
+            Create an account
+          </button>
+        </p>
+      </div>
+    </div>
+  );
 };
 
 export default Login;

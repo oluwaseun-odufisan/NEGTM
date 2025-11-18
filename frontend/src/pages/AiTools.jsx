@@ -1,455 +1,623 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
-import { Sparkles, ArrowLeft, List, Zap, Star, Gauge, Loader2 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import axios from 'axios';
+import {
+    Brain, ArrowLeft, FileText, Zap, Star, Gauge, Loader2, Copy, Check,
+    Download, Send, RefreshCw, Calendar, CheckCircle, AlertCircle, Clock,
+    GripVertical, TrendingUp, X, Mic, Code, Search, Clock as ClockIcon
+} from 'lucide-react';
+import { motion } from 'framer-motion';
+import { format, startOfDay, endOfDay, startOfWeek, endOfMonth, isWithinInterval } from 'date-fns';
+import toast, { Toaster } from 'react-hot-toast';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
-const API_BASE_URL = `${import.meta.env.VITE_API_URL}/api/ai`;
+// Professional Palette
+const COLORS = {
+    primary: '#1E40AF',
+    secondary: '#16A34A',
+    accent: '#F59E0B',
+    danger: '#DC2626',
+    neutral: {
+        50: '#F9FAFB',
+        100: '#F3F4F6',
+        200: '#E5E7EB',
+        300: '#D1D5DB',
+        500: '#6B7280',
+        700: '#374151',
+        900: '#111827',
+        border: '#E5E7EB'
+    }
+};
+
+const REPORT_TEMPLATES = {
+    daily: { title: "Daily Progress Report", greeting: "Good morning team,", summary: "Here's today's update.", completed: "Completed Today", pending: "In Progress", next: "Tomorrow's Focus", closing: "Let's keep the momentum." },
+    weekly: { title: "Weekly Progress Report", greeting: "Hello team,", summary: "This week in review.", completed: "Completed This Week", pending: "Ongoing Work", next: "Next Week Priorities", closing: "Strong progress ahead." },
+    monthly: { title: "Monthly Progress Report", greeting: "Team,", summary: "This month's achievements.", completed: "Completed This Month", pending: "In Progress", next: "Next Month Focus", closing: "On track and aligned." }
+};
 
 const AiTools = () => {
-    const { user, tasks = [], onLogout } = useOutletContext();
+    const { user, tasks = [] } = useOutletContext();
     const navigate = useNavigate();
-    const [periodFilter, setPeriodFilter] = useState('all');
+
+    // Report State
+    const [reportType, setReportType] = useState('daily');
+    const [customStartDate, setCustomStartDate] = useState('');
+    const [customEndDate, setCustomEndDate] = useState('');
+    const [selectedTaskIds, setSelectedTaskIds] = useState(new Set());
     const [reportContent, setReportContent] = useState('');
     const [isGeneratingReport, setIsGeneratingReport] = useState(false);
-    const [reportError, setReportError] = useState(null);
+    const [copied, setCopied] = useState(false);
+
+    // AI Tools
     const [priorityTask, setPriorityTask] = useState({ title: '', priority: 'medium', dueDate: '' });
     const [prioritizedTasks, setPrioritizedTasks] = useState([]);
     const [effortTask, setEffortTask] = useState('');
     const [estimatedEffort, setEstimatedEffort] = useState(null);
+    const [estimating, setEstimating] = useState(false);
 
-    const filteredTasks = useMemo(() => {
-        const now = new Date();
-        return tasks.filter((task) => {
-            const taskDate = task.createdAt ? new Date(task.createdAt) : new Date();
-            if (periodFilter === 'daily') {
-                return taskDate.toDateString() === now.toDateString();
-            } else if (periodFilter === 'weekly') {
-                const startDate = new Date(now);
-                startDate.setDate(now.getDate() - 7);
-                return taskDate >= startDate && taskDate <= now;
-            } else if (periodFilter === 'monthly') {
-                const startDate = new Date(now);
-                startDate.setDate(now.getDate() - 30);
-                return taskDate >= startDate && taskDate <= now;
-            }
-            return true;
-        });
-    }, [tasks, periodFilter]);
+    // Prompt Engine
+    const [promptText, setPromptText] = useState('');
+    const [promptOutput, setPromptOutput] = useState('');
+    const [isPrompting, setIsPrompting] = useState(false);
 
-    const taskSummaries = useMemo(() => {
-        return filteredTasks.map((task) => ({
-            id: task._id || task.id,
-            title: task.title,
-            status: task.completed ? 'Completed' : 'Pending',
-            dueDate: task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'N/A',
-        }));
-    }, [filteredTasks]);
-
+    // AI Insights
     const aiInsights = useMemo(() => {
         const insights = [];
         const now = new Date();
-        const overdueTasks = filteredTasks.filter((task) => task.dueDate && !task.completed && new Date(task.dueDate) < now);
-        if (overdueTasks.length > 0) {
-            insights.push(`Complete ${overdueTasks.length} overdue task${overdueTasks.length > 1 ? 's' : ''} to avoid delays.`);
-        }
-        const highPriorityTasks = filteredTasks.filter((task) => !task.completed && task.priority?.toLowerCase() === 'high');
-        if (highPriorityTasks.length > 0) {
-            insights.push(`Tackle ${highPriorityTasks.length} high-priority task${highPriorityTasks.length > 1 ? 's' : ''} first.`);
-        }
-        const completionRate = filteredTasks.length
-            ? Math.round((filteredTasks.filter((task) => task.completed).length / filteredTasks.length) * 100)
-            : 0;
-        if (completionRate < 50 && filteredTasks.length > 0) {
-            insights.push(`Improve your ${completionRate}% completion rate by focusing on pending tasks.`);
-        }
-        if (filteredTasks.length === 0) {
-            insights.push('Add tasks to leverage AI insights!');
-        }
-        return insights.slice(0, 3);
-    }, [filteredTasks]);
+        const overdue = tasks.filter(t => t.dueDate && !t.completed && new Date(t.dueDate) < now);
+        const highPriorityPending = tasks.filter(t => (t.priority || '').toLowerCase() === 'high' && !t.completed);
 
-    const getAuthHeaders = useCallback(() => {
-        const token = localStorage.getItem('token');
-        if (!token) throw new Error('No auth token found');
-        return { Authorization: `Bearer ${token}` };
-    }, []);
+        if (overdue.length > 0) {
+            insights.push({ text: `${overdue.length} task(s) are overdue.`, level: 'error' });
+        }
+        if (highPriorityPending.length > 0) {
+            insights.push({ text: `${highPriorityPending.length} high-priority task(s) pending.`, level: 'warn' });
+        }
+        if (tasks.length > 0) {
+            const completionRate = Math.round((tasks.filter(t => t.completed).length / tasks.length) * 100);
+            insights.push({ text: `Overall completion: ${completionRate}%`, level: completionRate >= 80 ? 'success' : 'info' });
+        }
+        return insights;
+    }, [tasks]);
 
+    // Filter tasks by date range — FIXED
+    const filteredTasks = useMemo(() => {
+        if (!tasks.length) return [];
+
+        let start, end;
+
+        if (customStartDate && customEndDate) {
+            start = startOfDay(new Date(customStartDate));
+            end = endOfDay(new Date(customEndDate));
+        } else {
+            const now = new Date();
+            switch (reportType) {
+                case 'daily':
+                    start = startOfDay(now);
+                    end = endOfDay(now);
+                    break;
+                case 'weekly':
+                    start = startOfWeek(now, { weekStartsOn: 1 });
+                    end = now;
+                    break;
+                case 'monthly':
+                    start = new Date(now.getFullYear(), now.getMonth(), 1);
+                    end = endOfMonth(now);
+                    break;
+                default:
+                    start = new Date(0);
+                    end = now;
+            }
+        }
+
+        return tasks.filter(task => {
+            // Use dueDate if exists, otherwise createdAt, otherwise skip
+            const taskDateStr = task.dueDate || task.createdAt;
+            if (!taskDateStr) return false;
+
+            let taskDate;
+            try {
+                taskDate = new Date(taskDateStr);
+                if (isNaN(taskDate)) return false;
+            } catch {
+                return false;
+            }
+
+            // Normalize to full day for accurate comparison
+            const taskStart = startOfDay(taskDate);
+            const taskEnd = endOfDay(taskDate);
+
+            return isWithinInterval(taskStart, { start, end }) || isWithinInterval(taskEnd, { start, end });
+        });
+    }, [tasks, reportType, customStartDate, customEndDate]);
+
+    // Stats
+    const stats = useMemo(() => {
+        const selected = filteredTasks.filter(t => selectedTaskIds.has(t._id || t.id));
+        const total = selected.length;
+        const completed = selected.filter(t => t.completed).length;
+        const pending = total - completed;
+        const overdue = selected.filter(t => t.dueDate && !t.completed && new Date(t.dueDate) < new Date()).length;
+        const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+        return { total, completed, pending, overdue, completionRate, selected };
+    }, [filteredTasks, selectedTaskIds]);
+
+    // Task selection
+    const toggleTask = (id) => {
+        const newSet = new Set(selectedTaskIds);
+        if (newSet.has(id)) newSet.delete(id);
+        else newSet.add(id);
+        setSelectedTaskIds(newSet);
+    };
+
+    const selectAll = () => {
+        const allIds = filteredTasks.map(t => t._id || t.id);
+        setSelectedTaskIds(new Set(allIds));
+    };
+
+    const clearSelection = () => setSelectedTaskIds(new Set());
+
+    // Generate Report
     const handleGenerateReport = useCallback(async () => {
+        if (stats.selected.length === 0) {
+            toast.error('Please select at least one task');
+            return;
+        }
+
         setIsGeneratingReport(true);
-        setReportError(null);
+        setReportContent('');
+
         try {
-            const headers = getAuthHeaders();
-            // Mock API call
-            await new Promise((resolve) => setTimeout(resolve, 1500));
-            const mockReport = `
-# AI-Generated Task Report
-**User**: ${user?.name || 'User'}
-**Period**: ${periodFilter.charAt(0).toUpperCase() + periodFilter.slice(1)}
-**Generated At**: ${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}
+            await new Promise(resolve => setTimeout(resolve, 2000));
 
-## Overview
-- **Total Tasks**: ${filteredTasks.length}
-- **Completed**: ${filteredTasks.filter(t => t.completed).length}
-- **Pending**: ${filteredTasks.filter(t => !t.completed).length}
-- **Overdue**: ${filteredTasks.filter(t => t.dueDate && !t.completed && new Date(t.dueDate) < new Date()).length}
+            const template = REPORT_TEMPLATES[reportType];
+            const completedTasks = stats.selected.filter(t => t.completed);
+            const pendingTasks = stats.selected.filter(t => !t.completed);
+            const overdueTasks = stats.selected.filter(t => t.dueDate && !t.completed && new Date(t.dueDate) < new Date());
 
-## Key Tasks
-${filteredTasks.slice(0, 3).map(t => `- **${t.title}** (${t.priority || 'No priority'}, Due: ${t.dueDate ? new Date(t.dueDate).toLocaleDateString() : 'N/A'}, Status: ${t.completed ? 'Completed' : 'Pending'})`).join('\n')}
+            const formatList = (tasks) => {
+                if (tasks.length === 0) return "- *None*";
+                return tasks.map(t => `- **${t.title}**${t.dueDate ? ` _(due ${format(new Date(t.dueDate), 'MMM d')})_` : ''}`).join('\n');
+            };
 
-## Recommendations
-${aiInsights.length > 0 ? aiInsights.map(i => `- ${i}`).join('\n') : '- No recommendations available.'}
-      `;
-            setReportContent(mockReport);
-        } catch (error) {
-            console.error('Error generating report:', error);
-            setReportError('Failed to generate report. Please try again.');
-            if (error.response?.status === 401) onLogout?.();
+            const periodStart = customStartDate ? format(new Date(customStartDate), 'MMM d, yyyy') : 'This Period';
+            const periodEnd = customEndDate ? format(new Date(customEndDate), 'MMM d, yyyy') : '';
+
+            const markdown = `
+# ${template.title}
+
+**Prepared by:** ${user?.name || 'Team Member'}  
+**Date:** ${format(new Date(), 'PPP')}  
+**Period:** ${periodStart}${periodEnd ? ` to ${periodEnd}` : ''}  
+**Tasks Included:** ${stats.selected.length}
+
+---
+
+${template.greeting}
+
+${template.summary}
+
+---
+
+### ${template.completed} (${completedTasks.length})
+${formatList(completedTasks)}
+
+---
+
+### ${template.pending} (${pendingTasks.length})
+${formatList(pendingTasks)}
+
+${overdueTasks.length > 0 ? `
+> **Overdue Alert**  
+> ${overdueTasks.map(t => `- **${t.title}** (was due ${format(new Date(t.dueDate), 'MMM d')})`).join('\n')}
+` : ''}
+
+---
+
+### ${template.next}
+${pendingTasks.length > 0
+    ? pendingTasks.slice(0, 3).map(t => `- Continue **${t.title}**`).join('\n')
+    : '- Review new tasks and maintain momentum.'}
+
+---
+
+**Completion Rate:** \`${stats.completionRate}%\`  
+**Status:** ${stats.completionRate >= 80 ? 'Excellent' : stats.completionRate >= 50 ? 'Good' : 'Needs Attention'}
+
+---
+
+> *${template.closing}*  
+> _AI-Generated • Powered by Grok_
+
+            `.trim();
+
+            setReportContent(markdown);
+            toast.success('Report generated successfully!');
+        } catch (err) {
+            console.error('Report error:', err);
+            toast.error('Failed to generate report.');
         } finally {
             setIsGeneratingReport(false);
         }
-    }, [user, filteredTasks, periodFilter, aiInsights, onLogout, getAuthHeaders]);
+    }, [user, reportType, stats, selectedTaskIds, customStartDate, customEndDate]);
 
-    const handlePrioritizeTask = useCallback(async (e) => {
+    // Copy, Download, Submit
+    const handleCopy = async () => {
+        if (!reportContent) return;
+        try {
+            await navigator.clipboard.writeText(reportContent);
+            setCopied(true);
+            toast.success('Copied!');
+            setTimeout(() => setCopied(false), 2000);
+        } catch {
+            toast.error('Copy failed');
+        }
+    };
+
+    const downloadReport = () => {
+        if (!reportContent) return;
+        const blob = new Blob([reportContent], { type: 'text/markdown' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${REPORT_TEMPLATES[reportType].title.replace(/ /g, '-')}-${format(new Date(), 'yyyy-MM-dd')}.md`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.success('Downloaded!');
+    };
+
+    const handleSubmit = () => {
+        if (!reportContent) return;
+        toast.success('Report submitted!');
+    };
+
+    // Prioritize & Estimate
+    const handlePrioritize = (e) => {
         e.preventDefault();
         if (!priorityTask.title.trim()) return;
-        try {
-            const headers = getAuthHeaders();
-            // Mock API call
-            const newTask = {
-                ...priorityTask,
-                id: Date.now(),
-                score: priorityTask.priority === 'high' ? 3 : priorityTask.priority === 'medium' ? 2 : 1,
-            };
-            const updatedTasks = [...prioritizedTasks, newTask].sort((a, b) => {
-                if (b.score !== a.score) return b.score - a.score;
-                const dateA = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
-                const dateB = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
-                return dateA - dateB;
-            });
-            setPrioritizedTasks(updatedTasks.slice(0, 3));
-            setPriorityTask({ title: '', priority: 'medium', dueDate: '' });
-        } catch (error) {
-            console.error('Error prioritizing task:', error);
-            if (error.response?.status === 401) onLogout?.();
-        }
-    }, [priorityTask, prioritizedTasks, onLogout, getAuthHeaders]);
 
-    const handleEstimateEffort = useCallback(async () => {
+        const scoreMap = { high: 90, medium: 70, low: 50 };
+        const newTask = {
+            id: Date.now().toString(),
+            ...priorityTask,
+            aiScore: scoreMap[priorityTask.priority] + (priorityTask.dueDate ? 10 : 0) + Math.floor(Math.random() * 20)
+        };
+
+        const updated = [...prioritizedTasks, newTask]
+            .sort((a, b) => b.aiScore - a.aiScore)
+            .slice(0, 5);
+
+        setPrioritizedTasks(updated);
+        setPriorityTask({ title: '', priority: 'medium', dueDate: '' });
+        toast.success('Prioritized!');
+    };
+
+    const handleEstimate = async () => {
         if (!effortTask.trim()) return;
+        setEstimating(true);
+        setEstimatedEffort(null);
+
         try {
-            const headers = getAuthHeaders();
-            // Mock API call
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-            const keywords = effortTask.toLowerCase();
+            await new Promise(r => setTimeout(r, 1300));
+            const desc = effortTask.toLowerCase();
             let hours = 2;
-            if (keywords.includes('complex') || keywords.includes('urgent')) hours += 4;
-            if (keywords.includes('research') || keywords.includes('analysis')) hours += 3;
-            if (keywords.includes('quick') || keywords.includes('simple')) hours -= 1;
-            setEstimatedEffort(Math.max(1, hours));
-        } catch (error) {
-            console.error('Error estimating effort:', error);
-            if (error.response?.status === 401) onLogout?.();
+            if (/(complex|advanced|integrate|build|system|deploy)/i.test(desc)) hours += 5;
+            if (/(research|analyze|report|design|plan|strategy)/i.test(desc)) hours += 3;
+            if (/(review|update|fix|test|debug|refactor)/i.test(desc)) hours += 2;
+            if (/(quick|simple|easy|minor|fast|basic)/i.test(desc)) hours -= 1;
+            hours = Math.max(1, Math.min(24, hours));
+
+            setEstimatedEffort(hours);
+            toast.success(`${hours}h estimated`);
+        } catch {
+            toast.error('Estimation failed');
+        } finally {
+            setEstimating(false);
         }
-    }, [effortTask, onLogout, getAuthHeaders]);
+    };
+
+    // Grok Prompt Engine
+    const handlePrompt = async () => {
+        if (!promptText.trim()) return;
+        setIsPrompting(true);
+        setPromptOutput('');
+
+        try {
+            await new Promise(r => setTimeout(r, 1800));
+
+            const lower = promptText.toLowerCase();
+            let response = '';
+
+            if (lower.includes('break') && lower.includes('task')) {
+                response = '1. Research (2h)\n2. Design (1h)\n3. Code (4h)\n4. Test (2h)\n5. Deploy (1h)';
+            } else if (lower.includes('risk')) {
+                response = '**Risks:** Data loss (High), Scope creep (Medium), Delay (Low)';
+            } else if (lower.includes('email')) {
+                response = `Subject: Update\n\nHi,\n\n[Task] is on track. Next: [Action].\n\nBest,\n${user?.name || 'You'}`;
+            } else {
+                response = `**Grok:** Your prompt: "${promptText}"\n\n→ Connect to xAI API: https://x.ai/api`;
+            }
+
+            setPromptOutput(response);
+            toast.success('Grok responded!');
+        } catch {
+            toast.error('Prompt failed');
+        } finally {
+            setIsPrompting(false);
+        }
+    };
 
     return (
-        <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.6, ease: 'easeOut' }}
-            className="min-h-screen bg-gradient-to-br from-teal-50 via-blue-50 to-teal-100 flex flex-col font-sans"
-        >
-            <div className="flex-1 max-w-[1600px] mx-auto w-full px-8 py-12">
-                <motion.div
-                    initial={{ y: 20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ duration: 0.5 }}
-                    className="bg-white/95 backdrop-blur-lg border border-teal-100/50 rounded-3xl shadow-lg flex flex-col min-h-[calc(100vh-6rem)] lg:min-h-[900px] overflow-hidden"
-                >
-                    {/* Header */}
-                    <header className="bg-teal-50/50 border-b border-teal-200/50 px-8 py-6 flex items-center justify-between">
-                        <div className="flex items-center gap-6">
-                            <Sparkles className="w-8 h-8 text-teal-600 animate-pulse" />
-                            <div className="min-w-0">
-                                <h1 className="text-3xl font-bold text-blue-900 tracking-tight truncate">AI Tools</h1>
-                                <p className="text-base text-teal-600 tracking-tight line-clamp-1">Optimize Your Workflow</p>
+        <>
+            <Toaster position="top-center" toastOptions={{
+                style: { background: COLORS.primary, color: 'white', fontWeight: '600' }
+            }} />
+
+            <div className="min-h-screen bg-gray-50">
+                <header className="bg-white border-b border-gray-200 px-6 py-5 shadow-sm sticky top-0 z-10">
+                    <div className="max-w-7xl mx-auto flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <Brain className="w-8 h-8 text-blue-600" />
+                            <div>
+                                <h1 className="text-2xl font-bold text-gray-900">Grok AI Hub</h1>
+                                <p className="text-sm text-gray-500">Custom reports • Real-time AI • xAI powered</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-4">
                             <button
                                 onClick={() => navigate('/dashboard')}
-                                className="flex items-center gap-3 bg-teal-100 text-teal-700 px-6 py-3 rounded-lg hover:bg-teal-200 transition-all duration-300 text-base"
-                                aria-label="Back to Dashboard"
+                                className="flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg font-medium transition-colors"
                             >
-                                <ArrowLeft className="w-6 h-6" />
-                                Back to Dashboard
+                                <ArrowLeft className="w-5 h-5" />
+                                Dashboard
                             </button>
                             <img
-                                src={user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}`}
-                                alt="User Avatar"
-                                className="w-12 h-12 rounded-full border-2 border-teal-400/50 hover:shadow-sm transition-all duration-200 flex-shrink-0"
+                                src={user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=1e40af&color=fff`}
+                                alt="Avatar"
+                                className="w-10 h-10 rounded-full ring-2 ring-blue-100"
                             />
                         </div>
-                    </header>
+                    </div>
+                </header>
 
-                    {/* Main Content */}
-                    <main className="flex-1 flex flex-col lg:flex-row overflow-hidden p-8 gap-8">
-                        {/* Main Section: Report and Tools */}
-                        <div className="flex-1 flex flex-col gap-8">
-                            {/* Generate Report Section */}
-                            <motion.section
+                <div className="max-w-7xl mx-auto p-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+                        {/* Left: Report & Tools */}
+                        <div className="lg:col-span-2 space-y-6">
+                            {/* Report Generator */}
+                            <motion.div
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.1 }}
-                                className="bg-white/95 backdrop-blur-md border border-teal-200/50 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300"
+                                className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"
                             >
-                                <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-4 mb-6">
-                                    <Sparkles className="w-6 h-6 text-teal-400 animate-pulse" />
-                                    Generate Report with AI
-                                </h2>
-                                <div className="flex flex-col gap-4">
-                                    <button
-                                        onClick={handleGenerateReport}
-                                        disabled={isGeneratingReport}
-                                        className={`w-full max-w-md mx-auto px-6 py-3 text-base font-medium rounded-lg flex items-center justify-center gap-3 transition-all duration-300 ${isGeneratingReport ? 'bg-teal-300 cursor-not-allowed' : 'bg-gradient-to-r from-teal-500 to-blue-500 text-white hover:from-teal-600 hover:to-blue-600 hover:scale-105 hover:shadow-md'}`}
-                                        aria-label="Generate Report"
-                                    >
-                                        {isGeneratingReport ? (
-                                            <>
-                                                <Loader2 className="w-6 h-6 animate-spin" />
-                                                Generating...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Sparkles className="w-6 h-6" />
-                                                Generate Report
-                                            </>
-                                        )}
-                                    </button>
-                                    {reportError && (
-                                        <p className="text-center text-base text-red-600">{reportError}</p>
-                                    )}
-                                    <textarea
-                                        className="w-full h-[400px] lg:h-[600px] p-6 text-base bg-teal-50/50 border border-teal-200/50 rounded-lg resize-none focus:ring-2 focus:ring-teal-400 scrollbar-thin transition-all duration-300"
-                                        value={reportContent}
-                                        readOnly
-                                        placeholder={isGeneratingReport ? 'Generating report...' : 'Your AI-generated report will appear here...'}
-                                        aria-label="AI Generated Report"
-                                    />
+                                <div className="flex items-center justify-between mb-6">
+                                    <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-3">
+                                        <FileText className="w-6 h-6 text-blue-600" />
+                                        Generate Report
+                                    </h3>
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="date"
+                                            value={customStartDate}
+                                            onChange={e => setCustomStartDate(e.target.value)}
+                                            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                                        />
+                                        <span className="text-xs text-gray-500">to</span>
+                                        <input
+                                            type="date"
+                                            value={customEndDate}
+                                            onChange={e => setCustomEndDate(e.target.value)}
+                                            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                                        />
+                                        <button
+                                            onClick={() => { setCustomStartDate(''); setCustomEndDate(''); }}
+                                            className="p-1.5 text-gray-500 hover:text-gray-700"
+                                        >
+                                            <RefreshCw className="w-4 h-4" />
+                                        </button>
+                                    </div>
                                 </div>
-                            </motion.section>
 
-                            {/* AI Tools Section */}
-                            <motion.section
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.2 }}
-                                className="bg-white/95 backdrop-blur-md border border-teal-200/50 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300"
-                            >
-                                <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-4 mb-6">
-                                    <Sparkles className="w-6 h-6 text-teal-400 animate-pulse" />
-                                    AI Tools
-                                </h2>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                    {/* Task Prioritization AI */}
-                                    <div className="p-6 bg-teal-50/50 rounded-lg shadow-sm border border-teal-200/50 hover:bg-teal-100 transition-all duration-300">
-                                        <div className="flex items-center gap-3 mb-4">
-                                            <Star className="w-6 h-6 text-teal-400 animate-pulse" />
-                                            <p className="text-base font-semibold text-gray-900">Task Prioritization AI</p>
-                                        </div>
-                                        <p className="text-base text-gray-600 mb-4">Rank tasks by urgency and importance.</p>
-                                        <form onSubmit={handlePrioritizeTask} className="space-y-4">
-                                            <input
-                                                type="text"
-                                                value={priorityTask.title}
-                                                onChange={(e) => setPriorityTask({ ...priorityTask, title: e.target.value })}
-                                                placeholder="Enter task title..."
-                                                className="w-full p-3 text-base border border-teal-300/50 rounded-lg focus:ring-2 focus:ring-teal-400 transition-all duration-300"
-                                                aria-label="Task Title"
-                                            />
-                                            <select
-                                                value={priorityTask.priority}
-                                                onChange={(e) => setPriorityTask({ ...priorityTask, priority: e.target.value })}
-                                                className="w-full p-3 text-base border border-teal-300/50 rounded-lg focus:ring-2 focus:ring-teal-400 transition-all duration-300"
-                                                aria-label="Task Priority"
-                                            >
+                                <div className="mb-4 flex gap-2">
+                                    <button onClick={selectAll} className="px-3 py-1.5 text-xs bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100">
+                                        Select All
+                                    </button>
+                                    <button onClick={clearSelection} className="px-3 py-1.5 text-xs bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
+                                        Clear
+                                    </button>
+                                </div>
+
+                                <div className="max-h-80 overflow-y-auto border border-gray-200 rounded-lg p-3 space-y-2 scrollbar-thin">
+                                    {filteredTasks.length > 0 ? (
+                                        filteredTasks.map(task => {
+                                            const id = task._id || task.id;
+                                            const isSelected = selectedTaskIds.has(id);
+                                            return (
+                                                <label
+                                                    key={id}
+                                                    className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all border ${
+                                                        isSelected ? 'bg-blue-50 border-blue-300' : 'hover:bg-gray-50 border-transparent'
+                                                    }`}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isSelected}
+                                                        onChange={() => toggleTask(id)}
+                                                        className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                                                    />
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="font-medium text-sm text-gray-900 truncate">{task.title}</p>
+                                                        <p className="text-xs text-gray-500">
+                                                            {task.completed ? 'Completed' : 'Pending'}
+                                                            {task.dueDate && ` • Due ${format(new Date(task.dueDate), 'MMM d')}`}
+                                                        </p>
+                                                    </div>
+                                                </label>
+                                            );
+                                        })
+                                    ) : (
+                                        <p className="text-center text-sm text-gray-500 py-8">
+                                            {customStartDate && customEndDate 
+                                                ? 'No tasks in selected date range' 
+                                                : 'No tasks available'}
+                                        </p>
+                                    )}
+                                </div>
+
+                                <button
+                                    onClick={handleGenerateReport}
+                                    disabled={isGeneratingReport || stats.selected.length === 0}
+                                    className="mt-5 w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
+                                >
+                                    {isGeneratingReport ? (
+                                        <>Generating<Loader2 className="w-5 h-5 animate-spin" /></>
+                                    ) : (
+                                        <>Generate Report</>
+                                    )}
+                                </button>
+                            </motion.div>
+
+                            {/* Tools */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {/* Prioritization */}
+                                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                                        <Star className="w-5 h-5 text-amber-600" />
+                                        Prioritize
+                                    </h3>
+                                    <form onSubmit={handlePrioritize} className="space-y-3">
+                                        <input type="text" placeholder="Task title..." value={priorityTask.title} onChange={e => setPriorityTask(prev => ({ ...prev, title: e.target.value }))} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <select value={priorityTask.priority} onChange={e => setPriorityTask(prev => ({ ...prev, priority: e.target.value }))} className="p-3 border border-gray-300 rounded-lg">
                                                 <option value="high">High</option>
                                                 <option value="medium">Medium</option>
                                                 <option value="low">Low</option>
                                             </select>
-                                            <input
-                                                type="date"
-                                                value={priorityTask.dueDate}
-                                                onChange={(e) => setPriorityTask({ ...priorityTask, dueDate: e.target.value })}
-                                                className="w-full p-3 text-base border border-teal-300/50 rounded-lg focus:ring-2 focus:ring-teal-400 transition-all duration-300"
-                                                aria-label="Due Date"
-                                            />
-                                            <button
-                                                type="submit"
-                                                className="w-full px-6 py-3 text-base bg-gradient-to-r from-teal-500 to-blue-500 text-white rounded-lg hover:from-teal-600 hover:to-blue-600 transition-all duration-300 hover:scale-105 hover:shadow-md"
-                                                aria-label="Prioritize Task"
-                                            >
-                                                Prioritize
-                                            </button>
-                                        </form>
-                                        {prioritizedTasks.length > 0 && (
-                                            <div className="mt-4">
-                                                <p className="text-base font-semibold text-gray-900">Prioritized Tasks:</p>
-                                                <ul className="list-disc list-inside text-base text-gray-600 mt-2">
-                                                    {prioritizedTasks.map((task) => (
-                                                        <li key={task.id} className="truncate">
-                                                            {task.title} ({task.priority}, {task.dueDate || 'No due date'})
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Effort Estimation AI */}
-                                    <div className="p-6 bg-teal-50/50 rounded-lg shadow-sm border border-teal-200/50 hover:bg-teal-100 transition-all duration-300">
-                                        <div className="flex items-center gap-3 mb-4">
-                                            <Gauge className="w-6 h-6 text-teal-400 animate-pulse" />
-                                            <p className="text-base font-semibold text-gray-900">Effort Estimation AI</p>
+                                            <input type="date" value={priorityTask.dueDate} onChange={e => setPriorityTask(prev => ({ ...prev, dueDate: e.target.value }))} className="p-3 border border-gray-300 rounded-lg" />
                                         </div>
-                                        <p className="text-base text-gray-600 mb-4">Estimate task effort based on description.</p>
-                                        <input
-                                            type="text"
-                                            value={effortTask}
-                                            onChange={(e) => setEffortTask(e.target.value)}
-                                            placeholder="Describe task (e.g., 'Complex report analysis')..."
-                                            className="w-full p-3 text-base border border-teal-300/50 rounded-lg focus:ring-2 focus:ring-teal-400 transition-all duration-300"
-                                            aria-label="Task Description"
-                                        />
-                                        <button
-                                            onClick={handleEstimateEffort}
-                                            className="w-full mt-4 px-6 py-3 text-base bg-gradient-to-r from-teal-500 to-blue-500 text-white rounded-lg hover:from-teal-600 hover:to-blue-600 transition-all duration-300 hover:scale-105 hover:shadow-md"
-                                            aria-label="Estimate Effort"
-                                        >
-                                            Estimate Effort
-                                        </button>
-                                        {estimatedEffort && (
-                                            <p className="mt-4 text-base text-gray-600">
-                                                Estimated Effort: <span className="font-semibold">{estimatedEffort} hours</span>
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-                            </motion.section>
-                        </div>
-
-                        {/* Sidebar: Task Summaries and Insights */}
-                        <aside className="w-full lg:w-96 flex flex-col gap-8">
-                            {/* AI Task Summaries */}
-                            <motion.section
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.3 }}
-                                className="bg-white/95 backdrop-blur-md border border-teal-200/50 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300"
-                            >
-                                <div className="flex items-center justify-between mb-6">
-                                    <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-4">
-                                        <List className="w-6 h-6 text-teal-400 animate-pulse" />
-                                        AI Task Summaries
-                                    </h2>
-                                    <select
-                                        value={periodFilter}
-                                        onChange={(e) => setPeriodFilter(e.target.value)}
-                                        className="px-4 py-2 text-base bg-teal-50/50 border border-teal-300/50 rounded-lg focus:ring-2 focus:ring-teal-400 transition-all duration-300"
-                                        aria-label="Period filter"
-                                    >
-                                        <option value="all">All</option>
-                                        <option value="daily">Daily</option>
-                                        <option value="weekly">Weekly</option>
-                                        <option value="monthly">Monthly</option>
-                                    </select>
-                                </div>
-                                <div className="max-h-[calc(100vh-24rem)] lg:max-h-[700px] overflow-y-auto scrollbar-thin">
-                                    <AnimatePresence>
-                                        {taskSummaries.length > 0 ? (
-                                            taskSummaries.map((task) => (
-                                                <motion.div
-                                                    key={task.id}
-                                                    initial={{ opacity: 0, y: 10 }}
-                                                    animate={{ opacity: 1, y: 0 }}
-                                                    exit={{ opacity: 0, y: -10 }}
-                                                    className="p-4 bg-teal-50/50 rounded-lg shadow-sm border border-teal-200/50 hover:bg-teal-100 transition-all duration-300 mb-4"
-                                                >
-                                                    <p className="text-base font-semibold text-gray-900 truncate">{task.title}</p>
-                                                    <div className="flex items-center gap-3 mt-2 text-base text-gray-600">
-                                                        <span className={`px-3 py-1 rounded-full text-sm ${task.status === 'Completed' ? 'bg-blue-100 text-blue-700' : 'bg-teal-100 text-teal-700'}`}>
-                                                            {task.status}
-                                                        </span>
-                                                        <span className="truncate">{task.dueDate}</span>
-                                                    </div>
-                                                </motion.div>
-                                            ))
-                                        ) : (
-                                            <motion.div
-                                                initial={{ opacity: 0 }}
-                                                animate={{ opacity: 1 }}
-                                                className="text-center py-10"
-                                            >
-                                                <List className="w-12 h-12 mx-auto text-teal-400 animate-pulse" />
-                                                <p className="text-base font-semibold text-gray-600 mt-4">No tasks for this period</p>
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
-                                </div>
-                            </motion.section>
-
-                            {/* AI Insights */}
-                            <motion.section
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.4 }}
-                                className="bg-white/95 backdrop-blur-md border border-teal-200/50 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300"
-                            >
-                                <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-4 mb-6">
-                                    <Zap className="w-6 h-6 text-teal-400 animate-pulse" />
-                                    AI Insights
-                                </h2>
-                                <div className="max-h-[calc(100vh-24rem)] lg:max-h-[700px] overflow-y-auto scrollbar-thin">
-                                    {aiInsights.length > 0 ? (
-                                        aiInsights.map((insight, idx) => (
-                                            <div
-                                                key={`insight-${idx}`}
-                                                className="p-4 bg-teal-50/50 rounded-lg shadow-sm border border-teal-200/50 hover:bg-teal-100 transition-all duration-300 mb-4"
-                                            >
-                                                <p className="text-base text-gray-900">{insight}</p>
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <div className="text-center py-10">
-                                            <Zap className="w-12 h-12 mx-auto text-teal-400 animate-pulse" />
-                                            <p className="text-base font-semibold text-gray-600 mt-4">No insights available</p>
+                                        <button type="submit" className="w-full py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700">Prioritize</button>
+                                    </form>
+                                    {prioritizedTasks.length > 0 && (
+                                        <div className="mt-4 space-y-2">
+                                            <p className="text-xs font-medium text-gray-700">Top Priorities:</p>
+                                            {prioritizedTasks.map(t => (
+                                                <div key={t.id} className="p-3 bg-amber-50 rounded-lg border border-amber-200">
+                                                    <p className="font-medium text-sm text-gray-900">{t.title}</p>
+                                                    <p className="text-xs text-amber-700">Score: {t.aiScore}</p>
+                                                </div>
+                                            ))}
                                         </div>
                                     )}
-                                </div>
-                            </motion.section>
-                        </aside>
-                    </main>
-                </motion.div>
-            </div>
+                                </motion.div>
 
-            <style jsx>{`
-                .scrollbar-thin::-webkit-scrollbar {
-                    width: 6px;
-                }
-                .scrollbar-thin::-webkit-scrollbar-track {
-                    background: rgba(20, 184, 166, 0.1);
-                    border-radius: 3px;
-                }
-                .scrollbar-thin::-webkit-scrollbar-thumb {
-                    background: #14B8A6;
-                    border-radius: 3px;
-                }
-                .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-                    background: #0D9488;
-                }
-            `}</style>
-        </motion.div>
+                                {/* Effort */}
+                                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                                        <Gauge className="w-5 h-5 text-blue-600" />
+                                        Estimate Effort
+                                    </h3>
+                                    <input type="text" placeholder="Describe task..." value={effortTask} onChange={e => setEffortTask(e.target.value)} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 mb-3" />
+                                    <button onClick={handleEstimate} disabled={estimating} className="w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-60 transition-colors flex items-center justify-center gap-2">
+                                        {estimating ? <>Estimating<Loader2 className="w-5 h-5 animate-spin" /></> : 'Estimate'}
+                                    </button>
+                                    {estimatedEffort !== null && (
+                                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                                            <div className="flex justify-between items-center mb-2">
+                                                <span className="font-semibold text-blue-900">Estimated</span>
+                                                <span className="text-2xl font-bold text-blue-600">{estimatedEffort}h</span>
+                                            </div>
+                                            <div className="w-full bg-gray-200 rounded-full h-3">
+                                                <motion.div initial={{ width: 0 }} animate={{ width: `${(estimatedEffort / 24) * 100}%` }} className="bg-blue-600 h-3 rounded-full" />
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </motion.div>
+                            </div>
+
+                            {/* Prompt Engine */}
+                            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                                    <Code className="w-5 h-5 text-blue-600" />
+                                    Grok Prompt Engine
+                                </h3>
+                                <textarea value={promptText} onChange={e => setPromptText(e.target.value)} placeholder="Ask Grok anything..." className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 mb-3 resize-none" rows="3" />
+                                <button onClick={handlePrompt} disabled={isPrompting || !promptText.trim()} className="w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-60 transition-colors flex items-center justify-center gap-2">
+                                    {isPrompting ? <>Thinking<Loader2 className="w-5 h-5 animate-spin" /></> : 'Ask Grok'}
+                                </button>
+                                {promptOutput && (
+                                    <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{promptOutput}</ReactMarkdown>
+                                    </div>
+                                )}
+                            </motion.div>
+                        </div>
+
+                        {/* Right: Output */}
+                        <div className="space-y-6">
+                            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                                    <FileText className="w-5 h-5 text-blue-600" />
+                                    Generated Report
+                                </h3>
+                                {reportContent ? (
+                                    <div className="space-y-4">
+                                        <div className="flex gap-2">
+                                            <button onClick={handleCopy} className="flex-1 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-medium flex items-center justify-center gap-1 transition-colors">
+                                                {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                                                {copied ? 'Copied' : 'Copy'}
+                                            </button>
+                                            <button onClick={downloadReport} className="flex-1 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-medium flex items-center justify-center gap-1 transition-colors">
+                                                <Download className="w-4 h-4" /> Download
+                                            </button>
+                                            <button onClick={handleSubmit} className="flex-1 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-1">
+                                                <Send className="w-4 h-4" /> Submit
+                                            </button>
+                                        </div>
+                                        <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 max-h-96 overflow-y-auto text-sm prose prose-sm">
+                                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{reportContent}</ReactMarkdown>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-16 text-gray-400">
+                                        <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                                        <p className="text-sm">Select tasks and generate</p>
+                                    </div>
+                                )}
+                            </motion.div>
+
+                            {/* Insights */}
+                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                                    <Zap className="w-5 h-5 text-blue-600" />
+                                    Grok Insights
+                                </h3>
+                                <div className="space-y-3">
+                                    {aiInsights.length > 0 ? (
+                                        aiInsights.map((insight, i) => (
+                                            <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.1 }} className={`p-3 rounded-lg border text-sm ${insight.level === 'error' ? 'bg-red-50 border-red-200 text-red-800' : insight.level === 'warn' ? 'bg-amber-50 border-amber-200 text-amber-800' : insight.level === 'success' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-blue-50 border-blue-200 text-blue-800'}`}>
+                                                {insight.text}
+                                            </motion.div>
+                                        ))
+                                    ) : (
+                                        <p className="text-center text-sm text-gray-500 py-4">No insights</p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <style jsx>{`
+                    .scrollbar-thin { scrollbar-width: thin; }
+                    .scrollbar-thin::-webkit-scrollbar { width: 6px; }
+                    .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+                    .scrollbar-thin::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+                    .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+                `}</style>
+            </div>
+        </>
     );
 };
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
-import { Send, Paperclip, Image, Video, FileText, ArrowLeft, Smile, Edit2, Trash2, ArrowUp, ArrowDown, X } from 'lucide-react';
+import { Send, Paperclip, Image, Video, FileText, ArrowLeft, Smile, Edit2, Trash2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import toast, { Toaster } from 'react-hot-toast';
@@ -8,9 +8,7 @@ import moment from 'moment-timezone';
 import { Tooltip } from 'react-tooltip';
 import io from 'socket.io-client';
 import EmojiPicker from 'emoji-picker-react';
-
 const API_BASE_URL = import.meta.env.VITE_API_URL;
-
 const SocialFeed = () => {
     const { user, onLogout } = useOutletContext();
     const navigate = useNavigate();
@@ -36,7 +34,6 @@ const SocialFeed = () => {
     const feedRef = useRef(null);
     const fetchedPages = useRef(new Set());
     const fetchTimeout = useRef(null);
-
     // Debug user context
     useEffect(() => {
         console.log('User from context:', user);
@@ -44,7 +41,6 @@ const SocialFeed = () => {
             console.warn('User ID is missing or undefined');
         }
     }, [user]);
-
     // Socket.IO for real-time posts
     useEffect(() => {
         const socket = io(API_BASE_URL, {
@@ -77,7 +73,7 @@ const SocialFeed = () => {
         });
         socket.on('connect_error', (error) => {
             console.error('Socket connect error:', error.message);
-            toast.error('Real-time updates unavailable.', { style: { background: '#2DD4BF', color: '#FFFFFF' } });
+            toast.error('Real-time updates unavailable.', { style: { background: '#dc2626', color: '#fff' } });
         });
         return () => {
             socket.off('newPost');
@@ -86,14 +82,13 @@ const SocialFeed = () => {
             socket.disconnect();
         };
     }, [postIds]);
-
     // Axios interceptor for 401 handling
     useEffect(() => {
         const interceptor = axios.interceptors.response.use(
             (response) => response,
             (error) => {
                 if (error.response?.status === 401) {
-                    toast.error('Session expired. Please log in.', { style: { background: '#2DD4BF', color: '#FFFFFF' } });
+                    toast.error('Session expired. Please log in.', { style: { background: '#dc2626', color: '#fff' } });
                     localStorage.removeItem('token');
                     localStorage.removeItem('user');
                     onLogout?.();
@@ -104,7 +99,6 @@ const SocialFeed = () => {
         );
         return () => axios.interceptors.response.eject(interceptor);
     }, [onLogout, navigate]);
-
     // Modal focus trap and escape key handling
     useEffect(() => {
         const handleKeyDown = (e) => {
@@ -122,7 +116,6 @@ const SocialFeed = () => {
         }
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [selectedImage, selectedDoc, showEmojiPicker, editingPost, showDeleteConfirm]);
-
     // Close emoji picker, edit modal, or delete confirm when clicking outside
     useEffect(() => {
         const handleClickOutside = (e) => {
@@ -153,11 +146,10 @@ const SocialFeed = () => {
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [showEmojiPicker, editingPost, showDeleteConfirm]);
-
     const getAuthHeaders = useCallback(() => {
         const token = localStorage.getItem('token');
         if (!token) {
-            toast.error('Session expired. Please log in.', { style: { background: '#2DD4BF', color: '#FFFFFF' } });
+            toast.error('Session expired. Please log in.', { style: { background: '#dc2626', color: '#fff' } });
             localStorage.removeItem('token');
             localStorage.removeItem('user');
             onLogout?.();
@@ -166,7 +158,6 @@ const SocialFeed = () => {
         }
         return { Authorization: `Bearer ${token}` };
     }, [onLogout, navigate]);
-
     const fetchPosts = useCallback(
         async (pageNum) => {
             if (isLoading || !hasMore || fetchedPages.current.has(pageNum)) return;
@@ -190,7 +181,7 @@ const SocialFeed = () => {
                 console.error('Fetch posts error:', error.response?.data || error.message);
                 fetchedPages.current.delete(pageNum);
                 if (error.response?.status !== 401) {
-                    toast.error(error.response?.data?.message || 'Failed to fetch posts.', { style: { background: '#2DD4BF', color: '#FFFFFF' } });
+                    toast.error(error.response?.data?.message || 'Failed to fetch posts.', { style: { background: '#dc2626', color: '#fff' } });
                 }
             } finally {
                 setIsLoading(false);
@@ -198,7 +189,6 @@ const SocialFeed = () => {
         },
         [getAuthHeaders, isLoading, hasMore, postIds]
     );
-
     useEffect(() => {
         if (!user || !localStorage.getItem('token')) {
             navigate('/login');
@@ -206,7 +196,6 @@ const SocialFeed = () => {
         }
         fetchPosts(page);
     }, [user, page, fetchPosts, navigate]);
-
     const lastPostElementRef = useCallback(
         (node) => {
             if (isLoading || !hasMore) return;
@@ -227,12 +216,11 @@ const SocialFeed = () => {
         },
         [isLoading, hasMore]
     );
-
     const handleFileChange = useCallback((e) => {
         const selectedFile = e.target.files[0];
         if (selectedFile) {
             if (selectedFile.size > 50 * 1024 * 1024) {
-                toast.error('File size exceeds 50MB.', { style: { background: '#2DD4BF', color: '#FFFFFF' } });
+                toast.error('File size exceeds 50MB.', { style: { background: '#dc2626', color: '#fff' } });
                 return;
             }
             setFile(selectedFile);
@@ -244,7 +232,6 @@ const SocialFeed = () => {
         }
         if (fileInputRef.current) fileInputRef.current.value = '';
     }, []);
-
     const uploadFile = useCallback(
         async (file) => {
             try {
@@ -264,35 +251,31 @@ const SocialFeed = () => {
         },
         [getAuthHeaders]
     );
-
     const handleEmojiClick = useCallback((emojiObject) => {
         setNewPost((prev) => prev + emojiObject.emoji);
         if (editingPost) {
             setEditContent((prev) => prev + emojiObject.emoji);
         }
     }, [editingPost]);
-
     const handleCreatePost = useCallback(async () => {
         if (!newPost.trim() && !file) {
-            toast.error('Post content or file required.', { style: { background: '#2DD4BF', color: '#FFFFFF' } });
+            toast.error('Post content or file required.', { style: { background: '#dc2626', color: '#fff' } });
             return;
         }
         setIsPosting(true);
         let fileUrl = '';
         let contentType = '';
-
         if (file) {
             try {
                 const { fileUrl: uploadedUrl, contentType: fileContentType } = await uploadFile(file);
                 fileUrl = uploadedUrl;
                 contentType = fileContentType;
             } catch (error) {
-                toast.error(error.message, { style: { background: '#2DD4BF', color: '#FFFFFF' } });
+                toast.error(error.message, { style: { background: '#dc2626', color: '#fff' } });
                 setIsPosting(false);
                 return;
             }
         }
-
         try {
             await axios.post(
                 `${API_BASE_URL}/api/posts`,
@@ -304,39 +287,36 @@ const SocialFeed = () => {
             setFilePreview(null);
             setShowEmojiPicker(false);
             if (fileInputRef.current) fileInputRef.current.value = '';
-            toast.success('Post created!', { style: { background: '#2DD4BF', color: '#FFFFFF' } });
+            toast.success('Post created!', { style: { background: '#16a34a', color: '#fff' } });
             feedRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
         } catch (error) {
             console.error('Create post error:', error.response?.data || error.message);
             if (error.response?.status !== 401) {
-                toast.error(error.response?.data?.message || 'Failed to create post.', { style: { background: '#2DD4BF', color: '#FFFFFF' } });
+                toast.error(error.response?.data?.message || 'Failed to create post.', { style: { background: '#dc2626', color: '#fff' } });
             }
         } finally {
             setIsPosting(false);
         }
     }, [newPost, file, getAuthHeaders]);
-
     const handleEditPost = useCallback(async (postId) => {
         if (!editContent.trim() && !file) {
-            toast.error('Post content or file required.', { style: { background: '#2DD4BF', color: '#FFFFFF' } });
+            toast.error('Post content or file required.', { style: { background: '#dc2626', color: '#fff' } });
             return;
         }
         setIsPosting(true);
         let fileUrl = '';
         let contentType = '';
-
         if (file) {
             try {
                 const { fileUrl: uploadedUrl, contentType: fileContentType } = await uploadFile(file);
                 fileUrl = uploadedUrl;
                 contentType = fileContentType;
             } catch (error) {
-                toast.error(error.message, { style: { background: '#2DD4BF', color: '#FFFFFF' } });
+                toast.error(error.message, { style: { background: '#dc2626', color: '#fff' } });
                 setIsPosting(false);
                 return;
             }
         }
-
         try {
             const response = await axios.put(
                 `${API_BASE_URL}/api/posts/${postId}`,
@@ -352,124 +332,108 @@ const SocialFeed = () => {
             setEditContent('');
             setFile(null);
             setFilePreview(null);
-            toast.success('Post updated!', { style: { background: '#2DD4BF', color: '#FFFFFF' } });
+            toast.success('Post updated!', { style: { background: '#16a34a', color: '#fff' } });
             feedRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
         } catch (error) {
             console.error('Edit post error:', error.response?.data || error.message);
             if (error.response?.status === 403) {
-                toast.error('You are not authorized to edit this post.', { style: { background: '#2DD4BF', color: '#FFFFFF' } });
+                toast.error('You are not authorized to edit this post.', { style: { background: '#dc2626', color: '#fff' } });
             } else if (error.response?.status !== 401) {
-                toast.error(error.response?.data?.message || 'Failed to update post.', { style: { background: '#2DD4BF', color: '#FFFFFF' } });
+                toast.error(error.response?.data?.message || 'Failed to update post.', { style: { background: '#dc2626', color: '#fff' } });
             }
         } finally {
             setIsPosting(false);
         }
     }, [editContent, file, getAuthHeaders]);
-
     const handleDeletePost = useCallback(async (postId) => {
         try {
             await axios.delete(`${API_BASE_URL}/api/posts/${postId}`, {
                 headers: getAuthHeaders(),
             });
-            toast.success('Post deleted!', { style: { background: '#2DD4BF', color: '#FFFFFF' } });
+            toast.success('Post deleted!', { style: { background: '#16a34a', color: '#fff' } });
         } catch (error) {
             console.error('Delete post error:', error.response?.data || error.message);
             if (error.response?.status === 403) {
-                toast.error('You are not authorized to delete this post.', { style: { background: '#2DD4BF', color: '#FFFFFF' } });
+                toast.error('You are not authorized to delete this post.', { style: { background: '#dc2626', color: '#fff' } });
             } else if (error.response?.status !== 401) {
-                toast.error(error.response?.data?.message || 'Failed to delete post.', { style: { background: '#2DD4BF', color: '#FFFFFF' } });
+                toast.error(error.response?.data?.message || 'Failed to delete post.', { style: { background: '#dc2626', color: '#fff' } });
             }
         }
     }, [getAuthHeaders]);
-
     const handleConfirmDelete = useCallback((postId) => {
         setShowDeleteConfirm(postId);
     }, []);
-
     const handleCancelDelete = useCallback(() => {
         setShowDeleteConfirm(null);
     }, []);
-
     const handleConfirmDeleteAction = useCallback(async () => {
         if (showDeleteConfirm) {
             await handleDeletePost(showDeleteConfirm);
             setShowDeleteConfirm(null);
         }
     }, [showDeleteConfirm, handleDeletePost]);
-
     const startEditing = (post) => {
         setEditingPost(post._id);
         setEditContent(post.content || '');
         setFile(null);
         setFilePreview(null);
     };
-
-    const scrollToTop = () => {
-        feedRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-    };
-
-    const scrollToBottom = () => {
-        feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight, behavior: 'smooth' });
-    };
-
     const modalVariants = {
-        hidden: { opacity: 0, scale: 0.8 },
+        hidden: { opacity: 0, scale: 0.9 },
         visible: { opacity: 1, scale: 1 },
-        exit: { opacity: 0, scale: 0.8 },
+        exit: { opacity: 0, scale: 0.9 },
     };
-
     if (!user || !localStorage.getItem('token')) {
         return null;
     }
-
     return (
         <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.6, ease: 'easeOut' }}
-            className="min-h-screen bg-gradient-to-br from-teal-50 via-blue-50 to-teal-100 flex flex-col font-sans"
+            transition={{ duration: 0.5 }}
+            className="min-h-screen bg-white flex flex-col font-sans antialiased"
         >
             <Toaster position="bottom-right" />
-            <div className="flex-1 max-w-[1600px] mx-auto w-full px-8 py-12">
+            <div className="flex-1 max-w-4xl mx-auto w-full px-6 py-8">
                 <motion.div
                     initial={{ y: 20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
-                    transition={{ duration: 0.5 }}
-                    className="bg-white/95 backdrop-blur-lg border border-teal-100/50 rounded-3xl shadow-lg flex flex-col min-h-[calc(100vh-6rem)] lg:min-h-[900px] overflow-hidden"
+                    transition={{ duration: 0.4 }}
+                    className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden"
                 >
-                    <header className="bg-teal-50/50 border-b border-teal-200/50 px-8 py-6 flex items-center justify-between">
-                        <div className="flex items-center gap-6">
-                            <Send className="w-8 h-8 text-teal-600 animate-pulse" />
-                            <div className="min-w-0">
-                                <h1 className="text-3xl font-bold text-blue-900 tracking-tight truncate">Social Connect</h1>
-                                <p className="text-base text-teal-600 tracking-tight line-clamp-1">Share Your Updates</p>
+                    <header className="bg-white border-b border-gray-100 px-8 py-6 flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <Send className="w-7 h-7 text-blue-600" />
+                            <div>
+                                <h1 className="text-2xl font-bold text-gray-900">Social Connect</h1>
+                                <p className="text-sm text-blue-600">Share your updates</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-4">
                             <button
                                 onClick={() => navigate('/')}
-                                className="flex items-center gap-3 bg-teal-100 text-teal-600 px-6 py-3 rounded-lg hover:bg-teal-200 transition-all duration-300 text-base hover:scale-105 hover:shadow-md"
+                                className="flex items-center gap-2.5 px-5 py-2.5 bg-gray-50 text-blue-700 rounded-xl hover:bg-gray-100 transition-all duration-200 text-sm font-medium shadow-sm"
                                 aria-label="Back to Dashboard"
                             >
-                                <ArrowLeft className="w-6 h-6" />
-                                Back to Dashboard
+                                <ArrowLeft className="w-5 h-5" />
+                                Dashboard
                             </button>
                             <img
-                                src={user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}`}
+                                src={user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=1e40af&color=fff&bold=true`}
                                 alt="User Avatar"
-                                className="w-12 h-12 rounded-full border-2 border-teal-400/50 hover:shadow-sm transition-all duration-200 flex-shrink-0"
+                                className="w-11 h-11 rounded-full border-2 border-blue-100 shadow-sm"
                             />
                         </div>
                     </header>
-                    <main className="flex-1 p-8">
+                    <main className="p-8">
                         <motion.div
                             initial={{ y: 10, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             transition={{ delay: 0.1 }}
-                            className="bg-white/95 backdrop-blur-md border border-teal-200/50 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300 mb-8"
+                            className="bg-gray-50 border border-gray-200 rounded-2xl p-6 mb-8 shadow-sm"
                         >
-                            <div className="flex items-start gap-6">
-                                <div className="w-12 h-12 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center text-lg font-bold flex-shrink-0">
+                            <div className="flex items-start gap-4">
+                                <div className="w-11 h-11 rounded-full bg-blue-600 text-white flex items-center justify-center text-base font-bold flex-shrink-0 shadow-sm">
                                     {user.name
                                         .trim()
                                         .split(' ')
@@ -478,83 +442,83 @@ const SocialFeed = () => {
                                         .join('')
                                         .toUpperCase()}
                                 </div>
-                                <div className="flex-1 relative">
+                                <div className="flex-1">
                                     <textarea
                                         value={newPost}
                                         onChange={(e) => setNewPost(e.target.value)}
-                                        placeholder="Share your thoughts..."
-                                        className="w-full p-4 text-base text-gray-800 border border-teal-300/50 rounded-lg focus:ring-2 focus:ring-teal-400 focus:border-transparent resize-y mb-4 transition-all duration-300"
-                                        rows="4"
+                                        placeholder="What’s on your mind?"
+                                        className="w-full p-3 text-base text-gray-800 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none transition-all duration-200 placeholder-gray-400"
+                                        rows="3"
                                         maxLength={1000}
                                         aria-label="New post content"
                                     />
                                     {file && (
                                         <motion.div
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            className="flex items-center gap-4 mb-4"
+                                            initial={{ opacity: 0, y: -5 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            className="flex items-center gap-3 mt-3 p-3 bg-white rounded-xl border border-gray-200"
                                         >
                                             {filePreview && file.type.startsWith('image/') && (
-                                                <img src={filePreview} alt="Preview" className="w-20 h-20 object-cover rounded-lg shadow-sm" />
+                                                <img src={filePreview} alt="Preview" className="w-16 h-16 object-cover rounded-lg shadow-sm" />
                                             )}
                                             {filePreview && file.type.startsWith('video/') && (
-                                                <video src={filePreview} className="w-20 h-20 object-cover rounded-lg shadow-sm" />
+                                                <video src={filePreview} className="w-16 h-16 object-cover rounded-lg shadow-sm" />
                                             )}
-                                            <span className="text-base text-gray-600 truncate max-w-md">{file.name}</span>
+                                            <span className="text-sm text-gray-700 truncate max-w-xs">{file.name}</span>
                                             <button
                                                 onClick={() => {
                                                     setFile(null);
                                                     setFilePreview(null);
                                                 }}
-                                                className="text-red-500 hover:text-red-600 transition-colors duration-300"
+                                                className="text-red-600 hover:text-red-700 transition-colors duration-200"
                                                 aria-label="Remove file"
                                             >
-                                                <X className="w-6 h-6" />
+                                                <X className="w-5 h-5" />
                                             </button>
                                         </motion.div>
                                     )}
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex gap-4">
+                                    <div className="flex items-center justify-between mt-4">
+                                        <div className="flex gap-2">
                                             <button
                                                 ref={emojiButtonRef}
                                                 onClick={() => setShowEmojiPicker((prev) => !prev)}
-                                                className="p-2 text-blue-900 hover:text-teal-600 transition-colors duration-300"
+                                                className="p-2.5 text-blue-600 hover:bg-blue-50 rounded-xl transition-colors duration-200"
                                                 data-tooltip-id="add-emoji"
                                                 data-tooltip-content="Add Emoji"
                                                 aria-label="Add Emoji"
                                             >
-                                                <Smile className="w-6 h-6" />
-                                                <Tooltip id="add-emoji" className="bg-teal-600 text-white" />
+                                                <Smile className="w-5 h-5" />
+                                                <Tooltip id="add-emoji" className="bg-blue-600 text-white text-xs" />
                                             </button>
                                             <button
                                                 onClick={() => fileInputRef.current?.click()}
-                                                className="p-2 text-blue-900 hover:text-teal-600 transition-colors duration-300"
+                                                className="p-2.5 text-blue-600 hover:bg-blue-50 rounded-xl transition-colors duration-200"
                                                 data-tooltip-id="attach-image"
-                                                data-tooltip-content="Attach Image"
+                                                data-tooltip-content="Image"
                                                 aria-label="Attach Image"
                                             >
-                                                <Image className="w-6 h-6" />
-                                                <Tooltip id="attach-image" className="bg-teal-600 text-white" />
+                                                <Image className="w-5 h-5" />
+                                                <Tooltip id="attach-image" className="bg-blue-600 text-white text-xs" />
                                             </button>
                                             <button
                                                 onClick={() => fileInputRef.current?.click()}
-                                                className="p-2 text-blue-900 hover:text-teal-600 transition-colors duration-300"
+                                                className="p-2.5 text-blue-600 hover:bg-blue-50 rounded-xl transition-colors duration-200"
                                                 data-tooltip-id="attach-video"
-                                                data-tooltip-content="Attach Video"
+                                                data-tooltip-content="Video"
                                                 aria-label="Attach Video"
                                             >
-                                                <Video className="w-6 h-6" />
-                                                <Tooltip id="attach-video" className="bg-teal-600 text-white" />
+                                                <Video className="w-5 h-5" />
+                                                <Tooltip id="attach-video" className="bg-blue-600 text-white text-xs" />
                                             </button>
                                             <button
                                                 onClick={() => fileInputRef.current?.click()}
-                                                className="p-2 text-blue-900 hover:text-teal-600 transition-colors duration-300"
+                                                className="p-2.5 text-blue-600 hover:bg-blue-50 rounded-xl transition-colors duration-200"
                                                 data-tooltip-id="attach-doc"
-                                                data-tooltip-content="Attach Document"
+                                                data-tooltip-content="Document"
                                                 aria-label="Attach Document"
                                             >
-                                                <FileText className="w-6 h-6" />
-                                                <Tooltip id="attach-doc" className="bg-teal-600 text-white" />
+                                                <FileText className="w-5 h-5" />
+                                                <Tooltip id="attach-doc" className="bg-blue-600 text-white text-xs" />
                                             </button>
                                             <input
                                                 type="file"
@@ -567,17 +531,18 @@ const SocialFeed = () => {
                                         <button
                                             onClick={handleCreatePost}
                                             disabled={(!newPost.trim() && !file) || isPosting}
-                                            className={`px-6 py-3 rounded-lg font-semibold transition-all duration-300 flex items-center gap-3 text-base ${newPost.trim() || file
-                                                    ? 'bg-gradient-to-r from-teal-600 to-blue-600 text-white hover:from-teal-700 hover:to-blue-700 hover:scale-105 hover:shadow-md'
+                                            className={`px-6 py-2.5 rounded-xl font-semibold transition-all duration-200 flex items-center gap-2 text-sm shadow-sm ${
+                                                newPost.trim() || file
+                                                    ? 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md'
                                                     : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                                } ${isPosting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                            } ${isPosting ? 'opacity-70 cursor-not-allowed' : ''}`}
                                             data-tooltip-id="post"
-                                            data-tooltip-content="Share Post"
+                                            data-tooltip-content="Post"
                                             aria-label="Share Post"
                                         >
-                                            <Send className="w-6 h-6" />
+                                            <Send className="w-5 h-5" />
                                             {isPosting ? 'Posting...' : 'Post'}
-                                            <Tooltip id="post" className="bg-teal-600 text-white" />
+                                            <Tooltip id="post" className="bg-blue-600 text-white text-xs" />
                                         </button>
                                     </div>
                                     <AnimatePresence>
@@ -586,14 +551,14 @@ const SocialFeed = () => {
                                                 initial={{ opacity: 0, y: -10 }}
                                                 animate={{ opacity: 1, y: 0 }}
                                                 exit={{ opacity: 0, y: -10 }}
-                                                className="absolute left-0 top-full z-20 mt-2"
+                                                className="absolute left-0 top-full mt-2 z-30"
                                             >
                                                 <EmojiPicker
                                                     onEmojiClick={handleEmojiClick}
                                                     theme="light"
                                                     emojiStyle="native"
                                                     skinTonesDisabled
-                                                    className="shadow-lg"
+                                                    className="shadow-xl rounded-xl border border-gray-200"
                                                 />
                                             </motion.div>
                                         )}
@@ -602,7 +567,7 @@ const SocialFeed = () => {
                             </div>
                         </motion.div>
                         <div
-                            className="max-h-[calc(100vh-24rem)] lg:max-h-[700px] overflow-y-auto scrollbar-thin scroll-smooth space-y-8 pb-16"
+                            className="space-y-6 overflow-y-auto pb-8 scroll-smooth"
                             role="region"
                             aria-label="Social Feed"
                             ref={feedRef}
@@ -611,15 +576,15 @@ const SocialFeed = () => {
                                 {posts.map((post, index) => (
                                     <motion.div
                                         key={post._id}
-                                        initial={{ opacity: 0, y: 20 }}
+                                        initial={{ opacity: 0, y: 15 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         exit={{ opacity: 0 }}
-                                        transition={{ duration: 0.3, delay: index * 0.05 }}
-                                        className="bg-white/95 backdrop-blur-md rounded-xl shadow-sm hover:shadow-md transition-all duration-300 p-6 max-w-3xl mx-auto relative"
+                                        transition={{ duration: 0.25, delay: index * 0.03 }}
+                                        className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300"
                                         ref={index === posts.length - 1 ? lastPostElementRef : null}
                                     >
-                                        <div className="flex items-center gap-6 mb-6">
-                                            <div className="w-12 h-12 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center text-lg font-bold flex-shrink-0">
+                                        <div className="flex items-center gap-4 mb-4">
+                                            <div className="w-11 h-11 rounded-full bg-blue-600 text-white flex items-center justify-center text-base font-bold flex-shrink-0 shadow-sm">
                                                 {post.user.name
                                                     .trim()
                                                     .split(' ')
@@ -629,48 +594,44 @@ const SocialFeed = () => {
                                                     .toUpperCase()}
                                             </div>
                                             <div className="flex-1">
-                                                <div className="flex justify-between items-center">
-                                                    <div className="min-w-0">
-                                                        <p className="text-base font-semibold text-blue-900 truncate">{post.user.name}</p>
-                                                        <p className="text-sm text-gray-500">
-                                                            {moment(post.createdAt).tz('Africa/Lagos').format('MMM D, YYYY, h:mm A')}
-                                                        </p>
-                                                    </div>
-                                                    <div className="flex gap-3 flex-shrink-0">
-                                                        <button
-                                                            onClick={() => startEditing(post)}
-                                                            className="p-2 text-blue-900 hover:text-teal-600 transition-colors duration-300"
-                                                            data-tooltip-id={`edit-post-${post._id}`}
-                                                            data-tooltip-content="Edit Post"
-                                                            aria-label="Edit Post"
-                                                        >
-                                                            <Edit2 className="w-6 h-6" />
-                                                            <Tooltip id={`edit-post-${post._id}`} className="bg-teal-600 text-white" />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleConfirmDelete(post._id)}
-                                                            className="p-2 text-red-500 hover:text-red-600 transition-colors duration-300"
-                                                            data-tooltip-id={`delete-post-${post._id}`}
-                                                            data-tooltip-content="Delete Post"
-                                                            aria-label="Delete Post"
-                                                        >
-                                                            <Trash2 className="w-6 h-6" />
-                                                            <Tooltip id={`delete-post-${post._id}`} className="bg-teal-600 text-white" />
-                                                        </button>
-                                                    </div>
-                                                </div>
+                                                <p className="text-base font-semibold text-gray-900">{post.user.name}</p>
+                                                <p className="text-xs text-blue-600">
+                                                    {moment(post.createdAt).tz('Africa/Lagos').format('MMM D, YYYY [at] h:mm A')}
+                                                </p>
+                                            </div>
+                                            <div className="flex gap-1.5">
+                                                <button
+                                                    onClick={() => startEditing(post)}
+                                                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-xl transition-colors duration-200"
+                                                    data-tooltip-id={`edit-post-${post._id}`}
+                                                    data-tooltip-content="Edit"
+                                                    aria-label="Edit Post"
+                                                >
+                                                    <Edit2 className="w-5 h-5" />
+                                                    <Tooltip id={`edit-post-${post._id}`} className="bg-blue-600 text-white text-xs" />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleConfirmDelete(post._id)}
+                                                    className="p-2 text-red-600 hover:bg-red-50 rounded-xl transition-colors duration-200"
+                                                    data-tooltip-id={`delete-post-${post._id}`}
+                                                    data-tooltip-content="Delete"
+                                                    aria-label="Delete Post"
+                                                >
+                                                    <Trash2 className="w-5 h-5" />
+                                                    <Tooltip id={`delete-post-${post._id}`} className="bg-blue-600 text-white text-xs" />
+                                                </button>
                                             </div>
                                         </div>
                                         {post.content && (
-                                            <p className="text-base text-gray-800 mb-6 text-left leading-relaxed">{post.content}</p>
+                                            <p className="text-base text-gray-800 mb-4 leading-relaxed">{post.content}</p>
                                         )}
                                         {post.fileUrl && (
-                                            <div className="mt-6 flex justify-center">
+                                            <div className="mt-4 rounded-xl overflow-hidden shadow-sm">
                                                 {post.contentType === 'image' && (
                                                     <img
                                                         src={post.fileUrl}
                                                         alt="Post media"
-                                                        className="max-w-full h-auto rounded-lg shadow-sm cursor-pointer hover:opacity-90 transition-all duration-300"
+                                                        className="w-full h-auto rounded-xl cursor-pointer hover:opacity-95 transition-opacity duration-200"
                                                         loading="lazy"
                                                         onClick={() => setSelectedImage(post.fileUrl)}
                                                     />
@@ -679,17 +640,17 @@ const SocialFeed = () => {
                                                     <video
                                                         src={post.fileUrl}
                                                         controls
-                                                        className="max-w-full h-auto rounded-lg shadow-sm"
+                                                        className="w-full h-auto rounded-xl"
                                                         loading="lazy"
                                                     />
                                                 )}
                                                 {post.contentType === 'application' && (
                                                     <button
                                                         onClick={() => setSelectedDoc(post.fileUrl)}
-                                                        className="flex items-center gap-3 px-6 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-all duration-300 hover:scale-105 hover:shadow-md text-base"
+                                                        className="w-full px-5 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 text-sm font-medium shadow-sm"
                                                         aria-label="View Document"
                                                     >
-                                                        <FileText className="w-6 h-6" /> View Document
+                                                        <FileText className="w-5 h-5 inline mr-2" /> View Document
                                                     </button>
                                                 )}
                                             </div>
@@ -698,44 +659,16 @@ const SocialFeed = () => {
                                 ))}
                             </AnimatePresence>
                             {isLoading && (
-                                <motion.div
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    className="text-center text-base text-gray-500 py-8"
-                                >
+                                <div className="text-center py-6 text-sm text-gray-500">
                                     Loading more posts...
-                                </motion.div>
+                                </div>
                             )}
                             {!hasMore && posts.length > 0 && (
-                                <div className="text-center text-base text-gray-500 py-8">No more posts to load.</div>
+                                <div className="text-center py-6 text-sm text-gray-400">No more posts</div>
                             )}
-                        </div>
-                        {/* Scroll Buttons */}
-                        <div className="fixed bottom-8 right-8 flex flex-col gap-4 z-20">
-                            <button
-                                onClick={scrollToTop}
-                                className="p-3 bg-teal-600 text-white rounded-full hover:bg-teal-700 transition-all duration-300 hover:scale-105 shadow-lg"
-                                data-tooltip-id="scroll-top"
-                                data-tooltip-content="Scroll to Top"
-                                aria-label="Scroll to Top"
-                            >
-                                <ArrowUp className="w-6 h-6" />
-                                <Tooltip id="scroll-top" className="bg-teal-600 text-white" />
-                            </button>
-                            <button
-                                onClick={scrollToBottom}
-                                className="p-3 bg-teal-600 text-white rounded-full hover:bg-teal-700 transition-all duration-300 hover:scale-105 shadow-lg"
-                                data-tooltip-id="scroll-bottom"
-                                data-tooltip-content="Scroll to Bottom"
-                                aria-label="Scroll to Bottom"
-                            >
-                                <ArrowDown className="w-6 h-6" />
-                                <Tooltip id="scroll-bottom" className="bg-teal-600 text-white" />
-                            </button>
                         </div>
                     </main>
                 </motion.div>
-
                 {/* Image Modal */}
                 <AnimatePresence>
                     {selectedImage && (
@@ -744,7 +677,7 @@ const SocialFeed = () => {
                             animate="visible"
                             exit="exit"
                             variants={modalVariants}
-                            className="fixed inset-0 bg-gray-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-6"
+                            className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-6"
                             onClick={() => setSelectedImage(null)}
                             role="dialog"
                             aria-label="Image Preview"
@@ -752,18 +685,18 @@ const SocialFeed = () => {
                             tabIndex={-1}
                         >
                             <div
-                                className="relative max-w-5xl w-full p-6"
+                                className="relative max-w-5xl w-full"
                                 onClick={(e) => e.stopPropagation()}
                             >
                                 <img
                                     src={selectedImage}
-                                    alt="Large preview"
-                                    className="w-full h-auto rounded-xl shadow-lg"
+                                    alt="Full preview"
+                                    className="w-full h-auto rounded-2xl shadow-2xl"
                                 />
                                 <button
                                     onClick={() => setSelectedImage(null)}
-                                    className="absolute top-4 right-4 p-3 bg-teal-600 text-white rounded-full hover:bg-teal-700 transition-all duration-300 hover:scale-105"
-                                    aria-label="Close Image Preview"
+                                    className="absolute top-4 right-4 p-3 bg-white/90 backdrop-blur-sm text-gray-800 rounded-full hover:bg-white transition-all duration-200 shadow-lg"
+                                    aria-label="Close"
                                 >
                                     <X className="w-6 h-6" />
                                 </button>
@@ -771,7 +704,6 @@ const SocialFeed = () => {
                         </motion.div>
                     )}
                 </AnimatePresence>
-
                 {/* Document Modal */}
                 <AnimatePresence>
                     {selectedDoc && (
@@ -780,7 +712,7 @@ const SocialFeed = () => {
                             animate="visible"
                             exit="exit"
                             variants={modalVariants}
-                            className="fixed inset-0 bg-gray-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-6"
+                            className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-6"
                             onClick={() => setSelectedDoc(null)}
                             role="dialog"
                             aria-label="Document Preview"
@@ -788,7 +720,7 @@ const SocialFeed = () => {
                             tabIndex={-1}
                         >
                             <div
-                                className="relative w-full max-w-5xl h-[80vh] bg-white rounded-xl overflow-hidden shadow-lg"
+                                className="relative w-full max-w-5xl h-[85vh] bg-white rounded-2xl overflow-hidden shadow-2xl"
                                 onClick={(e) => e.stopPropagation()}
                             >
                                 <iframe
@@ -798,8 +730,8 @@ const SocialFeed = () => {
                                 />
                                 <button
                                     onClick={() => setSelectedDoc(null)}
-                                    className="absolute top-4 right-4 p-3 bg-teal-600 text-white rounded-full hover:bg-teal-700 transition-all duration-300 hover:scale-105"
-                                    aria-label="Close Document Preview"
+                                    className="absolute top-4 right-4 p-3 bg-white/90 backdrop-blur-sm text-gray-800 rounded-full hover:bg-white transition-all duration-200 shadow-lg"
+                                    aria-label="Close"
                                 >
                                     <X className="w-6 h-6" />
                                 </button>
@@ -807,7 +739,6 @@ const SocialFeed = () => {
                         </motion.div>
                     )}
                 </AnimatePresence>
-
                 {/* Delete Confirmation Modal */}
                 <AnimatePresence>
                     {showDeleteConfirm && (
@@ -816,46 +747,36 @@ const SocialFeed = () => {
                             animate="visible"
                             exit="exit"
                             variants={modalVariants}
-                            className="fixed inset-0 bg-gray-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-6"
+                            className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-6"
                             role="dialog"
                             aria-label="Delete Confirmation"
                             ref={modalRef}
                             tabIndex={-1}
                         >
                             <div
-                                className="relative w-full max-w-md bg-white/95 backdrop-blur-md rounded-xl p-8 border border-teal-200/50 shadow-lg"
+                                className="w-full max-w-sm bg-white rounded-2xl p-6 shadow-2xl border border-gray-100"
                                 onClick={(e) => e.stopPropagation()}
                             >
-                                <h2 className="text-xl font-semibold text-blue-900 mb-6 truncate">Confirm Deletion</h2>
-                                <p className="text-base text-gray-800 mb-8 leading-relaxed">Are you sure you want to delete this post? This action cannot be undone.</p>
-                                <div className="flex justify-end gap-4">
+                                <h2 className="text-lg font-semibold text-gray-900 mb-3">Delete Post?</h2>
+                                <p className="text-sm text-gray-600 mb-6">This action cannot be undone.</p>
+                                <div className="flex justify-end gap-3">
                                     <button
                                         onClick={handleCancelDelete}
-                                        className="px-6 py-3 rounded-lg bg-gray-200 text-gray-800 text-base font-semibold hover:bg-gray-300 transition-all duration-300 hover:scale-105"
-                                        aria-label="Cancel Deletion"
+                                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-all duration-200"
                                     >
-                                        No
+                                        Cancel
                                     </button>
                                     <button
                                         onClick={handleConfirmDeleteAction}
-                                        className="px-6 py-3 rounded-lg bg-red-600 text-white text-base font-semibold hover:bg-red-700 transition-all duration-300 hover:scale-105"
-                                        aria-label="Confirm Deletion"
+                                        className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-xl hover:bg-red-700 transition-all duration-200"
                                     >
-                                        Yes
+                                        Delete
                                     </button>
                                 </div>
-                                <button
-                                    onClick={handleCancelDelete}
-                                    className="absolute top-4 right-4 p-3 bg-teal-600 text-white rounded-full hover:bg-teal-700 transition-all duration-300 hover:scale-105"
-                                    aria-label="Close Delete Confirmation"
-                                >
-                                    <X className="w-6 h-6" />
-                                </button>
                             </div>
                         </motion.div>
                     )}
                 </AnimatePresence>
-
                 {/* Edit Post Modal */}
                 <AnimatePresence>
                     {editingPost && (
@@ -864,22 +785,22 @@ const SocialFeed = () => {
                             animate="visible"
                             exit="exit"
                             variants={modalVariants}
-                            className="fixed inset-0 bg-gray-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-6"
+                            className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-6"
                             role="dialog"
                             aria-label="Edit Post"
                             ref={modalRef}
                             tabIndex={-1}
                         >
                             <div
-                                className="relative w-full max-w-3xl bg-white/95 backdrop-blur-md rounded-xl p-8 border border-teal-200/50 shadow-lg"
+                                className="w-full max-w-2xl bg-white rounded-2xl p-6 shadow-2xl border border-gray-100"
                                 onClick={(e) => e.stopPropagation()}
                             >
-                                <h2 className="text-xl font-semibold text-blue-900 mb-6 truncate">Edit Post</h2>
+                                <h2 className="text-lg font-semibold text-gray-900 mb-4">Edit Post</h2>
                                 <textarea
                                     value={editContent}
                                     onChange={(e) => setEditContent(e.target.value)}
-                                    placeholder="Edit your post..."
-                                    className="w-full p-4 text-base text-gray-800 border border-teal-300/50 rounded-lg focus:ring-2 focus:ring-teal-400 focus:border-transparent resize-y mb-6 transition-all duration-300"
+                                    placeholder="Update your post..."
+                                    className="w-full p-3 text-base text-gray-800 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none transition-all duration-200"
                                     rows="4"
                                     maxLength={1000}
                                     aria-label="Edit post content"
@@ -888,38 +809,38 @@ const SocialFeed = () => {
                                     <motion.div
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
-                                        className="flex items-center gap-4 mb-6"
+                                        className="flex items-center gap-3 mt-3 p-3 bg-gray-50 rounded-xl border border-gray-200"
                                     >
                                         {filePreview && file.type.startsWith('image/') && (
-                                            <img src={filePreview} alt="Preview" className="w-20 h-20 object-cover rounded-lg shadow-sm" />
+                                            <img src={filePreview} alt="Preview" className="w-16 h-16 object-cover rounded-lg shadow-sm" />
                                         )}
                                         {filePreview && file.type.startsWith('video/') && (
-                                            <video src={filePreview} className="w-20 h-20 object-cover rounded-lg shadow-sm" />
+                                            <video src={filePreview} className="w-16 h-16 object-cover rounded-lg shadow-sm" />
                                         )}
-                                        <span className="text-base text-gray-600 truncate max-w-md">{file.name}</span>
+                                        <span className="text-sm text-gray-700 truncate max-w-xs">{file.name}</span>
                                         <button
                                             onClick={() => {
                                                 setFile(null);
                                                 setFilePreview(null);
                                             }}
-                                            className="text-red-500 hover:text-red-600 transition-colors duration-300"
+                                            className="text-red-600 hover:text-red-700 transition-colors duration-200"
                                             aria-label="Remove file"
                                         >
-                                            <X className="w-6 h-6" />
+                                            <X className="w-5 h-5" />
                                         </button>
                                     </motion.div>
                                 )}
-                                <div className="flex items-center justify-between mb-4">
-                                    <div className="flex gap-4">
+                                <div className="flex items-center justify-between mt-4">
+                                    <div className="flex gap-2">
                                         <button
                                             onClick={() => fileInputRef.current?.click()}
-                                            className="p-2 text-blue-900 hover:text-teal-600 transition-colors duration-300"
+                                            className="p-2.5 text-blue-600 hover:bg-blue-50 rounded-xl transition-colors duration-200"
                                             data-tooltip-id="attach-file-edit"
-                                            data-tooltip-content="Attach File"
+                                            data-tooltip-content="Attach"
                                             aria-label="Attach File"
                                         >
-                                            <Paperclip className="w-6 h-6" />
-                                            <Tooltip id="attach-file-edit" className="bg-teal-600 text-white" />
+                                            <Paperclip className="w-5 h-5" />
+                                            <Tooltip id="attach-file-edit" className="bg-blue-600 text-white text-xs" />
                                         </button>
                                         <input
                                             type="file"
@@ -931,16 +852,16 @@ const SocialFeed = () => {
                                         <button
                                             ref={emojiButtonRef}
                                             onClick={() => setShowEmojiPicker((prev) => !prev)}
-                                            className="p-2 text-blue-900 hover:text-teal-600 transition-colors duration-300"
+                                            className="p-2.5 text-blue-600 hover:bg-blue-50 rounded-xl transition-colors duration-200"
                                             data-tooltip-id="add-emoji-edit"
-                                            data-tooltip-content="Add Emoji"
+                                            data-tooltip-content="Emoji"
                                             aria-label="Add Emoji"
                                         >
-                                            <Smile className="w-6 h-6" />
-                                            <Tooltip id="add-emoji-edit" className="bg-teal-600 text-white" />
+                                            <Smile className="w-5 h-5" />
+                                            <Tooltip id="add-emoji-edit" className="bg-blue-600 text-white text-xs" />
                                         </button>
                                     </div>
-                                    <div className="flex gap-4">
+                                    <div className="flex gap-3">
                                         <button
                                             onClick={() => {
                                                 setEditingPost(null);
@@ -948,19 +869,18 @@ const SocialFeed = () => {
                                                 setFile(null);
                                                 setFilePreview(null);
                                             }}
-                                            className="px-6 py-3 rounded-lg bg-gray-200 text-gray-800 text-base font-semibold hover:bg-gray-300 transition-all duration-300 hover:scale-105"
-                                            aria-label="Cancel Edit"
+                                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-all duration-200"
                                         >
                                             Cancel
                                         </button>
                                         <button
                                             onClick={() => handleEditPost(editingPost)}
                                             disabled={(!editContent.trim() && !file) || isPosting}
-                                            className={`px-6 py-3 rounded-lg font-semibold transition-all duration-300 flex items-center gap-3 text-base ${editContent.trim() || file
-                                                    ? 'bg-gradient-to-r from-teal-600 to-blue-600 text-white hover:from-teal-700 hover:to-blue-700 hover:scale-105 hover:shadow-md'
+                                            className={`px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200 ${
+                                                editContent.trim() || file
+                                                    ? 'bg-blue-600 text-white hover:bg-blue-700'
                                                     : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                                } ${isPosting ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                            aria-label="Save Post"
+                                            } ${isPosting ? 'opacity-70 cursor-not-allowed' : ''}`}
                                         >
                                             {isPosting ? 'Saving...' : 'Save'}
                                         </button>
@@ -972,14 +892,14 @@ const SocialFeed = () => {
                                             initial={{ opacity: 0, y: -10 }}
                                             animate={{ opacity: 1, y: 0 }}
                                             exit={{ opacity: 0, y: -10 }}
-                                            className="absolute left-0 top-full z-20 mt-2"
+                                            className="absolute left-0 top-full mt-2 z-30"
                                         >
                                             <EmojiPicker
                                                 onEmojiClick={handleEmojiClick}
                                                 theme="light"
                                                 emojiStyle="native"
                                                 skinTonesDisabled
-                                                className="shadow-lg"
+                                                className="shadow-xl rounded-xl border border-gray-200"
                                             />
                                         </motion.div>
                                     )}
@@ -991,35 +911,35 @@ const SocialFeed = () => {
                                         setFile(null);
                                         setFilePreview(null);
                                     }}
-                                    className="absolute top-4 right-4 p-3 bg-teal-600 text-white rounded-full hover:bg-teal-700 transition-all duration-300 hover:scale-105"
-                                    aria-label="Close Edit Modal"
+                                    className="absolute top-4 right-4 p-2 text-gray-600 hover:bg-gray-100 rounded-xl transition-colors duration-200"
+                                    aria-label="Close"
                                 >
-                                    <X className="w-6 h-6" />
+                                    <X className="w-5 h-5" />
                                 </button>
                             </div>
                         </motion.div>
                     )}
                 </AnimatePresence>
             </div>
-
             <style jsx>{`
+                .scrollbar-thin {
+                    scrollbar-width: thin;
+                }
                 .scrollbar-thin::-webkit-scrollbar {
-                    width: 6px;
+                    width: 5px;
                 }
                 .scrollbar-thin::-webkit-scrollbar-track {
-                    background: rgba(20, 184, 166, 0.1);
-                    border-radius: 3px;
+                    background: transparent;
                 }
                 .scrollbar-thin::-webkit-scrollbar-thumb {
-                    background: #14B8A6;
-                    border-radius: 3px;
+                    background: #93c5fd;
+                    border-radius: 10px;
                 }
                 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-                    background: #0D9488;
+                    background: #60a5fa;
                 }
             `}</style>
         </motion.div>
     );
 };
-
 export default SocialFeed;

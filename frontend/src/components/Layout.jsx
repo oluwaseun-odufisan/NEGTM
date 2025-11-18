@@ -9,7 +9,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 const API_URL = import.meta.env.VITE_API_URL;
 
 const Layout = ({ onLogout, user }) => {
-  // Initialize states from localStorage
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(() => {
     return localStorage.getItem('sidebarExpanded') === 'true';
   });
@@ -31,7 +30,6 @@ const Layout = ({ onLogout, user }) => {
   const noteModalRef = useRef(null);
   const navigate = useNavigate();
 
-  // Persist sidebar and metrics visibility to localStorage
   useEffect(() => {
     localStorage.setItem('sidebarExpanded', isSidebarExpanded);
   }, [isSidebarExpanded]);
@@ -79,8 +77,6 @@ const Layout = ({ onLogout, user }) => {
       });
       if (data.success) {
         setChatMessages(data.messages || []);
-      } else {
-        console.error('Chat history error:', data.message);
       }
     } catch (err) {
       console.error('Chat history fetch error:', err.message);
@@ -90,12 +86,10 @@ const Layout = ({ onLogout, user }) => {
   const handleChatSubmit = async (e) => {
     e.preventDefault();
     if (!chatInput.trim() || isChatLoading) return;
-
     const userMessage = { text: chatInput, sender: 'user', timestamp: new Date().toISOString() };
     setChatMessages((prev) => [...prev, userMessage]);
     setChatInput('');
     setIsChatLoading(true);
-
     try {
       const token = localStorage.getItem('token');
       if (!token) throw new Error('No auth token found');
@@ -158,18 +152,9 @@ const Layout = ({ onLogout, user }) => {
     });
   };
 
-  const toggleLog = () => {
-    setIsLogExpanded((prev) => !prev);
-  };
-
-  const toggleNote = () => {
-    setIsNoteOpen((prev) => !prev);
-  };
-
-  const clearNote = () => {
-    setNoteContent('');
-  };
-
+  const toggleLog = () => setIsLogExpanded((prev) => !prev);
+  const toggleNote = () => setIsNoteOpen((prev) => !prev);
+  const clearNote = () => setNoteContent('');
   const handleBackdropClick = (e) => {
     if (noteModalRef.current && !noteModalRef.current.contains(e.target)) {
       setIsNoteOpen(false);
@@ -178,17 +163,13 @@ const Layout = ({ onLogout, user }) => {
 
   useEffect(() => {
     const handleEscape = (e) => {
-      if (e.key === 'Escape' && isNoteOpen) {
-        setIsNoteOpen(false);
-      }
+      if (e.key === 'Escape' && isNoteOpen) setIsNoteOpen(false);
     };
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
   }, [isNoteOpen]);
 
-  useEffect(() => {
-    fetchTasks();
-  }, [fetchTasks]);
+  useEffect(() => { fetchTasks(); }, [fetchTasks]);
 
   useEffect(() => {
     if (isChatOpen && chatContainerRef.current) {
@@ -198,7 +179,6 @@ const Layout = ({ onLogout, user }) => {
 
   useEffect(() => {
     const handleBeforeUnload = () => {
-      // Persist states to localStorage before unload
       localStorage.setItem('sidebarExpanded', isSidebarExpanded);
       localStorage.setItem('metricsVisible', isMetricsVisible);
     };
@@ -212,17 +192,10 @@ const Layout = ({ onLogout, user }) => {
       task.completed === 1 ||
       (typeof task.completed === 'string' && task.completed.toLowerCase() === 'true')
     ).length;
-
     const totalCount = tasks.length;
     const pendingCount = totalCount - completedTasks;
     const completionPercentage = totalCount ? Math.round((completedTasks / totalCount) * 100) : 0;
-
-    return {
-      totalCount,
-      completedTasks,
-      pendingCount,
-      completionPercentage,
-    };
+    return { totalCount, completedTasks, pendingCount, completionPercentage };
   }, [tasks]);
 
   const aiSuggestions = useMemo(() => {
@@ -245,17 +218,14 @@ const Layout = ({ onLogout, user }) => {
     return suggestions.slice(0, 3);
   }, [tasks, stats]);
 
-  const StatCard = ({ title, value, icon, gradientFrom, gradientTo }) => (
-    <div className="relative p-3 rounded-xl bg-white/95 backdrop-blur-lg border border-teal-100/50 hover:shadow-lg transition-all duration-300 group overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-teal-50 to-teal-100 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-      <div className="relative flex items-center gap-2">
-        <div className={`p-2 rounded-full bg-gradient-to-br ${gradientFrom} ${gradientTo} group-hover:scale-110 transition-transform duration-200`}>
-          {icon}
+  const StatCard = ({ title, value, icon, bgColor, textColor }) => (
+    <div className="p-3 rounded-xl bg-white border border-gray-200 hover:shadow-md transition-shadow">
+      <div className="flex items-center gap-2">
+        <div className={`p-2 rounded-full ${bgColor}`}>
+          {React.cloneElement(icon, { className: `w-4 h-4 ${textColor}` })}
         </div>
-        <div className="min-w-0">
-          <p className="text-base font-bold bg-gradient-to-r from-teal-500 to-blue-600 bg-clip-text text-transparent">
-            {value}
-          </p>
+        <div>
+          <p className="text-base font-bold text-gray-900">{value}</p>
           <p className="text-xs text-gray-600 font-medium">{title}</p>
         </div>
       </div>
@@ -263,26 +233,22 @@ const Layout = ({ onLogout, user }) => {
   );
 
   if (loading) return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-teal-50 to-teal-400 flex items-center justify-center">
-      <div className="relative">
-        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-teal-500" />
-        <Sparkles className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-6 h-6 text-teal-400 animate-pulse" />
+    <div className="minth-screen bg-blue-50 flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mx-auto"></div>
+        <p className="mt-4 text-sm text-gray-600">Loading FundCo TM...</p>
       </div>
     </div>
   );
 
   if (error) return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-teal-50 to-teal-400 flex items-center justify-center p-4">
-      <div className="relative bg-white/95 backdrop-blur-lg text-red-600 p-6 rounded-xl border border-red-200 max-w-md shadow-lg">
-        <div className="absolute inset-0 bg-gradient-to-r from-red-50/20 to-transparent animate-pulse" />
-        <p className="relative text-lg font-semibold mb-2 flex items-center gap-2">
-          <Activity className="w-5 h-5 text-red-600" />
-          Error
-        </p>
-        <p className="text-sm text-gray-600">{error}</p>
+    <div className="minth-screen bg-blue-50 flex items-center justify-center p-4">
+      <div className="bg-white text-red-600 p-6 rounded-xl border border-red-200 max-w-md shadow-lg text-center">
+        <p className="text-lg font-semibold mb-2">Error</p>
+        <p className="text-sm text-gray-700">{error}</p>
         <button
           onClick={fetchTasks}
-          className="mt-4 px-6 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors duration-200"
+          className="mt-4 px-6 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors"
         >
           Retry
         </button>
@@ -291,17 +257,19 @@ const Layout = ({ onLogout, user }) => {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-teal-50 to-teal-400 flex relative">
+    <div className="minth-screen bg-blue-50 flex relative">
+      {/* Background Accents */}
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute w-64 h-64 md:w-72 md:h-72 top-0 left-0 bg-teal-200/30 rounded-full filter blur-4xl animate-pulse-slow" />
-        <div className="absolute w-64 h-64 md:w-72 md:h-72 bottom-0 right-0 bg-blue-200/30 rounded-full filter blur-4xl animate-pulse-slow-delayed" />
+        <div className="absolute w-64 h-64 top-0 left-0 bg-blue-100 rounded-full opacity-20"></div>
+        <div className="absolute w-64 h-64 bottom-0 right-0 bg-green-100 rounded-full opacity-20"></div>
       </div>
 
-      <Sidebar 
-        user={user} 
+      <Sidebar
+        user={user}
         isExpanded={isSidebarExpanded}
         onToggle={() => setIsSidebarExpanded(!isSidebarExpanded)}
       />
+
       <div className="flex-1 flex flex-col relative z-10">
         <Navbar user={user} onLogout={onLogout} />
 
@@ -311,200 +279,130 @@ const Layout = ({ onLogout, user }) => {
               <Outlet context={{ user, tasks, fetchTasks }} />
             </div>
 
-            {isMetricsVisible ? (
-              <div className="space-y-5 relative">
-                <button
-                  onClick={() => setIsMetricsVisible(false)}
-                  className="absolute -left-5 top-1/2 -translate-y-1/2 z-50 bg-gradient-to-r from-teal-500 to-blue-600 text-white p-2 rounded-l-full shadow-lg hover:scale-105 transition duration-200 opacity-90 hover:opacity-100 hidden lg:block"
-                  aria-label="Hide metrics"
-                >
-                  <ChevronRight className="w-5 h-5" />
-                </button>
-                {/* Metrics */}
-                <div className="relative bg-white/95 backdrop-blur-lg rounded-xl p-4 md:p-5 shadow-lg border border-teal-100/20 hover:shadow-xl transition-all duration-200">
-                  <div className="absolute inset-0 bg-gradient-to-br from-teal-50/20 to-blue-50/20 opacity-50 rounded-xl" />
-                  <div className="relative">
-                    <h3 className="text-lg font-bold text-blue-900 flex items-center gap-2 mb-5">
-                      <TrendingUp className="w-5 h-5 text-teal-500 animate-pulse" />
-                      Metrics
-                    </h3>
-                    <div className="grid grid-cols-2 gap-3">
-                      <StatCard
-                        title="Total Tasks"
-                        value={stats.totalCount}
-                        icon={<Circle className="w-4 h-4 text-teal-500" />}
-                        gradientFrom="from-teal-100"
-                        gradientTo="to-teal-200"
-                      />
-                      <StatCard
-                        title="Completed"
-                        value={stats.completedTasks}
-                        icon={<Circle className="w-4 h-4 text-blue-600" />}
-                        gradientFrom="from-blue-100"
-                        gradientTo="to-blue-200"
-                      />
-                      <StatCard
-                        title="Pending"
-                        value={stats.pendingCount}
-                        icon={<Circle className="w-4 h-4 text-teal-400" />}
-                        gradientFrom="from-teal-200"
-                        gradientTo="to-teal-300"
-                      />
-                      <StatCard
-                        title="Completion Rate"
-                        value={`${stats.completionPercentage}%`}
-                        icon={<Zap className="w-4 h-4 text-blue-600" />}
-                        gradientFrom="from-blue-100"
-                        gradientTo="to-teal-200"
+            {/* === METRICS PANEL === */}
+            {isMetricsVisible && (
+              <div className="space-y-5">
+                {/* Metrics Content */}
+                <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
+                  <h3 className="text-lg font-bold text-blue-900 flex items-center gap-2 mb-5">
+                    <TrendingUp className="w-5 h-5 text-blue-600" />
+                    Metrics
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <StatCard title="Total Tasks" value={stats.totalCount} icon={<Circle />} bgColor="bg-blue-100" textColor="text-blue-700" />
+                    <StatCard title="Completed" value={stats.completedTasks} icon={<Circle />} bgColor="bg-green-100" textColor="text-green-700" />
+                    <StatCard title="Pending" value={stats.pendingCount} icon={<Circle />} bgColor="bg-gray-100" textColor="text-gray-700" />
+                    <StatCard title="Completion Rate" value={`${stats.completionPercentage}%`} icon={<Zap />} bgColor="bg-blue-100" textColor="text-blue-700" />
+                  </div>
+                  <hr className="my-5 border-gray-200" />
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs text-gray-700">
+                      <span className="font-medium flex items-center gap-2">
+                        <Circle className="w-2 h-2 fill-green-500 text-green-500" />
+                        Progress
+                      </span>
+                      <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-semibold">
+                        {stats.completedTasks}/{stats.totalCount}
+                      </span>
+                    </div>
+                    <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-green-600 transition-all duration-500"
+                        style={{ width: `${stats.completionPercentage}%` }}
                       />
                     </div>
-                    <hr className="my-5 border-teal-200/30" />
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-xs text-gray-700">
-                        <span className="font-medium flex items-center gap-2">
-                          <Circle className="w-2 h-2 text-teal-500 fill-teal-400" />
-                          Progress
-                        </span>
-                        <span className="bg-teal-50 text-teal-700 px-2 py-0.5 rounded-full text-xs font-semibold">
-                          {stats.completedTasks}/{stats.totalCount}
-                        </span>
-                      </div>
-                      <div className="relative h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-teal-500 to-blue-600 transition-all duration-500"
-                          style={{ width: `${stats.completionPercentage}%` }}
-                        />
-                      </div>
-                      <button
-                        onClick={() => navigate('/analytics')}
-                        className="mt-4 w-full bg-gradient-to-r from-teal-500 to-blue-600 text-white px-4 py-2 rounded-lg font-semibold text-sm hover:from-teal-600 hover:to-blue-700 transition-all duration-300 hover:scale-105 shadow-md"
-                      >
-                        View Your Performance Analytics Dashboard
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => navigate('/analytics')}
+                      className="mt-4 w-full bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold text-sm hover:bg-blue-700 transition"
+                    >
+                      View Analytics Dashboard
+                    </button>
                   </div>
                 </div>
 
                 {/* Activity Log */}
-                <div className="relative bg-white/95 backdrop-blur-lg rounded-xl p-4 md:p-5 shadow-lg border border-teal-100/20 hover:shadow-xl transition-all duration-200">
-                  <div className="absolute inset-0 bg-gradient-to-br from-teal-50/20 to-blue-50/20 opacity-50 rounded-xl" />
-                  <div className="relative">
-                    <button
-                      onClick={toggleLog}
-                      className="w-full text-left text-lg font-bold text-blue-900 flex items-center justify-between gap-2 mb-5 hover:text-teal-600 transition-colors duration-200"
-                      aria-expanded={isLogExpanded}
-                      aria-controls="log-content"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-5 h-5 text-teal-500 animate-spin-slow" />
-                        Activity Log
-                      </div>
-                      <ChevronDown
-                        className={`w-4 h-4 text-teal-500 transition-transform duration-200 ${isLogExpanded ? 'rotate-180' : ''}`}
-                      />
-                    </button>
-                    <div
-                      id="log-content"
-                      className={`space-y-2 transition-all duration-300 ease-in-out overflow-y-auto ${isLogExpanded ? 'max-h-[300px]' : 'max-h-[180px]'}`}
-                      role="region"
-                      aria-live="polite"
-                    >
-                      {(isLogExpanded ? tasks : tasks.slice(0, 3)).map((task) => (
-                        <div
-                          key={task._id || task.id}
-                          className="flex items-center justify-between p-2 bg-teal-50/50 rounded-lg hover:bg-teal-100/70 transition-all duration-200 border border-teal-200/50"
-                        >
-                          <div className="flex-1 min-w-0 pr-2">
-                            <p className="text-sm font-medium text-gray-800 break-words">{task.title}</p>
-                            <p className="text-xs text-gray-500 mt-0.5">
-                              {task.createdAt ? new Date(task.createdAt).toLocaleDateString() : 'No date'}
-                            </p>
-                          </div>
-                          <span
-                            className={`px-1.5 py-0.5 text-xs font-medium rounded-full ${task.completed ? 'bg-blue-100 text-blue-700' : 'bg-teal-100 text-teal-700'}`}
-                          >
-                            {task.completed ? 'Done' : 'Pending'}
-                          </span>
-                        </div>
-                      ))}
-                      {tasks.length === 0 && (
-                        <div className="text-center py-5">
-                          <Clock className="w-8 h-8 mx-auto text-teal-500 animate-pulse" />
-                          <p className="text-sm font-medium text-gray-600 mt-1.5">No tasks yet</p>
-                          <p className="text-xs text-gray-400 mt-0.5">Your activity will appear here.</p>
-                        </div>
-                      )}
+                <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
+                  <button
+                    onClick={toggleLog}
+                    className="w-full text-left text-lg font-bold text-blue-900 flex items-center justify-between gap-2 mb-5 hover:text-blue-700 transition"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-5 h-5 text-blue-600" />
+                      Activity Log
                     </div>
+                    <ChevronDown className={`w-4 h-4 text-blue-600 transition-transform ${isLogExpanded ? 'rotate-180' : ''}`} />
+                  </button>
+                  <div className={`space-y-2 transition-all duration-300 ${isLogExpanded ? 'max-h-96' : 'max-h-48'} overflow-y-auto`}>
+                    {(isLogExpanded ? tasks : tasks.slice(0, 3)).map((task) => (
+                      <div key={task._id || task.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg border border-gray-200">
+                        <div className="flex-1 min-w-0 pr-2">
+                          <p className="text-sm font-medium text-gray-800">{task.title}</p>
+                          <p className="text-xs text-gray-500">
+                            {task.createdAt ? new Date(task.createdAt).toLocaleDateString() : 'No date'}
+                          </p>
+                        </div>
+                        <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${task.completed ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                          {task.completed ? 'Done' : 'Pending'}
+                        </span>
+                      </div>
+                    ))}
+                    {tasks.length === 0 && (
+                      <p className="text-center text-sm text-gray-500 py-4">No tasks yet.</p>
+                    )}
                   </div>
                 </div>
 
                 {/* AI Suggestions */}
-                <div className="relative bg-white/95 backdrop-blur-lg rounded-xl p-4 md:p-5 shadow-lg border border-teal-100/20 hover:shadow-xl transition-all duration-200">
-                  <div className="absolute inset-0 bg-gradient-to-br from-teal-50/20 to-blue-50/20 opacity-50 rounded-xl" />
-                  <div className="relative">
-                    <h3 className="text-lg font-bold text-blue-900 flex items-center gap-2 mb-5">
-                      <Sparkles className="w-5 h-5 text-teal-500 animate-pulse" />
-                      AI Suggestions
-                    </h3>
-                    <div className="space-y-2">
-                      {aiSuggestions.length > 0 ? (
-                        aiSuggestions.map((suggestion, idx) => (
-                          <div
-                            key={`suggestion-${idx}`}
-                            className="p-2 bg-teal-50/50 rounded-lg hover:bg-teal-100/70 transition-all duration-200 border border-teal-200/50"
-                          >
-                            <p className="text-sm text-gray-800 break-words">{suggestion}</p>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="text-center py-5">
-                          <Sparkles className="w-8 h-8 mx-auto text-teal-500 animate-pulse" />
-                          <p className="text-sm font-medium text-gray-600 mt-1.5">No suggestions yet</p>
-                          <p className="text-xs text-gray-400 mt-0.5">Complete tasks to get AI insights.</p>
-                        </div>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => navigate('/ai-tools')}
-                      className="mt-4 w-full bg-gradient-to-r from-teal-500 to-blue-600 text-white px-4 py-2 rounded-lg font-semibold text-sm hover:from-teal-600 hover:to-blue-700 transition-all duration-300 hover:scale-105 shadow-md"
-                      aria-label="Navigate to AI Tools"
-                    >
-                      Use AI Tools
-                    </button>
+                <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
+                  <h3 className="text-lg font-bold text-blue-900 flex items-center gap-2 mb-5">
+                    <Sparkles className="w-5 h-5 text-blue-600" />
+                    AI Suggestions
+                  </h3>
+                  <div className="space-y-2">
+                    {aiSuggestions.length > 0 ? aiSuggestions.map((s, i) => (
+                      <div key={i} className="p-2 bg-gray-50 rounded-lg border border-gray-200">
+                        <p className="text-sm text-gray-800">{s}</p>
+                      </div>
+                    )) : (
+                      <p className="text-center text-sm text-gray-500 py-4">No suggestions yet.</p>
+                    )}
                   </div>
+                  <button
+                    onClick={() => navigate('/ai-tools')}
+                    className="mt-4 w-full bg-green-600 text-white px-4 py-2 rounded-lg font-semibold text-sm hover:bg-green-700 transition"
+                  >
+                    Use AI Tools
+                  </button>
                 </div>
 
                 {/* Sticky Notes */}
-                <div className="relative bg-white/95 backdrop-blur-lg rounded-xl p-4 md:p-5 shadow-lg border border-teal-100/20 hover:shadow-xl transition-all duration-200">
-                  <div className="absolute inset-0 bg-gradient-to-br from-teal-50/20 to-blue-50/20 opacity-50 rounded-xl" />
-                  <div className="relative">
-                    <h3 className="text-lg font-bold text-blue-900 flex items-center gap-2 mb-5">
-                      <StickyNote className="w-5 h-5 text-yellow-500 animate-pulse" />
-                      Sticky Notes
-                    </h3>
-                    <button
-                      onClick={toggleNote}
-                      className="w-full p-3 bg-yellow-100 text-gray-600 rounded-md shadow-sm border border-yellow-200 hover:bg-yellow-200 transition-all duration-200 text-left"
-                      aria-label="Open sticky note"
-                    >
-                      <p className="text-sm text-gray-600 break-words">
-                        {noteContent || 'Click to add temporary notes...'}
-                      </p>
-                    </button>
-                  </div>
+                <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
+                  <h3 className="text-lg font-bold text-blue-900 flex items-center gap-2 mb-5">
+                    <StickyNote className="w-5 h-5 text-yellow-600" />
+                    Sticky Notes
+                  </h3>
+                  <button
+                    onClick={toggleNote}
+                    className="w-full p-3 bg-yellow-50 text-gray-700 rounded-md border border-yellow-200 hover:bg-yellow-100 transition text-left"
+                  >
+                    <p className="text-sm">{noteContent || 'Click to add temporary notes...'}</p>
+                  </button>
                 </div>
               </div>
-            ) : (
-              <button
-                onClick={() => setIsMetricsVisible(true)}
-                className="hidden lg:block fixed right-0 top-1/2 -translate-y-1/2 z-50 bg-gradient-to-r from-teal-500 to-blue-600 text-white p-2 rounded-l-full shadow-lg hover:scale-105 transition duration-200 opacity-90 hover:opacity-100"
-                aria-label="Show metrics"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
             )}
           </div>
         </main>
+
+        {/* === FIXED TOGGLE BUTTON (Always on screen) === */}
+        <button
+          onClick={() => setIsMetricsVisible(!isMetricsVisible)}
+          className="fixed right-0 top-1/2 -translate-y-1/2 z-50 bg-blue-600 text-white p-2 rounded-l-full shadow-lg hover:bg-blue-700 transition-all duration-300 hidden lg:flex items-center justify-center w-10 h-16"
+          aria-label={isMetricsVisible ? "Hide metrics" : "Show metrics"}
+        >
+          <ChevronLeft
+            className={`w-5 h-5 transition-transform duration-300 ${isMetricsVisible ? 'rotate-180' : ''}`}
+          />
+        </button>
 
         {/* Sticky Note Modal */}
         <AnimatePresence>
@@ -513,18 +411,15 @@ const Layout = ({ onLogout, user }) => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1001] p-4"
+              className="fixed inset-0 bg-black/40 flex items-center justify-center z-[1001] p-4"
               onClick={handleBackdropClick}
-              role="dialog"
-              aria-label="Sticky Note Modal"
-              aria-hidden={!isNoteOpen}
             >
               <motion.div
                 ref={noteModalRef}
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.8, opacity: 0 }}
-                className="bg-yellow-100 border border-yellow-300 rounded-lg p-6 w-full max-w-[90vw] sm:max-w-md shadow-2xl"
+                initial={{ scale: 0.9 }}
+                animate={{ scale: 1 }}
+                exit={{ scale: 0.9 }}
+                className="bg-yellow-50 border border-yellow-300 rounded-lg p-6 w-full max-w-md shadow-xl"
                 onClick={(e) => e.stopPropagation()}
               >
                 <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-3">
@@ -535,27 +430,16 @@ const Layout = ({ onLogout, user }) => {
                 <textarea
                   value={noteContent}
                   onChange={(e) => setNoteContent(e.target.value)}
-                  placeholder="Write temporary notes here (not saved)..."
-                  className="w-full h-48 border-none bg-transparent text-gray-800 placeholder-gray-500 text-sm focus:outline-none resize-none"
-                  aria-label="Temporary note input"
+                  placeholder="Write temporary notes here..."
+                  className="w-full h-48 bg-transparent text-gray-800 placeholder-gray-500 text-sm focus:outline-none resize-none"
                   autoFocus
                 />
                 <div className="flex justify-between mt-4">
-                  <button
-                    onClick={clearNote}
-                    className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-medium hover:bg-red-100 transition-all duration-200"
-                    aria-label="Clear note"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    Clear
+                  <button onClick={clearNote} className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm hover:bg-red-100 transition">
+                    <Trash2 className="w-4 h-4" /> Clear
                   </button>
-                  <button
-                    onClick={toggleNote}
-                    className="flex items-center gap-2 px-4 py-2 bg-teal-50 text-teal-600 rounded-lg text-sm font-medium hover:bg-teal-100 transition-all duration-200"
-                    aria-label="Minimize note"
-                  >
-                    <Minus className="w-4 h-4" />
-                    Minimize
+                  <button onClick={toggleNote} className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-sm hover:bg-blue-100 transition">
+                    <Minus className="w-4 h-4" /> Minimize
                   </button>
                 </div>
               </motion.div>
@@ -564,133 +448,70 @@ const Layout = ({ onLogout, user }) => {
         </AnimatePresence>
 
         {/* TaskBot Chat */}
-        <div
-          className={`fixed bottom-0 right-0 w-full sm:w-[90vw] md:w-[400px] h-[80vh] sm:h-[70vh] md:h-[600px] bg-white/95 backdrop-blur-lg rounded-t-2xl sm:rounded-2xl shadow-xl border border-teal-200/50 z-[1000] transition-all duration-300 transform ${isChatOpen ? 'translate-y-0 opacity-100' : 'translate-y-full sm:translate-y-0 sm:opacity-0 sm:pointer-events-none'}`}
-          role="dialog"
-          aria-label="TaskBot Chat"
-          aria-hidden={!isChatOpen}
-        >
+        <div className={`fixed bottom-0 right-0 w-full md:w-96 h-[80vh] md:h-[600px] bg-white shadow-xl border border-gray-200 z-[1000] transition-all duration-300 ${isChatOpen ? 'translate-y-0' : 'translate-y-full md:translate-y-0 md:opacity-0 md:pointer-events-none'}`}>
           <div className="flex flex-col h-full">
-            <div className="p-4 md:p-5 bg-gradient-to-r from-teal-500 to-blue-600 rounded-t-2xl sm:rounded-t-2xl flex items-center justify-between">
-              <h3 className="text-lg md:text-xl font-bold text-white flex items-center gap-2">
-                <MessageCircle className="w-6 h-6 text-white animate-pulse" />
-                TaskBot
+            <div className="p-5 bg-blue-600 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <MessageCircle className="w-6 h-6" />
+                FundCo TM Bot
               </h3>
-              <div className="flex items-center gap-2">
+              <div className="flex gap-2">
                 {chatMessages.length > 0 && (
-                  <button
-                    onClick={clearChatMessages}
-                    className="p-2 rounded-full bg-white/20 text-white hover:bg-white/30 transition-all duration-200"
-                    aria-label="Clear chat"
-                    title="Clear chat"
-                  >
+                  <button onClick={clearChatMessages} className="p-2 rounded-full bg-white/20 text-white hover:bg-white/30 transition">
                     <Trash2 className="w-5 h-5" />
                   </button>
                 )}
-                <button
-                  onClick={toggleChat}
-                  className="p-2 rounded-full bg-white/20 text-white hover:bg-white/30 transition-all duration-200"
-                  aria-label="Close chat"
-                >
+                <button onClick={toggleChat} className="p-2 rounded-full bg-white/20 text-white hover:bg-white/30 transition">
                   <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
-            <div
-              ref={chatContainerRef}
-              className="flex-1 overflow-y-auto p-4 md:p-5 space-y-4 bg-white/90"
-              aria-live="polite"
-            >
+            <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-5 space-y-4 bg-gray-50">
               {chatMessages.length === 0 && (
-                <div className="text-center py-8 text-gray-700 animate-in fade-in duration-300">
-                  <MessageCircle className="w-12 h-12 mx-auto mb-3 text-teal-500 animate-pulse" />
-                  <p className="text-base font-semibold">Welcome to TaskBot!</p>
-                  <p className="text-sm text-gray-600 mt-2">Try these commands:</p>
-                  <ul className="text-sm list-disc list-inside mt-2 text-left max-w-xs mx-auto space-y-1">
-                    <li>Add a task: Finish report by tomorrow</li>
-                    <li>List my tasks</li>
-                    <li>Update task: Mark report as completed</li>
-                    <li>Set reminder: Meeting at 3 PM</li>
-                    <li>What's my next task?</li>
-                  </ul>
+                <div className="text-center py-8 text-gray-600">
+                  <MessageCircle className="w-12 h-12 mx-auto mb-3 text-blue-600" />
+                  <p className="font-semibold">Welcome to FundCo TM Bot!</p>
+                  <p className="text-sm mt-2">Try: "Add task", "List tasks", "Mark done"</p>
                 </div>
               )}
-              {chatMessages.map((msg, index) => (
-                <div
-                  key={index}
-                  className={`flex items-start gap-3 animate-in fade-in-10 duration-200 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`flex items-start gap-3 p-3 md:p-4 rounded-lg max-w-[80%] ${msg.sender === 'user' ? 'bg-teal-500 text-white' : 'bg-teal-50 text-gray-800 border border-teal-200/50'}`}
-                  >
-                    <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center shrink-0">
-                      {msg.sender === 'user' ? (
-                        <span className="text-sm font-semibold text-teal-700">U</span>
-                      ) : (
-                        <MessageCircle className="w-5 h-5 text-teal-500" />
-                      )}
+              {chatMessages.map((msg, i) => (
+                <div key={i} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`flex items-start gap-3 p-3 rounded-lg max-w-[80%] ${msg.sender === 'user' ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-800'}`}>
+                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-sm font-bold shrink-0">
+                      {msg.sender === 'user' ? 'U' : <MessageCircle className="w-5 h-5" />}
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-sm leading-relaxed break-words whitespace-pre-wrap">
-                        {msg.text.split('\n').map((line, i) => (
-                          <span key={i} className="block">
-                            {line}
-                          </span>
-                        ))}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {new Date(msg.timestamp).toLocaleTimeString()}
-                      </p>
+                    <div>
+                      <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
+                      <p className="text-xs opacity-70 mt-1">{new Date(msg.timestamp).toLocaleTimeString()}</p>
                     </div>
                   </div>
                 </div>
               ))}
               {isChatLoading && (
-                <div className="flex items-center gap-2 text-gray-600 animate-pulse">
-                  <svg
-                    className="animate-spin h-5 w-5"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-                  </svg>
-                  <span className="text-sm">TaskBot is processing...</span>
+                <div className="flex items-center gap-2 text-gray-600">
+                  <div className="animate-spin h-4 w-4 border-2 border-blue-600 rounded-full border-t-transparent"></div>
+                  <span className="text-sm">Processing...</span>
                 </div>
               )}
             </div>
-            <div className="p-4 md:p-5 border-t border-teal-200/50 bg-white/95">
-              <div className="relative flex items-center">
+            <div className="p-5 border-t border-gray-200 bg-white">
+              <div className="relative">
                 <input
-                  type="text"
                   ref={chatInputRef}
+                  type="text"
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
-                  placeholder="Ask TaskBot about tasks or anything..."
-                  className="w-full p-3 pr-20 rounded-lg border border-teal-300 bg-white text-gray-800 placeholder-gray-500 text-sm focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-200/50 transition-all duration-200"
-                  aria-label="Chat input"
-                  autoComplete="off"
+                  onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleChatSubmit(e)}
+                  placeholder="Ask FundCo TM Bot..."
+                  className="w-full p-3 pr-12 rounded-lg border border-gray-300 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm"
                   disabled={isChatLoading}
                 />
                 {chatInput && (
-                  <button
-                    type="button"
-                    onClick={clearChatInput}
-                    className="absolute right-10 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-teal-600 transition-colors duration-200"
-                    aria-label="Clear input"
-                    title="Clear input"
-                  >
+                  <button onClick={clearChatInput} className="absolute right-10 top-1/2 -translate-y-1/2 text-gray-500 hover:text-blue-600">
                     <X className="w-4 h-4" />
                   </button>
                 )}
-                <button
-                  type="submit"
-                  onClick={handleChatSubmit}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-teal-500 hover:text-teal-700 transition-all duration-200"
-                  disabled={isChatLoading}
-                  aria-label="Send message"
-                >
+                <button onClick={handleChatSubmit} className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-600 hover:text-blue-700">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                   </svg>
@@ -703,10 +524,10 @@ const Layout = ({ onLogout, user }) => {
         {!isChatOpen && (
           <button
             onClick={toggleChat}
-            className="fixed bottom-30 right-7 p-4 md:p-5 rounded-full bg-gradient-to-br from-teal-500 to-blue-600 shadow-lg hover:shadow-teal-500/50 transition-all duration-200 z-[1001] animate-pulse-slow"
-            aria-label="Open TaskBot chat"
+            className="fixed bottom-8 right-8 p-4 rounded-full bg-blue-600 text-white shadow-lg hover:bg-blue-700 transition z-[1001]"
+            aria-label="Open FundCo TM Bot"
           >
-            <MessageCircle className="w-6 h-6 text-white" />
+            <MessageCircle className="w-6 h-6" />
           </button>
         )}
       </div>
