@@ -1,3 +1,4 @@
+// Updated server.js
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
@@ -15,6 +16,7 @@ import urlRouter from './routes/urlRoutes.js';
 import postRouter from './routes/postRoutes.js';
 import reminderRouter from './routes/reminderRoutes.js';
 import goalRouter from './routes/goalRoutes.js';
+import performanceRouter from './routes/performanceRoutes.js';  // New import
 import { startReminderScheduler } from './utils/reminderScheduler.js';
 import './models/userModel.js';
 import './models/chatModel.js';
@@ -23,6 +25,7 @@ import './models/botChatModel.js';
 import './models/postModel.js';
 import './models/reminderModel.js';
 import './models/goalModel.js';
+import grokRouter from './routes/grokRoutes.js'
 
 const app = express();
 const httpServer = createServer(app);
@@ -79,6 +82,7 @@ const requiredEnvVars = [
     'EMAIL_USER',
     'EMAIL_PASS',
     'FIREBASE_CREDENTIALS',
+    'GROK_API_KEY',
 ];
 const missingEnvVars = requiredEnvVars.filter((varName) => !process.env[varName]);
 if (missingEnvVars.length > 0) {
@@ -209,6 +213,8 @@ app.use('/api/bot', botChatRouter);
 app.use('/api/posts', postRouter);
 app.use('/api/reminders', reminderRouter);
 app.use('/api/goals', goalRouter);
+app.use('/api/performance', performanceRouter);  // New route
+app.use('/api/grok', grokRouter);
 
 // Emit endpoint for admin
 app.post('/api/emit', (req, res) => {

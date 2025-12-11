@@ -1,3 +1,4 @@
+// Updated models/userModel.js
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import validator from 'validator';
@@ -71,11 +72,25 @@ const userSchema = new mongoose.Schema(
                 },
             },
         },
+        points: {
+            type: Number,
+            default: 0,
+        },
+        badges: [{
+            type: String,
+        }],
+        level: {
+            type: String,
+            default: 'Novice',
+        },
+        redemptionHistory: [{
+            amount: Number,
+            date: { type: Date, default: Date.now },
+            status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+        }],
     },
     { timestamps: true }
 );
 
-
 const User = mongoose.models.user || mongoose.model('user', userSchema);
-
 export default User;
