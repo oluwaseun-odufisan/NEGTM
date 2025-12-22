@@ -1,4 +1,4 @@
-// Updated server.js
+// backend/server.js
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
@@ -6,6 +6,7 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import fileUpload from 'express-fileupload';
+import cron from 'node-cron';
 import { connectDB } from './config/db.js';
 import userRouter from './routes/userRoute.js';
 import taskRouter from './routes/taskRoutes.js';
@@ -16,8 +17,11 @@ import urlRouter from './routes/urlRoutes.js';
 import postRouter from './routes/postRoutes.js';
 import reminderRouter from './routes/reminderRoutes.js';
 import goalRouter from './routes/goalRoutes.js';
-import performanceRouter from './routes/performanceRoutes.js';  // New import
+import performanceRouter from './routes/performanceRoutes.js';
 import { startReminderScheduler } from './utils/reminderScheduler.js';
+import User from './models/userModel.js';
+import Task from './models/taskModel.js';
+import Goal from './models/goalModel.js';
 import './models/userModel.js';
 import './models/chatModel.js';
 import './models/messageModel.js';
@@ -25,6 +29,8 @@ import './models/botChatModel.js';
 import './models/postModel.js';
 import './models/reminderModel.js';
 import './models/goalModel.js';
+import './models/challengeModel.js';
+import './models/performanceInteractionModel.js';
 import grokRouter from './routes/grokRoutes.js'
 
 const app = express();
@@ -213,7 +219,7 @@ app.use('/api/bot', botChatRouter);
 app.use('/api/posts', postRouter);
 app.use('/api/reminders', reminderRouter);
 app.use('/api/goals', goalRouter);
-app.use('/api/performance', performanceRouter);  // New route
+app.use('/api/performance', performanceRouter);
 app.use('/api/grok', grokRouter);
 
 // Emit endpoint for admin
@@ -235,6 +241,63 @@ app.get('/', (req, res) => {
 app.use((err, req, res, next) => {
     console.error('Server error:', err.stack);
     res.status(500).json({ success: false, message: 'Internal server error', error: err.message });
+});
+
+// Daily cron to update historical performance and streaks
+cron.schedule('0 0 * * *', async () => {
+  console.log('Running daily performance update');
+  const users = await User.find();
+  for (const user of users) {
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const todayTasks = await Task.countDocuments({
+      owner: user._id,
+      completed: true,
+      updatedAt: { $gte: today }
+    });
+    
+    if (todayTasks > 0) {
+      user.currentStreak += 1;
+      user.maxStreak = Math.max(user.maxStreak, user.currentStreak);
+    } else {
+      user.currentStreak = 0;
+    }
+
+    const onTimeTasks = await Task.countDocuments({
+      owner: user._id,
+      completed: true,
+      dueDate: { $exists: true },
+      $expr: { $lte: ["$updatedAt", "$dueDate"] }
+    });
+    const totalDueTasks = await Task.countDocuments({
+      owner: user._id,
+      dueDate: { $exists: true }
+    });
+    user.consistencyScore = totalDueTasks > 0 ? Math.round((onTimeTasks / totalDueTasks) * 100) : 0;
+
+    user.historicalPerformance.push({
+      date: new Date(today),
+      points: user.points,
+      tasksCompleted: todayTasks,
+      goalsCompleted: await Goal.countDocuments({
+        owner: user._id,
+        updatedAt: { $gte: today },
+        $expr: { $eq: [{ $size: { $filter: { input: "$subGoals", cond: { $eq: ["$$this.completed", true] } } } }, { $size: "$subGoals" }] }
+      })
+    });
+
+    // Keep last 30 days
+    if (user.historicalPerformance.length > 30) {
+      user.historicalPerformance = user.historicalPerformance.slice(-30);
+    }
+
+    // Check avatar evolution
+    if (user.points > 1000 && user.avatarType === 'basic') user.avatarType = 'warrior';
+    if (user.points > 5000 && user.avatarType === 'warrior') user.avatarType = 'mage';
+    if (user.points > 10000 && user.avatarType === 'mage') user.avatarType = 'legend';
+
+    await user.save();
+  }
 });
 
 // Start server

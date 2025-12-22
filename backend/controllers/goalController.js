@@ -1,3 +1,4 @@
+// backend/controllers/goalController.js
 import Goal from '../models/goalModel.js';
 import Reminder from '../models/reminderModel.js';
 import User from '../models/userModel.js';
@@ -50,16 +51,17 @@ const createOrUpdateGoalReminder = async (goal, userId, io) => {
     }
 };
 
-// Helper to calculate goal points
-const getGoalPoints = (goal) => {
-  const progress = calculateGoalProgress(goal);
-  return Math.round(progress / 100 * 50);  // Max 50 points per goal
-};
-
+// Helper to calculate goal progress
 const calculateGoalProgress = (goal) => {
   if (!goal.subGoals.length) return 0;
   const completed = goal.subGoals.filter(sg => sg.completed).length;
   return (completed / goal.subGoals.length) * 100;
+};
+
+// Helper to calculate goal points
+const getGoalPoints = (goal) => {
+  const progress = calculateGoalProgress(goal);
+  return Math.round(progress / 100 * 50);  // Max 50 points per goal
 };
 
 // Helper to update user performance for goals
@@ -69,6 +71,11 @@ const updateUserGoalPerformance = async (userId, oldGoal, newGoal) => {
   const delta = newPoints - oldPoints;
   if (delta !== 0) {
     await updateUserPerformance(userId, delta);
+  }
+  const user = await User.findById(userId);
+  if (calculateGoalProgress(newGoal) === 100 && calculateGoalProgress(oldGoal) !== 100) {
+    user.completedGoals = (user.completedGoals || 0) + 1;
+    await user.save();
   }
 };
 
