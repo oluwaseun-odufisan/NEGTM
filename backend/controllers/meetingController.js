@@ -32,7 +32,7 @@ export const createMeeting = async (req, res) => {
     const zoomMeeting = await createZoomMeeting(topic, parsedStartTime.toISOString(), duration);
 
     const meeting = new Meeting({
-      user: req.user.id,
+      creator: req.user.id,
       zoomMeetingId: zoomMeeting.id,
       topic,
       agenda,
@@ -72,7 +72,7 @@ export const createMeeting = async (req, res) => {
 
 export const getMeetings = async (req, res) => {
   try {
-    const meetings = await Meeting.find({ user: req.user.id }).sort({ startTime: -1 }).populate('participants', 'name email');
+    const meetings = await Meeting.find({ creator: req.user.id }).sort({ startTime: -1 }).populate('participants', 'name email');
     res.json({ success: true, meetings });
   } catch (err) {
     console.error('Get meetings error:', err);
@@ -90,7 +90,7 @@ export const updateMeeting = async (req, res) => {
   if (parsedStartTime <= new Date()) return res.status(400).json({ success: false, message: 'Start time must be in the future' });
 
   try {
-    const meeting = await Meeting.findOne({ _id: req.params.id, user: req.user.id });
+    const meeting = await Meeting.findOne({ _id: req.params.id, creator: req.user.id });
     if (!meeting) return res.status(404).json({ success: false, message: 'Meeting not found' });
 
     // Validate participants
@@ -133,7 +133,7 @@ export const updateMeeting = async (req, res) => {
 
 export const deleteMeeting = async (req, res) => {
   try {
-    const meeting = await Meeting.findOne({ _id: req.params.id, user: req.user.id });
+    const meeting = await Meeting.findOne({ _id: req.params.id, creator: req.user.id });
     if (!meeting) return res.status(404).json({ success: false, message: 'Meeting not found' });
 
     await deleteZoomMeeting(meeting.zoomMeetingId);
@@ -164,7 +164,7 @@ export const deleteMeeting = async (req, res) => {
 
 export const getTranscript = async (req, res) => {
   try {
-    const meeting = await Meeting.findOne({ zoomMeetingId: req.params.meetingId, user: req.user.id });
+    const meeting = await Meeting.findOne({ zoomMeetingId: req.params.meetingId, creator: req.user.id });
     if (!meeting) return res.status(404).json({ success: false, message: 'Meeting not found' });
 
     const transcript = await getZoomTranscript(req.params.meetingId);
@@ -177,7 +177,7 @@ export const getTranscript = async (req, res) => {
 
 export const getRecordings = async (req, res) => {
   try {
-    const meeting = await Meeting.findOne({ zoomMeetingId: req.params.meetingId, user: req.user.id });
+    const meeting = await Meeting.findOne({ zoomMeetingId: req.params.meetingId, creator: req.user.id });
     if (!meeting) return res.status(404).json({ success: false, message: 'Meeting not found' });
 
     const recordings = await getZoomMeetingRecordings(req.params.meetingId);

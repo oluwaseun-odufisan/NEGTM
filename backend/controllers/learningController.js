@@ -9,10 +9,44 @@ const querySchema = Joi.object({
   moduleId: Joi.string().hex().length(24).optional(),
 });
 
-// Fetch all courses
+const filterSchema = Joi.object({
+  level: Joi.string().optional(), // e.g., 'beginner,intermediate'
+  assetco: Joi.string().optional(), // e.g., 'General,EML'
+  search: Joi.string().optional(),
+});
+
+// Fetch all courses with filters and search
 export const getCourses = async (req, res) => {
+  const { error } = filterSchema.validate(req.query);
+  if (error) return res.status(400).json({ success: false, message: error.details[0].message });
+
+  const { level, assetco, search } = req.query;
   try {
-    const courses = await LearningCourse.find({}).sort({ level: 1 });
+    let query = {};
+
+    // Filter by level (comma-separated)
+    if (level) {
+      const levels = level.split(',').map(l => l.trim().toLowerCase());
+      query.level = { $in: levels };
+    }
+
+    // Filter by assetco (comma-separated)
+    if (assetco) {
+      const assetcos = assetco.split(',').map(a => a.trim());
+      query.assetco = { $in: assetcos };
+    }
+
+    // Search across title, description, module titles, and content
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } },
+        { 'modules.title': { $regex: search, $options: 'i' } },
+        { 'modules.content': { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    const courses = await LearningCourse.find(query).sort({ level: 1 });
     res.json({ success: true, courses });
   } catch (err) {
     console.error('Get courses error:', err);
@@ -20,7 +54,7 @@ export const getCourses = async (req, res) => {
   }
 };
 
-// Fetch course by ID
+// Fetch course by ID (unchanged)
 export const getCourseById = async (req, res) => {
   try {
     const course = await LearningCourse.findById(req.params.id);
@@ -32,7 +66,7 @@ export const getCourseById = async (req, res) => {
   }
 };
 
-// Get user progress for all courses
+// Get user progress for all courses (unchanged)
 export const getUserProgress = async (req, res) => {
   try {
     const progress = await UserProgress.find({ userId: req.user.id }).populate('courseId', 'title level');
@@ -43,7 +77,7 @@ export const getUserProgress = async (req, res) => {
   }
 };
 
-// Update user progress (complete module, update %)
+// Update user progress (unchanged)
 export const updateProgress = async (req, res) => {
   const { courseId, moduleId } = req.body;
   try {
@@ -66,7 +100,7 @@ export const updateProgress = async (req, res) => {
   }
 };
 
-// AI Query (Grok restricted to course/module content)
+// AI Query (unchanged)
 export const aiQuery = async (req, res) => {
   const { error } = querySchema.validate(req.body);
   if (error) return res.status(400).json({ success: false, message: error.details[0].message });
@@ -93,7 +127,7 @@ export const aiQuery = async (req, res) => {
   }
 };
 
-// Generate quiz for module (using Grok)
+// Generate quiz for module (unchanged)
 export const generateQuiz = async (req, res) => {
   const { moduleId } = req.params;
   try {

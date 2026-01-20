@@ -20,6 +20,7 @@ const courseSchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: { type: String },
   level: { type: String, enum: ['beginner', 'intermediate', 'expert'], required: true },
+  assetco: { type: String, required: true }, // New field for assetco filtering (e.g., 'General', 'EML')
   modules: [moduleSchema],
   required: { type: Boolean, default: false }, // Mandatory for employees
 });

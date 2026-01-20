@@ -18,7 +18,6 @@ import Tippy from '@tippyjs/react';
 import 'tippy.js/dist/tippy.css';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4001';
-
 const SOCKET_URL = API_BASE;
 
 const meetingSchema = z.object({
@@ -45,7 +44,6 @@ const Meeting = () => {
   const [view, setView] = useState('list'); // 'list' or 'calendar'
   const socket = useRef(null);
   const localizer = momentLocalizer(moment);
-
   const { register, handleSubmit, formState: { errors, isSubmitting }, reset, setValue } = useForm({
     resolver: zodResolver(meetingSchema),
   });
@@ -53,45 +51,37 @@ const Meeting = () => {
   useEffect(() => {
     fetchMeetings();
     fetchUsers();
-
     socket.current = io(SOCKET_URL, {
       auth: { token: localStorage.getItem('token') },
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
     });
-
     socket.current.on('connect', () => {
       console.log('Socket connected');
     });
-
     socket.current.on('connect_error', (err) => {
       console.error('Socket connection error:', err.message);
       toast.error('Failed to connect to real-time service. Some features may be unavailable.');
     });
-
     socket.current.on('newMeeting', (meeting) => {
       setMeetings((prev) => [meeting, ...prev]);
       updateCalendarEvents([meeting, ...meetings]);
       toast.success('New meeting created!');
     });
-
     socket.current.on('meetingUpdated', (updatedMeeting) => {
       setMeetings((prev) => prev.map((m) => m._id === updatedMeeting._id ? updatedMeeting : m));
       updateCalendarEvents(prev.map((m) => m._id === updatedMeeting._id ? updatedMeeting : m));
       toast.success('Meeting updated!');
     });
-
     socket.current.on('meetingDeleted', (id) => {
       setMeetings((prev) => prev.filter((m) => m._id !== id));
       updateCalendarEvents(prev.filter((m) => m._id !== id));
       toast.success('Meeting deleted!');
     });
-
     socket.current.on('meetingStarted', (id) => {
       setMeetings((prev) => prev.map((m) => m._id === id ? { ...m, status: 'ongoing' } : m));
       toast.info('A meeting has started!');
     });
-
     return () => {
       socket.current.disconnect();
     };
@@ -106,6 +96,7 @@ const Meeting = () => {
         const token = localStorage.getItem('token');
         if (!token) {
           toast.error('Please login to view meetings', { duration: 5000 });
+          setIsLoadingMeetings(false);
           return;
         }
         const res = await axios.get(`${API_BASE}/api/meetings`, {
@@ -116,17 +107,18 @@ const Meeting = () => {
         setFilteredMeetings(fetchedMeetings);
         updateCalendarEvents(fetchedMeetings);
         console.log('Meetings fetched successfully:', fetchedMeetings);
+        setIsLoadingMeetings(false);
         return; // Success, exit loop
       } catch (err) {
         attempts++;
         console.error(`Fetch meetings attempt ${attempts} failed:`, err);
         if (attempts === maxAttempts) {
           toast.error('Failed to load meetings after 3 attempts. Please check your connection and try again.', { duration: 5000 });
+          setIsLoadingMeetings(false);
         }
         await new Promise(resolve => setTimeout(resolve, 3000)); // Increased delay to 3s
       }
     }
-    setIsLoadingMeetings(false);
   }, []);
 
   const fetchUsers = useCallback(async () => {
@@ -138,6 +130,7 @@ const Meeting = () => {
         const token = localStorage.getItem('token');
         if (!token) {
           toast.error('Please login to load users', { duration: 5000 });
+          setIsLoadingUsers(false);
           return;
         }
         const res = await axios.get(`${API_BASE}/api/meetings/users`, {
@@ -146,17 +139,18 @@ const Meeting = () => {
         const fetchedUsers = res.data.users || [];
         setUsers(fetchedUsers.map((u) => ({ value: u._id, label: u.name, email: u.email })));
         console.log('Users fetched successfully:', fetchedUsers);
+        setIsLoadingUsers(false);
         return; // Success, exit loop
       } catch (err) {
         attempts++;
         console.error(`Fetch users attempt ${attempts} failed:`, err);
         if (attempts === maxAttempts) {
           toast.error('Failed to load users after 3 attempts. Please try again later.', { duration: 5000 });
+          setIsLoadingUsers(false);
         }
         await new Promise(resolve => setTimeout(resolve, 3000)); // Increased delay to 3s
       }
     }
-    setIsLoadingUsers(false);
   }, []);
 
   const updateCalendarEvents = (meetingsList) => {
@@ -173,7 +167,12 @@ const Meeting = () => {
 
   const onSubmit = async (data) => {
     // Convert startTime to full ISO
-    data.startTime = new Date(data.startTime).toISOString();
+    const parsedStartTime = new Date(data.startTime);
+    if (parsedStartTime <= new Date()) {
+      toast.error('Start time must be in the future');
+      return;
+    }
+    data.startTime = parsedStartTime.toISOString();
     data.participants = data.participants?.map((p) => p.value) || [];
     try {
       const token = localStorage.getItem('token');
@@ -219,7 +218,15 @@ const Meeting = () => {
     setValue('agenda', meeting.agenda);
     setValue('startTime', format(new Date(meeting.startTime), "yyyy-MM-dd'T'HH:mm"));
     setValue('duration', meeting.duration);
-    setValue('participants', meeting.participants.map((p) => ({ value: p._id, label: p.name })));
+    const participants = meeting.participants.map((p) => {
+      if (typeof p === 'string') {
+        const u = users.find(u => u.value === p);
+        return { value: p, label: u ? u.label : 'Unknown', email: u ? u.email : '' };
+      } else {
+        return { value: p._id, label: p.name, email: p.email };
+      }
+    });
+    setValue('participants', participants);
     setShowEditModal(true);
   };
 
@@ -263,7 +270,10 @@ const Meeting = () => {
             </button>
             <button
               onClick={() => {
-                reset();
+                reset({
+                  startTime: format(new Date(Date.now() + 3600000), "yyyy-MM-dd'T'HH:mm"), // 1 hour in the future
+                  duration: 60,
+                });
                 setShowCreateModal(true);
               }}
               className="flex-1 md:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium shadow-sm hover:bg-blue-700 transition"
@@ -272,7 +282,6 @@ const Meeting = () => {
             </button>
           </div>
         </div>
-
         {view === 'list' ? (
           <>
             <div className="flex flex-col md:flex-row gap-4 mb-6">
@@ -298,7 +307,7 @@ const Meeting = () => {
                 <option value="cancelled">Cancelled</option>
               </select>
             </div>
-            <motion.div 
+            <motion.div
               className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6"
               initial="hidden"
               animate="visible"
@@ -355,11 +364,17 @@ const Meeting = () => {
                       </button>
                     </div>
                     <div className="mt-4 flex flex-wrap gap-2">
-                      {meeting.participants.map((p) => (
-                        <Tippy key={p._id} content={`${p.name} (${p.email})`} placement="top" arrow={true}>
-                          <img src={`https://ui-avatars.com/api/?name=${p.name}&background=random&size=32`} alt={p.name} className="w-8 h-8 rounded-full cursor-pointer" />
-                        </Tippy>
-                      ))}
+                      {meeting.participants.map((p) => {
+                        const user = typeof p === 'string' 
+                          ? users.find(u => u.value === p)
+                          : { value: p._id, label: p.name, email: p.email };
+                        if (!user) return null;
+                        return (
+                          <Tippy key={typeof p === 'string' ? p : p._id} content={`${user.label} (${user.email || ''})`} placement="top" arrow={true}>
+                            <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user.label)}&background=random&size=32`} alt={user.label} className="w-8 h-8 rounded-full cursor-pointer" />
+                          </Tippy>
+                        );
+                      })}
                     </div>
                   </motion.div>
                 ))
@@ -385,7 +400,6 @@ const Meeting = () => {
           </div>
         )}
       </div>
-
       {/* Create/Edit Modal */}
       <Transition appear show={showCreateModal || showEditModal} as={React.Fragment}>
         <Dialog as="div" className="relative z-50" onClose={() => { setShowCreateModal(false); setShowEditModal(false); }}>
@@ -400,7 +414,6 @@ const Meeting = () => {
           >
             <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm" />
           </Transition.Child>
-
           <div className="fixed inset-0 overflow-y-auto">
             <div className="flex min-h-full items-center justify-center p-4">
               <Transition.Child
@@ -419,7 +432,6 @@ const Meeting = () => {
                       <X className="w-5 h-5" />
                     </button>
                   </Dialog.Title>
-
                   <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1.5 flex items-center gap-1">
@@ -500,7 +512,6 @@ const Meeting = () => {
           </div>
         </Dialog>
       </Transition>
-
       {/* Delete Confirm */}
       <Transition appear show={!!showDeleteConfirm} as={React.Fragment}>
         <Dialog as="div" className="relative z-50" onClose={() => setShowDeleteConfirm(false)}>
@@ -515,7 +526,6 @@ const Meeting = () => {
           >
             <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm" />
           </Transition.Child>
-
           <div className="fixed inset-0 overflow-y-auto">
             <div className="flex min-h-full items-center justify-center p-4">
               <Transition.Child

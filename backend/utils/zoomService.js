@@ -45,8 +45,7 @@ export const createZoomMeeting = async (topic, startTime, duration) => {
         participant_video: true,
         join_before_host: true,
         mute_upon_entry: false,
-        auto_recording: 'cloud',
-        transcription: { enable: true },
+        // Removed auto_recording and transcription to avoid scope issues
       },
     },
     { headers: { Authorization: `Bearer ${token}` } }
