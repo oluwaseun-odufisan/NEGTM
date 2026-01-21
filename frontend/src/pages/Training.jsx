@@ -1,139 +1,218 @@
-import React, { useState } from 'react';
-import { PlayCircle, FileText, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react';
+// frontend/src/pages/Training.jsx (assuming it's a page, renamed from Learning.jsx for clarity)
+import React, { useState, useEffect, useCallback } from 'react';
+import axios from 'axios';
+import MaterialList from '../components/MaterialList';
+import MaterialViewer from '../components/MaterialViewer';
+import TrainingProgress from '../components/TrainingProgress';
+import AIChat from '../components/AIChat';
+import { Toaster, toast } from 'react-hot-toast';
+import { motion } from 'framer-motion';
+import { Search, Filter, ChevronDown } from 'lucide-react';
+import debounce from 'lodash/debounce'; // Install lodash if not present: npm i lodash
 
 const Training = () => {
-    const [expandedModule, setExpandedModule] = useState(null);
+  const [courses, setCourses] = useState([]);
+  const [progress, setProgress] = useState([]);
+  const [selectedCourse, setSelectedCourse] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedLevels, setSelectedLevels] = useState([]); // Array for multi-select
+  const [selectedAssetcos, setSelectedAssetcos] = useState([]); // Array for multi-select
+  const [showLevelDropdown, setShowLevelDropdown] = useState(false);
+  const [showAssetcoDropdown, setShowAssetcoDropdown] = useState(false);
 
-    const trainingModules = [
-        {
-            id: 1,
-            title: 'Introduction to Project Management',
-            type: 'Video',
-            duration: '45 min',
-            thumbnail: 'https://via.placeholder.com/150',
-            link: '#',
-            description: 'Learn the fundamentals of project management, including planning, execution, and monitoring.',
-        },
-        {
-            id: 2,
-            title: 'Effective Communication Skills',
-            type: 'Document',
-            size: '2.5 MB',
-            link: '#',
-            description: 'A comprehensive guide to improving workplace communication.',
-        },
-        {
-            id: 3,
-            title: 'Advanced Data Analysis',
-            type: 'Video',
-            duration: '1 hr 20 min',
-            thumbnail: 'https://via.placeholder.com/150',
-            link: '#',
-            description: 'Master data analysis techniques using modern tools and methodologies.',
-        },
-        {
-            id: 4,
-            title: 'Team Leadership Guide',
-            type: 'Document',
-            size: '1.8 MB',
-            link: '#',
-            description: 'Strategies for leading teams effectively and fostering collaboration.',
-        },
-    ];
+  const levels = ['beginner', 'intermediate', 'expert'];
+  const assetcos = ['General', 'EML', 'GroSolar', 'Agronomie', 'SSM']; // From your seed data
 
-    const toggleModule = (id) => {
-        setExpandedModule(expandedModule === id ? null : id);
-    };
+  useEffect(() => {
+    fetchProgress();
+  }, []);
 
-    return (
-        <div className="min-h-screen bg-gray-100 p-6">
-            <div className="max-w-7xl mx-auto">
-                <h1 className="text-2xl font-bold text-gray-800 mb-6">Training Hub</h1>
+  const fetchCourses = useCallback(debounce(async (filters) => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Please login to access learning materials');
+        return;
+      }
+      const params = new URLSearchParams();
+      if (filters.level) params.append('level', filters.level);
+      if (filters.assetco) params.append('assetco', filters.assetco);
+      if (filters.search) params.append('search', filters.search);
 
-                <div className="bg-white rounded-2xl shadow-md p-6 mb-6">
-                    <h2 className="text-lg font-semibold text-gray-800 mb-4">Recommended Training Modules</h2>
-                    <div className="space-y-4">
-                        {trainingModules.map((module) => (
-                            <div key={module.id} className="border border-gray-200 rounded-lg p-4">
-                                <div
-                                    className="flex items-center justify-between cursor-pointer"
-                                    onClick={() => toggleModule(module.id)}
-                                >
-                                    <div className="flex items-center gap-4">
-                                        {module.type === 'Video' ? (
-                                            <img
-                                                src={module.thumbnail}
-                                                alt={module.title}
-                                                className="w-24 h-16 object-cover rounded-md"
-                                            />
-                                        ) : (
-                                            <div className="w-24 h-16 flex items-center justify-center bg-gray-100 rounded-md">
-                                                <FileText className="w-8 h-8 text-teal-500" />
-                                            </div>
-                                        )}
-                                        <div>
-                                            <h3 className="text-base font-semibold text-gray-800">{module.title}</h3>
-                                            <p className="text-sm text-gray-600">
-                                                {module.type} • {module.type === 'Video' ? module.duration : module.size}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    {expandedModule === module.id ? (
-                                        <ChevronUp className="w-5 h-5 text-teal-500" />
-                                    ) : (
-                                        <ChevronDown className="w-5 h-5 text-teal-500" />
-                                    )}
-                                </div>
-                                {expandedModule === module.id && (
-                                    <div className="mt-4">
-                                        <p className="text-sm text-gray-600 mb-2">{module.description}</p>
-                                        <a
-                                            href={module.link}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="inline-flex items-center gap-2 px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition"
-                                        >
-                                            {module.type === 'Video' ? (
-                                                <>
-                                                    <PlayCircle className="w-5 h-5" /> Watch Now
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <ExternalLink className="w-5 h-5" /> View Document
-                                                </>
-                                            )}
-                                        </a>
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                </div>
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/learning/courses?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setCourses(res.data.courses || []);
+    } catch (err) {
+      toast.error('Failed to load courses. Please try again.');
+      console.error('Fetch courses error:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, 300), []); // Debounce search/filter by 300ms
 
-                <div className="bg-white rounded-2xl shadow-md p-6">
-                    <h2 className="text-lg font-semibold text-gray-800 mb-4">Your Progress</h2>
-                    <div className="space-y-4">
-                        {trainingModules.map((module) => (
-                            <div key={module.id} className="flex items-center justify-between">
-                                <div>
-                                    <h3 className="text-sm font-medium text-gray-800">{module.title}</h3>
-                                    <p className="text-xs text-gray-600">
-                                        {module.type} • {Math.floor(Math.random() * 100)}% Complete
-                                    </p>
-                                </div>
-                                <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
-                                    <div
-                                        className="h-full bg-teal-500"
-                                        style={{ width: `${Math.floor(Math.random() * 100)}%` }}
-                                    ></div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </div>
-        </div>
+  useEffect(() => {
+    fetchCourses({
+      level: selectedLevels.join(','),
+      assetco: selectedAssetcos.join(','),
+      search: searchTerm,
+    });
+  }, [selectedLevels, selectedAssetcos, searchTerm]);
+
+  const fetchProgress = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/learning/progress`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setProgress(res.data.progress || []);
+    } catch (err) {
+      toast.error('Failed to load progress.');
+      console.error('Fetch progress error:', err);
+    }
+  };
+
+  const handleCourseSelect = (course) => {
+    setSelectedCourse(course);
+  };
+
+  const handleModuleComplete = async (courseId, moduleId) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${import.meta.env.VITE_API_URL}/api/learning/progress`, { courseId, moduleId }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      fetchProgress(); // Refresh progress
+      toast.success('Module completed! Progress updated.');
+    } catch (err) {
+      toast.error('Failed to update progress.');
+      console.error('Update progress error:', err);
+    }
+  };
+
+  const handleBack = () => {
+    setSelectedCourse(null);
+  };
+
+  const toggleLevel = (level) => {
+    setSelectedLevels(prev => 
+      prev.includes(level) ? prev.filter(l => l !== level) : [...prev, level]
     );
+  };
+
+  const toggleAssetco = (assetco) => {
+    setSelectedAssetcos(prev => 
+      prev.includes(assetco) ? prev.filter(a => a !== assetco) : [...prev, assetco]
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-white p-8">
+      <Toaster position="top-right" />
+      <motion.h1
+        className="text-3xl font-bold text-blue-800 mb-8"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
+        Learning Management System
+      </motion.h1>
+      <div className="mb-6 flex flex-col md:flex-row gap-4">
+        <div className="relative flex-1">
+          <input
+            type="text"
+            placeholder="Search trainings, modules, or assetcos..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:border-blue-500 focus:outline-none transition-colors"
+          />
+          <Search className="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
+        </div>
+        <div className="relative">
+          <button
+            onClick={() => setShowLevelDropdown(!showLevelDropdown)}
+            className="flex items-center gap-2 px-4 py-3 rounded-lg border border-gray-300 hover:border-blue-500 transition-colors"
+          >
+            <Filter className="w-5 h-5" /> Levels <ChevronDown className="w-4 h-4" />
+          </button>
+          {showLevelDropdown && (
+            <motion.div
+              className="absolute z-10 mt-2 w-48 bg-white rounded-lg shadow-lg border"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              {levels.map(l => (
+                <label key={l} className="flex items-center px-4 py-2 hover:bg-blue-50">
+                  <input
+                    type="checkbox"
+                    checked={selectedLevels.includes(l)}
+                    onChange={() => toggleLevel(l)}
+                    className="mr-2 accent-blue-600"
+                  />
+                  {l.charAt(0).toUpperCase() + l.slice(1)}
+                </label>
+              ))}
+            </motion.div>
+          )}
+        </div>
+        <div className="relative">
+          <button
+            onClick={() => setShowAssetcoDropdown(!showAssetcoDropdown)}
+            className="flex items-center gap-2 px-4 py-3 rounded-lg border border-gray-300 hover:border-blue-500 transition-colors"
+          >
+            <Filter className="w-5 h-5" /> Assetcos <ChevronDown className="w-4 h-4" />
+          </button>
+          {showAssetcoDropdown && (
+            <motion.div
+              className="absolute z-10 mt-2 w-48 bg-white rounded-lg shadow-lg border"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              {assetcos.map(a => (
+                <label key={a} className="flex items-center px-4 py-2 hover:bg-blue-50">
+                  <input
+                    type="checkbox"
+                    checked={selectedAssetcos.includes(a)}
+                    onChange={() => toggleAssetco(a)}
+                    className="mr-2 accent-blue-600"
+                  />
+                  {a}
+                </label>
+              ))}
+            </motion.div>
+          )}
+        </div>
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <div className="lg:col-span-3">
+          {loading ? (
+            <div className="flex justify-center items-center h-64">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+          ) : selectedCourse ? (
+            <MaterialViewer
+              course={selectedCourse}
+              onCompleteModule={handleModuleComplete}
+              onBack={handleBack}
+              progress={progress.find(pr => pr.courseId === selectedCourse._id)?.progress || 0}
+            />
+          ) : (
+            <MaterialList
+              courses={courses}
+              progress={progress}
+              onSelect={handleCourseSelect}
+            />
+          )}
+        </div>
+        <div className="space-y-8">
+          <TrainingProgress progress={progress} courses={courses} />
+          <AIChat />
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default Training;

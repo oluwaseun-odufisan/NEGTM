@@ -55,7 +55,7 @@ const Sidebar = ({ user, isExpanded, onToggle }) => {
     { text: 'AI Tools', path: '/ai-tools', icon: <Sparkles className="w-5 h-5 text-green-600" /> },
     { text: 'Reminders', path: '/reminders', icon: <Bell className="w-5 h-5 text-blue-600" /> },
     { text: 'Goals', path: '/goals', icon: <Target className="w-5 h-5 text-blue-600" /> },
-    { text: 'Appraisals', path: '/appraisals', icon: <Award className="w-5 h-5 text-green-600" /> },
+    // { text: 'Appraisals', path: '/appraisals', icon: <Award className="w-5 h-5 text-green-600" /> },
     { text: 'Performance', path: '/performance-board', icon: <CreditCard className="w-5 h-5 text-blue-600" /> },
     { text: 'Meeting', path: '/meeting', icon: <Video className="w-5 h-5 text-blue-600" /> },
     { text: 'Training', path: '/training', icon: <BookOpen className="w-5 h-5 text-blue-600" /> },
