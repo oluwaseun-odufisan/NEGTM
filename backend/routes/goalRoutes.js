@@ -1,3 +1,4 @@
+// backend/routes/goalRoutes.js
 import express from 'express';
 import authMiddleware from '../middleware/auth.js';
 import { getGoalById, getGoals, updateGoal, createGoal, deleteGoal } from '../controllers/goalController.js';

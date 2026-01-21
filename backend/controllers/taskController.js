@@ -1,3 +1,4 @@
+// backend/controllers/taskController.js
 import Task from '../models/taskModel.js';
 import Reminder from '../models/reminderModel.js';
 import User from '../models/userModel.js';
@@ -53,6 +54,50 @@ const createOrUpdateTaskReminder = async (task, userId, io) => {
     }
 };
 
+// Helper to update user points and level
+const updateUserPerformance = async (userId, pointsToAdd) => {
+  const user = await User.findById(userId);
+  if (!user) return;
+
+  user.points += pointsToAdd;
+  const newLevel = getLevel(user.points);
+  if (newLevel !== user.level) {
+    user.level = newLevel;
+    // Perhaps notify or add badge
+  }
+  // Check for new badges
+  const newBadges = getBadges(user);
+  user.badges = [...new Set([...user.badges, ...newBadges])];
+
+  await user.save();
+};
+
+const getTaskPoints = (priority) => {
+  switch (priority.toLowerCase()) {
+    case 'low': return 10;
+    case 'medium': return 20;
+    case 'high': return 30;
+    default: return 0;
+  }
+};
+
+const getLevel = (points) => {
+  if (points < 100) return 'Novice';
+  if (points < 500) return 'Apprentice';
+  if (points < 1000) return 'Expert';
+  return 'Master';
+};
+
+const getBadges = (user) => {
+  const badges = [];
+  // Example logic
+  if (user.completedTasks >= 50) badges.push('Task Master');
+  if (user.completedGoals >= 5) badges.push('Goal Achiever');
+  if (user.consistencyScore >= 90) badges.push('Consistent Performer');
+  // Add more
+  return badges;
+};
+
 // CREATE A NEW TASK
 export const createTask = async (req, res) => {
     try {
@@ -66,6 +111,10 @@ export const createTask = async (req, res) => {
             owner: req.user._id,
         });
         const saved = await task.save();
+
+        if (task.completed) {
+            await updateUserPerformance(req.user._id, getTaskPoints(priority));
+        }
 
         // Create reminder if dueDate exists
         if (task.dueDate) {
@@ -107,6 +156,7 @@ export const getTaskById = async (req, res) => {
 // UPDATE A TASK BY ID
 export const updateTask = async (req, res) => {
     try {
+        const oldTask = await Task.findById(req.params.id);
         const data = { ...req.body };
         if (data.completed !== undefined) {
             data.completed = data.completed === 'Yes' || data.completed === true;
@@ -125,6 +175,12 @@ export const updateTask = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Task not found or not yours' });
         }
 
+        if (updated.completed && !oldTask.completed) {
+            await updateUserPerformance(req.user._id, getTaskPoints(updated.priority));
+        } else if (!updated.completed && oldTask.completed) {
+            await updateUserPerformance(req.user._id, -getTaskPoints(updated.priority));
+        }
+
         // Update or create reminder
         await createOrUpdateTaskReminder(updated, req.user._id, req.io);
 
@@ -141,6 +197,10 @@ export const deleteTask = async (req, res) => {
         const deleted = await Task.findOneAndDelete({ _id: req.params.id, owner: req.user._id });
         if (!deleted) {
             return res.status(404).json({ success: false, message: 'Task not found or not yours' });
+        }
+
+        if (deleted.completed) {
+            await updateUserPerformance(req.user._id, -getTaskPoints(deleted.priority));
         }
 
         // Remove associated reminders
