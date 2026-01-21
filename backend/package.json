@@ -38,6 +38,7 @@
     "node-fetch": "^3.3.2",
     "nodemailer": "^7.0.3",
     "nodemon": "^3.1.10",
+    "openai": "^6.9.1",
     "pinata": "^1.10.1",
     "readline-sync": "^1.4.10",
     "sanitize-html": "^2.17.0",

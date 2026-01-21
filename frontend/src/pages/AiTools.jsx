@@ -1,456 +1,747 @@
-import React, { useState, useMemo, useCallback } from 'react';
+// src/pages/AiTools.jsx
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
-import { Sparkles, ArrowLeft, List, Zap, Star, Gauge, Loader2 } from 'lucide-react';
+import {
+  Brain, ArrowLeft, FileText, Zap, Star, Gauge, Loader2, Copy, Check,
+  Download, Send, RefreshCw, Sparkles, List, Clock, Mail, FileSearch,
+  Lightbulb, BarChart, Code, Search, RotateCcw, X, ChevronRight, Mic,
+  Calendar, AlertCircle, TrendingUp, Users, FileText as Document, Cpu
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import axios from 'axios';
-
-const API_BASE_URL = `${import.meta.env.VITE_API_URL}/api/ai`;
-
-const AiTools = () => {
-    const { user, tasks = [], onLogout } = useOutletContext();
-    const navigate = useNavigate();
-    const [periodFilter, setPeriodFilter] = useState('all');
-    const [reportContent, setReportContent] = useState('');
-    const [isGeneratingReport, setIsGeneratingReport] = useState(false);
-    const [reportError, setReportError] = useState(null);
-    const [priorityTask, setPriorityTask] = useState({ title: '', priority: 'medium', dueDate: '' });
-    const [prioritizedTasks, setPrioritizedTasks] = useState([]);
-    const [effortTask, setEffortTask] = useState('');
-    const [estimatedEffort, setEstimatedEffort] = useState(null);
-
-    const filteredTasks = useMemo(() => {
-        const now = new Date();
-        return tasks.filter((task) => {
-            const taskDate = task.createdAt ? new Date(task.createdAt) : new Date();
-            if (periodFilter === 'daily') {
-                return taskDate.toDateString() === now.toDateString();
-            } else if (periodFilter === 'weekly') {
-                const startDate = new Date(now);
-                startDate.setDate(now.getDate() - 7);
-                return taskDate >= startDate && taskDate <= now;
-            } else if (periodFilter === 'monthly') {
-                const startDate = new Date(now);
-                startDate.setDate(now.getDate() - 30);
-                return taskDate >= startDate && taskDate <= now;
-            }
-            return true;
-        });
-    }, [tasks, periodFilter]);
-
-    const taskSummaries = useMemo(() => {
-        return filteredTasks.map((task) => ({
-            id: task._id || task.id,
-            title: task.title,
-            status: task.completed ? 'Completed' : 'Pending',
-            dueDate: task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'N/A',
-        }));
-    }, [filteredTasks]);
-
-    const aiInsights = useMemo(() => {
-        const insights = [];
-        const now = new Date();
-        const overdueTasks = filteredTasks.filter((task) => task.dueDate && !task.completed && new Date(task.dueDate) < now);
-        if (overdueTasks.length > 0) {
-            insights.push(`Complete ${overdueTasks.length} overdue task${overdueTasks.length > 1 ? 's' : ''} to avoid delays.`);
-        }
-        const highPriorityTasks = filteredTasks.filter((task) => !task.completed && task.priority?.toLowerCase() === 'high');
-        if (highPriorityTasks.length > 0) {
-            insights.push(`Tackle ${highPriorityTasks.length} high-priority task${highPriorityTasks.length > 1 ? 's' : ''} first.`);
-        }
-        const completionRate = filteredTasks.length
-            ? Math.round((filteredTasks.filter((task) => task.completed).length / filteredTasks.length) * 100)
-            : 0;
-        if (completionRate < 50 && filteredTasks.length > 0) {
-            insights.push(`Improve your ${completionRate}% completion rate by focusing on pending tasks.`);
-        }
-        if (filteredTasks.length === 0) {
-            insights.push('Add tasks to leverage AI insights!');
-        }
-        return insights.slice(0, 3);
-    }, [filteredTasks]);
-
-    const getAuthHeaders = useCallback(() => {
-        const token = localStorage.getItem('token');
-        if (!token) throw new Error('No auth token found');
-        return { Authorization: `Bearer ${token}` };
-    }, []);
-
-    const handleGenerateReport = useCallback(async () => {
-        setIsGeneratingReport(true);
-        setReportError(null);
-        try {
-            const headers = getAuthHeaders();
-            // Mock API call
-            await new Promise((resolve) => setTimeout(resolve, 1500));
-            const mockReport = `
-# AI-Generated Task Report
-**User**: ${user?.name || 'User'}
-**Period**: ${periodFilter.charAt(0).toUpperCase() + periodFilter.slice(1)}
-**Generated At**: ${new Date().toLocaleString('en-US', { timeZone: 'Africa/Lagos' })}
-
-## Overview
-- **Total Tasks**: ${filteredTasks.length}
-- **Completed**: ${filteredTasks.filter(t => t.completed).length}
-- **Pending**: ${filteredTasks.filter(t => !t.completed).length}
-- **Overdue**: ${filteredTasks.filter(t => t.dueDate && !t.completed && new Date(t.dueDate) < new Date()).length}
-
-## Key Tasks
-${filteredTasks.slice(0, 3).map(t => `- **${t.title}** (${t.priority || 'No priority'}, Due: ${t.dueDate ? new Date(t.dueDate).toLocaleDateString() : 'N/A'}, Status: ${t.completed ? 'Completed' : 'Pending'})`).join('\n')}
-
-## Recommendations
-${aiInsights.length > 0 ? aiInsights.map(i => `- ${i}`).join('\n') : '- No recommendations available.'}
-      `;
-            setReportContent(mockReport);
-        } catch (error) {
-            console.error('Error generating report:', error);
-            setReportError('Failed to generate report. Please try again.');
-            if (error.response?.status === 401) onLogout?.();
-        } finally {
-            setIsGeneratingReport(false);
-        }
-    }, [user, filteredTasks, periodFilter, aiInsights, onLogout, getAuthHeaders]);
-
-    const handlePrioritizeTask = useCallback(async (e) => {
-        e.preventDefault();
-        if (!priorityTask.title.trim()) return;
-        try {
-            const headers = getAuthHeaders();
-            // Mock API call
-            const newTask = {
-                ...priorityTask,
-                id: Date.now(),
-                score: priorityTask.priority === 'high' ? 3 : priorityTask.priority === 'medium' ? 2 : 1,
-            };
-            const updatedTasks = [...prioritizedTasks, newTask].sort((a, b) => {
-                if (b.score !== a.score) return b.score - a.score;
-                const dateA = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
-                const dateB = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
-                return dateA - dateB;
-            });
-            setPrioritizedTasks(updatedTasks.slice(0, 3));
-            setPriorityTask({ title: '', priority: 'medium', dueDate: '' });
-        } catch (error) {
-            console.error('Error prioritizing task:', error);
-            if (error.response?.status === 401) onLogout?.();
-        }
-    }, [priorityTask, prioritizedTasks, onLogout, getAuthHeaders]);
-
-    const handleEstimateEffort = useCallback(async () => {
-        if (!effortTask.trim()) return;
-        try {
-            const headers = getAuthHeaders();
-            // Mock API call
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-            const keywords = effortTask.toLowerCase();
-            let hours = 2;
-            if (keywords.includes('complex') || keywords.includes('urgent')) hours += 4;
-            if (keywords.includes('research') || keywords.includes('analysis')) hours += 3;
-            if (keywords.includes('quick') || keywords.includes('simple')) hours -= 1;
-            setEstimatedEffort(Math.max(1, hours));
-        } catch (error) {
-            console.error('Error estimating effort:', error);
-            if (error.response?.status === 401) onLogout?.();
-        }
-    }, [effortTask, onLogout, getAuthHeaders]);
-
-    return (
-        <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.6, ease: 'easeOut' }}
-            className="min-h-screen bg-gradient-to-br from-teal-50 via-blue-50 to-teal-100 flex flex-col font-sans"
-        >
-            <div className="flex-1 max-w-[1600px] mx-auto w-full px-8 py-12">
-                <motion.div
-                    initial={{ y: 20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ duration: 0.5 }}
-                    className="bg-white/95 backdrop-blur-lg border border-teal-100/50 rounded-3xl shadow-lg flex flex-col min-h-[calc(100vh-6rem)] lg:min-h-[900px] overflow-hidden"
-                >
-                    {/* Header */}
-                    <header className="bg-teal-50/50 border-b border-teal-200/50 px-8 py-6 flex items-center justify-between">
-                        <div className="flex items-center gap-6">
-                            <Sparkles className="w-8 h-8 text-teal-600 animate-pulse" />
-                            <div className="min-w-0">
-                                <h1 className="text-3xl font-bold text-blue-900 tracking-tight truncate">AI Tools</h1>
-                                <p className="text-base text-teal-600 tracking-tight line-clamp-1">Optimize Your Workflow</p>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-4">
-                            <button
-                                onClick={() => navigate('/dashboard')}
-                                className="flex items-center gap-3 bg-teal-100 text-teal-700 px-6 py-3 rounded-lg hover:bg-teal-200 transition-all duration-300 text-base"
-                                aria-label="Back to Dashboard"
-                            >
-                                <ArrowLeft className="w-6 h-6" />
-                                Back to Dashboard
-                            </button>
-                            <img
-                                src={user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}`}
-                                alt="User Avatar"
-                                className="w-12 h-12 rounded-full border-2 border-teal-400/50 hover:shadow-sm transition-all duration-200 flex-shrink-0"
-                            />
-                        </div>
-                    </header>
-
-                    {/* Main Content */}
-                    <main className="flex-1 flex flex-col lg:flex-row overflow-hidden p-8 gap-8">
-                        {/* Main Section: Report and Tools */}
-                        <div className="flex-1 flex flex-col gap-8">
-                            {/* Generate Report Section */}
-                            <motion.section
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.1 }}
-                                className="bg-white/95 backdrop-blur-md border border-teal-200/50 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300"
-                            >
-                                <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-4 mb-6">
-                                    <Sparkles className="w-6 h-6 text-teal-400 animate-pulse" />
-                                    Generate Report with AI
-                                </h2>
-                                <div className="flex flex-col gap-4">
-                                    <button
-                                        onClick={handleGenerateReport}
-                                        disabled={isGeneratingReport}
-                                        className={`w-full max-w-md mx-auto px-6 py-3 text-base font-medium rounded-lg flex items-center justify-center gap-3 transition-all duration-300 ${isGeneratingReport ? 'bg-teal-300 cursor-not-allowed' : 'bg-gradient-to-r from-teal-500 to-blue-500 text-white hover:from-teal-600 hover:to-blue-600 hover:scale-105 hover:shadow-md'}`}
-                                        aria-label="Generate Report"
-                                    >
-                                        {isGeneratingReport ? (
-                                            <>
-                                                <Loader2 className="w-6 h-6 animate-spin" />
-                                                Generating...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Sparkles className="w-6 h-6" />
-                                                Generate Report
-                                            </>
-                                        )}
-                                    </button>
-                                    {reportError && (
-                                        <p className="text-center text-base text-red-600">{reportError}</p>
-                                    )}
-                                    <textarea
-                                        className="w-full h-[400px] lg:h-[600px] p-6 text-base bg-teal-50/50 border border-teal-200/50 rounded-lg resize-none focus:ring-2 focus:ring-teal-400 scrollbar-thin transition-all duration-300"
-                                        value={reportContent}
-                                        readOnly
-                                        placeholder={isGeneratingReport ? 'Generating report...' : 'Your AI-generated report will appear here...'}
-                                        aria-label="AI Generated Report"
-                                    />
-                                </div>
-                            </motion.section>
-
-                            {/* AI Tools Section */}
-                            <motion.section
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.2 }}
-                                className="bg-white/95 backdrop-blur-md border border-teal-200/50 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300"
-                            >
-                                <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-4 mb-6">
-                                    <Sparkles className="w-6 h-6 text-teal-400 animate-pulse" />
-                                    AI Tools
-                                </h2>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                    {/* Task Prioritization AI */}
-                                    <div className="p-6 bg-teal-50/50 rounded-lg shadow-sm border border-teal-200/50 hover:bg-teal-100 transition-all duration-300">
-                                        <div className="flex items-center gap-3 mb-4">
-                                            <Star className="w-6 h-6 text-teal-400 animate-pulse" />
-                                            <p className="text-base font-semibold text-gray-900">Task Prioritization AI</p>
-                                        </div>
-                                        <p className="text-base text-gray-600 mb-4">Rank tasks by urgency and importance.</p>
-                                        <form onSubmit={handlePrioritizeTask} className="space-y-4">
-                                            <input
-                                                type="text"
-                                                value={priorityTask.title}
-                                                onChange={(e) => setPriorityTask({ ...priorityTask, title: e.target.value })}
-                                                placeholder="Enter task title..."
-                                                className="w-full p-3 text-base border border-teal-300/50 rounded-lg focus:ring-2 focus:ring-teal-400 transition-all duration-300"
-                                                aria-label="Task Title"
-                                            />
-                                            <select
-                                                value={priorityTask.priority}
-                                                onChange={(e) => setPriorityTask({ ...priorityTask, priority: e.target.value })}
-                                                className="w-full p-3 text-base border border-teal-300/50 rounded-lg focus:ring-2 focus:ring-teal-400 transition-all duration-300"
-                                                aria-label="Task Priority"
-                                            >
-                                                <option value="high">High</option>
-                                                <option value="medium">Medium</option>
-                                                <option value="low">Low</option>
-                                            </select>
-                                            <input
-                                                type="date"
-                                                value={priorityTask.dueDate}
-                                                onChange={(e) => setPriorityTask({ ...priorityTask, dueDate: e.target.value })}
-                                                className="w-full p-3 text-base border border-teal-300/50 rounded-lg focus:ring-2 focus:ring-teal-400 transition-all duration-300"
-                                                aria-label="Due Date"
-                                            />
-                                            <button
-                                                type="submit"
-                                                className="w-full px-6 py-3 text-base bg-gradient-to-r from-teal-500 to-blue-500 text-white rounded-lg hover:from-teal-600 hover:to-blue-600 transition-all duration-300 hover:scale-105 hover:shadow-md"
-                                                aria-label="Prioritize Task"
-                                            >
-                                                Prioritize
-                                            </button>
-                                        </form>
-                                        {prioritizedTasks.length > 0 && (
-                                            <div className="mt-4">
-                                                <p className="text-base font-semibold text-gray-900">Prioritized Tasks:</p>
-                                                <ul className="list-disc list-inside text-base text-gray-600 mt-2">
-                                                    {prioritizedTasks.map((task) => (
-                                                        <li key={task.id} className="truncate">
-                                                            {task.title} ({task.priority}, {task.dueDate || 'No due date'})
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Effort Estimation AI */}
-                                    <div className="p-6 bg-teal-50/50 rounded-lg shadow-sm border border-teal-200/50 hover:bg-teal-100 transition-all duration-300">
-                                        <div className="flex items-center gap-3 mb-4">
-                                            <Gauge className="w-6 h-6 text-teal-400 animate-pulse" />
-                                            <p className="text-base font-semibold text-gray-900">Effort Estimation AI</p>
-                                        </div>
-                                        <p className="text-base text-gray-600 mb-4">Estimate task effort based on description.</p>
-                                        <input
-                                            type="text"
-                                            value={effortTask}
-                                            onChange={(e) => setEffortTask(e.target.value)}
-                                            placeholder="Describe task (e.g., 'Complex report analysis')..."
-                                            className="w-full p-3 text-base border border-teal-300/50 rounded-lg focus:ring-2 focus:ring-teal-400 transition-all duration-300"
-                                            aria-label="Task Description"
-                                        />
-                                        <button
-                                            onClick={handleEstimateEffort}
-                                            className="w-full mt-4 px-6 py-3 text-base bg-gradient-to-r from-teal-500 to-blue-500 text-white rounded-lg hover:from-teal-600 hover:to-blue-600 transition-all duration-300 hover:scale-105 hover:shadow-md"
-                                            aria-label="Estimate Effort"
-                                        >
-                                            Estimate Effort
-                                        </button>
-                                        {estimatedEffort && (
-                                            <p className="mt-4 text-base text-gray-600">
-                                                Estimated Effort: <span className="font-semibold">{estimatedEffort} hours</span>
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-                            </motion.section>
-                        </div>
-
-                        {/* Sidebar: Task Summaries and Insights */}
-                        <aside className="w-full lg:w-96 flex flex-col gap-8">
-                            {/* AI Task Summaries */}
-                            <motion.section
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.3 }}
-                                className="bg-white/95 backdrop-blur-md border border-teal-200/50 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300"
-                            >
-                                <div className="flex items-center justify-between mb-6">
-                                    <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-4">
-                                        <List className="w-6 h-6 text-teal-400 animate-pulse" />
-                                        AI Task Summaries
-                                    </h2>
-                                    <select
-                                        value={periodFilter}
-                                        onChange={(e) => setPeriodFilter(e.target.value)}
-                                        className="px-4 py-2 text-base bg-teal-50/50 border border-teal-300/50 rounded-lg focus:ring-2 focus:ring-teal-400 transition-all duration-300"
-                                        aria-label="Period filter"
-                                    >
-                                        <option value="all">All</option>
-                                        <option value="daily">Daily</option>
-                                        <option value="weekly">Weekly</option>
-                                        <option value="monthly">Monthly</option>
-                                    </select>
-                                </div>
-                                <div className="max-h-[calc(100vh-24rem)] lg:max-h-[700px] overflow-y-auto scrollbar-thin">
-                                    <AnimatePresence>
-                                        {taskSummaries.length > 0 ? (
-                                            taskSummaries.map((task) => (
-                                                <motion.div
-                                                    key={task.id}
-                                                    initial={{ opacity: 0, y: 10 }}
-                                                    animate={{ opacity: 1, y: 0 }}
-                                                    exit={{ opacity: 0, y: -10 }}
-                                                    className="p-4 bg-teal-50/50 rounded-lg shadow-sm border border-teal-200/50 hover:bg-teal-100 transition-all duration-300 mb-4"
-                                                >
-                                                    <p className="text-base font-semibold text-gray-900 truncate">{task.title}</p>
-                                                    <div className="flex items-center gap-3 mt-2 text-base text-gray-600">
-                                                        <span className={`px-3 py-1 rounded-full text-sm ${task.status === 'Completed' ? 'bg-blue-100 text-blue-700' : 'bg-teal-100 text-teal-700'}`}>
-                                                            {task.status}
-                                                        </span>
-                                                        <span className="truncate">{task.dueDate}</span>
-                                                    </div>
-                                                </motion.div>
-                                            ))
-                                        ) : (
-                                            <motion.div
-                                                initial={{ opacity: 0 }}
-                                                animate={{ opacity: 1 }}
-                                                className="text-center py-10"
-                                            >
-                                                <List className="w-12 h-12 mx-auto text-teal-400 animate-pulse" />
-                                                <p className="text-base font-semibold text-gray-600 mt-4">No tasks for this period</p>
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
-                                </div>
-                            </motion.section>
-
-                            {/* AI Insights */}
-                            <motion.section
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.4 }}
-                                className="bg-white/95 backdrop-blur-md border border-teal-200/50 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300"
-                            >
-                                <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-4 mb-6">
-                                    <Zap className="w-6 h-6 text-teal-400 animate-pulse" />
-                                    AI Insights
-                                </h2>
-                                <div className="max-h-[calc(100vh-24rem)] lg:max-h-[700px] overflow-y-auto scrollbar-thin">
-                                    {aiInsights.length > 0 ? (
-                                        aiInsights.map((insight, idx) => (
-                                            <div
-                                                key={`insight-${idx}`}
-                                                className="p-4 bg-teal-50/50 rounded-lg shadow-sm border border-teal-200/50 hover:bg-teal-100 transition-all duration-300 mb-4"
-                                            >
-                                                <p className="text-base text-gray-900">{insight}</p>
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <div className="text-center py-10">
-                                            <Zap className="w-12 h-12 mx-auto text-teal-400 animate-pulse" />
-                                            <p className="text-base font-semibold text-gray-600 mt-4">No insights available</p>
-                                        </div>
-                                    )}
-                                </div>
-                            </motion.section>
-                        </aside>
-                    </main>
-                </motion.div>
-            </div>
-
-            <style jsx>{`
-                .scrollbar-thin::-webkit-scrollbar {
-                    width: 6px;
-                }
-                .scrollbar-thin::-webkit-scrollbar-track {
-                    background: rgba(20, 184, 166, 0.1);
-                    border-radius: 3px;
-                }
-                .scrollbar-thin::-webkit-scrollbar-thumb {
-                    background: #14B8A6;
-                    border-radius: 3px;
-                }
-                .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-                    background: #0D9488;
-                }
-            `}</style>
-        </motion.div>
-    );
+import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
+import toast, { Toaster } from 'react-hot-toast';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+// Professional Palette
+const COLORS = {
+  primary: '#1E40AF',
+  secondary: '#16A34A',
+  accent: '#F59E0B',
+  danger: '#DC2626',
+  neutral: {
+    50: '#F9FAFB',
+    100: '#F3F4F6',
+    200: '#E5E7EB',
+    300: '#D1D5DB',
+    500: '#6B7280',
+    700: '#374151',
+    900: '#111827',
+    border: '#E5E7EB'
+  }
 };
-
+const REPORT_TEMPLATES = {
+  daily: { title: "Daily Progress Report", greeting: "Good morning team,", summary: "Here's today's update.", completed: "Completed Today", pending: "In Progress", next: "Tomorrow's Focus", closing: "Let's keep the momentum." },
+  weekly: { title: "Weekly Progress Report", greeting: "Hello team,", summary: "This week in review.", completed: "Completed This Week", pending: "Ongoing Work", next: "Next Week Priorities", closing: "Strong progress ahead." },
+  monthly: { title: "Monthly Progress Report", greeting: "Team,", summary: "This month's achievements.", completed: "Completed This Month", pending: "In Progress", next: "Next Month Focus", closing: "On track and aligned." }
+};
+const AI_TOOLS = [
+  {
+    id: 'general',
+    name: 'General FundCo AI',
+    icon: Brain,
+    description: 'Ask FundCo AI anything.',
+    systemPrompt: ''
+  },
+  {
+    id: 'report-generator',
+    name: 'Report Generator',
+    icon: FileText,
+    description: 'Generate professional progress reports from your tasks with AI insights. Improved to handle personal vs submission reports intelligently.',
+    systemPrompt: 'You are a professional report writer. Generate concise, structured reports in Markdown based on task data. Include summaries, completed/pending tasks, metrics, and recommendations. Use task context to provide deep analysis.'
+  },
+  {
+    id: 'task-prioritizer',
+    name: 'Task Prioritizer',
+    icon: List,
+    description: 'AI-powered prioritization of tasks using advanced frameworks like Eisenhower matrix. Now with smart suggestions for undone tasks.',
+    systemPrompt: 'You are a task management expert. Analyze and prioritize tasks using Eisenhower matrix, MoSCoW method, or similar frameworks. Output a sorted list with reasons, scores, and potential dependencies. Suggest optimizations.'
+  },
+  {
+    id: 'effort-estimator',
+    name: 'Effort Estimator',
+    icon: Clock,
+    description: 'Estimate time, resources, and complexity for tasks with risk assessment. Enhanced with personalized tips based on context.',
+    systemPrompt: 'You are a project estimation specialist. Provide realistic time estimates in hours/days, considering complexity, skills, dependencies, and risks. Break down into phases and suggest buffers.'
+  },
+  {
+    id: 'task-breaker',
+    name: 'Task Breaker',
+    icon: Zap,
+    description: 'Decompose complex tasks into actionable sub-tasks with timelines. Improved with automation suggestions.',
+    systemPrompt: 'You are a task decomposition expert. Break down given tasks into atomic sub-tasks with dependencies, estimates, assignments, and potential automation opportunities.'
+  },
+  {
+    id: 'email-writer',
+    name: 'Email Writer',
+    icon: Mail,
+    description: 'Draft professional emails for updates, requests, or collaborations. Now adapts tone based on context intelligently.',
+    systemPrompt: 'You are a professional communicator. Draft clear, concise emails with proper structure: subject, greeting, body, closing. Adapt tone (formal, casual) and include task-related details.'
+  },
+  {
+    id: 'summary-generator',
+    name: 'Summary Generator',
+    icon: FileSearch,
+    description: 'Summarize task lists, meetings, or progress with key highlights. Enhanced to highlight risks proactively.',
+    systemPrompt: 'You are a summarization expert. Create concise summaries highlighting key points, actions, deadlines, and decisions. Use bullet points and highlight risks.'
+  },
+  {
+    id: 'brainstormer',
+    name: 'Idea Brainstormer',
+    icon: Lightbulb,
+    description: 'Generate ideas for goals, automations, or problem-solving. Improved with feasibility scoring tied to user tasks.',
+    systemPrompt: 'You are a creative brainstormer. Generate diverse, innovative ideas with pros/cons, feasibility scores. Tie to task management and suggest implementation steps.'
+  },
+  {
+    id: 'performance-analyzer',
+    name: 'Performance Analyzer',
+    icon: BarChart,
+    description: 'Analyze productivity metrics, trends, and bottlenecks. Now includes trend predictions.',
+    systemPrompt: 'You are a performance analytics expert. Analyze metrics like completion rate, overdue tasks, productivity trends. Provide text-based charts, insights, and improvement recommendations.'
+  },
+//   {
+//     id: 'code-generator',
+//     name: 'Code Generator',
+//     icon: Code,
+//     description: 'Generate scripts for task automation (e.g., Python, JS). Enhanced with integration examples.',
+//     systemPrompt: 'You are a code expert. Generate clean, commented code in specified language for automation. Explain logic, dependencies, and integration with task systems.'
+//   },
+  {
+    id: 'research-assistant',
+    name: 'Research Assistant',
+    icon: Search,
+    description: 'Research best practices, tools, or industry standards. Improved with source credibility checks.',
+    systemPrompt: 'You are a research assistant. Provide factual, well-sourced information on task management topics. Use markdown for structure and suggest applications to user tasks.'
+  },
+  {
+    id: 'reminder-optimizer',
+    name: 'Reminder Optimizer',
+    icon: AlertCircle,
+    description: 'Suggest optimal reminders and notifications for tasks. Now personalized based on habits.',
+    systemPrompt: 'You are a reminder system expert. Analyze tasks and suggest personalized reminder schedules, channels (email, push), and escalation rules based on priorities and habits.'
+  },
+  {
+    id: 'goal-planner',
+    name: 'Goal Planner',
+    icon: TrendingUp,
+    description: 'Create SMART goals and milestones from ideas. Enhanced with alignment to existing goals.',
+    systemPrompt: 'You are a goal-setting coach. Transform ideas into SMART goals with milestones, KPIs, timelines, and alignment to existing tasks.'
+  },
+  {
+    id: 'team-collaborator',
+    name: 'Team Collaborator',
+    icon: Users,
+    description: 'Suggest task assignments and collaboration strategies. Improved with conflict prediction.',
+    systemPrompt: 'You are a team collaboration expert. Suggest task delegations, meeting agendas, and conflict resolution based on team roles and task dependencies.'
+  },
+  {
+    id: 'document-analyzer',
+    name: 'Document Analyzer',
+    icon: Document,
+    description: 'Analyze attached files for task insights. Now with action item extraction.',
+    systemPrompt: 'You are a document analysis AI. Extract key information from files, link to tasks, and suggest actions or integrations.'
+  },
+  {
+    id: 'automation-builder',
+    name: 'Automation Builder',
+    icon: Cpu,
+    description: 'Design workflows for recurring tasks. Enhanced with condition branching.',
+    systemPrompt: 'You are an automation architect. Design step-by-step workflows for task automation using tools like Zapier patterns, with triggers, actions, and conditions.'
+  },
+  {
+    id: 'calendar-optimizer',
+    name: 'Calendar Optimizer',
+    icon: Calendar,
+    description: 'Optimize schedules and time blocks for tasks. Improved with energy level considerations.',
+    systemPrompt: 'You are a time management expert. Suggest optimal time blocks, calendar integrations, and scheduling based on task priorities, durations, and energy levels.'
+  },
+  // All tools are now listed - no missing
+];
+const AiTools = () => {
+  const { user, tasks = [] } = useOutletContext();
+  const navigate = useNavigate();
+  const [openTools, setOpenTools] = useState(new Set());
+  const [chatHistories, setChatHistories] = useState({});
+  const [inputs, setInputs] = useState({});
+  const [isResponding, setIsResponding] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef(null);
+  const [reportType, setReportType] = useState('daily');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
+  const [selectedTaskIds, setSelectedTaskIds] = useState(new Set());
+  const [reportContent, setReportContent] = useState('');
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [reportAudience, setReportAudience] = useState('personal'); // new state for audience
+  const [prioritizeOutput, setPrioritizeOutput] = useState('');
+  const [isPrioritizing, setIsPrioritizing] = useState(false);
+  const [effortTask, setEffortTask] = useState('');
+  const [estimateOutput, setEstimateOutput] = useState('');
+  const [isEstimating, setIsEstimating] = useState(false);
+  const [aiInsights, setAiInsights] = useState([]);
+  useEffect(() => {
+    if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+      recognitionRef.current.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        setInputs(prev => ({...prev, [activeListeningTool]: (prev[activeListeningTool] || '') + ' ' + transcript}));
+        toast.success('Voice input added!');
+      };
+      recognitionRef.current.onerror = (event) => {
+        toast.error('Voice recognition error: ' + event.error);
+        setIsListening(false);
+      };
+      recognitionRef.current.onend = () => setIsListening(false);
+    } else {
+      toast.warn('Voice recognition not supported in this browser.');
+    }
+    return () => {
+      if (recognitionRef.current) recognitionRef.current.stop();
+    };
+  }, []);
+  const [activeListeningTool, setActiveListeningTool] = useState(null);
+  const toggleVoice = (toolId) => {
+    if (isListening) {
+      recognitionRef.current.stop();
+    } else {
+      setActiveListeningTool(toolId);
+      recognitionRef.current.start();
+      setIsListening(true);
+      toast('Listening... Speak now!');
+    }
+  };
+  const getTaskContext = () => {
+    return tasks.map(t => ({
+      title: t.title,
+      completed: t.completed,
+      dueDate: t.dueDate ? format(new Date(t.dueDate), 'MMM d, yyyy') : null,
+      priority: t.priority || 'Medium'
+    }));
+  };
+  const callGrok = async (messages, toolId, onStream = (content) => {}) => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast.error('Please login first');
+      return;
+    }
+    setIsResponding(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/grok/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          messages,
+          taskContext: JSON.stringify(getTaskContext()),
+          toolId
+        })
+      });
+      if (!response.ok) throw new Error('API error');
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullContent = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n\n');
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') continue;
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.content) {
+                fullContent += parsed.content;
+                onStream(parsed.content);
+              }
+              if (parsed.error) throw new Error(parsed.error);
+            } catch {}
+          }
+        }
+      }
+      toast.success('FundCo AI responded!');
+    } catch (err) {
+      toast.error(err.message || 'Failed to get response');
+    } finally {
+      setIsResponding(false);
+    }
+  };
+  const handleSend = (toolId) => async () => {
+    const input = inputs[toolId] || '';
+    if (!input.trim()) return;
+    const userMessage = { role: 'user', content: input };
+    setChatHistories(prev => ({...prev, [toolId]: [...(prev[toolId] || []), userMessage]}));
+    setInputs(prev => ({...prev, [toolId]: ''}));
+    const tempId = Date.now();
+    setChatHistories(prev => ({...prev, [toolId]: [...(prev[toolId] || []), { role: 'assistant', content: '', id: tempId }]}));
+    const fullMessages = (chatHistories[toolId] || []).concat(userMessage);
+    await callGrok(fullMessages, toolId, (content) => {
+      setChatHistories(prev => {
+        const hist = prev[toolId] || [];
+        const last = hist[hist.length - 1];
+        if (last.id === tempId) {
+          last.content += content;
+        }
+        return {...prev, [toolId]: [...hist]};
+      });
+    });
+  };
+  const handleKeyDown = (toolId) => (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend(toolId)();
+    }
+  };
+  const clearChat = (toolId) => () => {
+    setChatHistories(prev => ({...prev, [toolId]: []}));
+    toast.success('Chat cleared');
+  };
+  const handleCopy = async (content) => {
+    await navigator.clipboard.writeText(content);
+    setCopied(true);
+    toast.success('Copied!');
+    setTimeout(() => setCopied(false), 2000);
+  };
+  const downloadContent = (content, filename) => {
+    const blob = new Blob([content], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Downloaded!');
+  };
+  const filteredTasks = useMemo(() => {
+    let start, end;
+    const today = new Date();
+    if (reportType === 'daily') {
+      start = startOfDay(today);
+      end = endOfDay(today);
+    } else if (reportType === 'weekly') {
+      start = startOfWeek(today, { weekStartsOn: 1 });
+      end = endOfDay(today);
+    } else if (reportType === 'monthly') {
+      start = startOfMonth(today);
+      end = endOfDay(today);
+    } else if (reportType === 'custom' && customStartDate && customEndDate) {
+      start = startOfDay(new Date(customStartDate));
+      end = endOfDay(new Date(customEndDate));
+    } else {
+      return [];
+    }
+    return tasks.filter(task => {
+      if (!task.dueDate) return false;
+      const due = new Date(task.dueDate);
+      return isWithinInterval(due, { start, end });
+    });
+  }, [tasks, reportType, customStartDate, customEndDate]);
+  useEffect(() => {
+    if (reportType === 'custom') return;
+    let start, end;
+    const today = new Date();
+    if (reportType === 'daily') {
+      start = startOfDay(today);
+      end = endOfDay(today);
+    } else if (reportType === 'weekly') {
+      start = startOfWeek(today, { weekStartsOn: 1 });
+      end = endOfDay(today);
+    } else if (reportType === 'monthly') {
+      start = startOfMonth(today);
+      end = endOfDay(today);
+    }
+    setCustomStartDate(format(start, 'yyyy-MM-dd'));
+    setCustomEndDate(format(end, 'yyyy-MM-dd'));
+  }, [reportType]);
+  useEffect(() => {
+    if (reportType !== 'custom') {
+      const newSet = new Set(filteredTasks.map(t => t._id || t.id));
+      setSelectedTaskIds(newSet);
+    }
+  }, [filteredTasks, reportType]);
+  const selectAll = () => {
+    const newSet = new Set(filteredTasks.map(t => t._id || t.id));
+    setSelectedTaskIds(newSet);
+  };
+  const clearSelection = () => setSelectedTaskIds(new Set());
+  const toggleTask = (id) => {
+    setSelectedTaskIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) newSet.delete(id);
+      else newSet.add(id);
+      return newSet;
+    });
+  };
+  const handleGenerateReport = async () => {
+    setIsGeneratingReport(true);
+    setReportContent('');
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast.error('Please login first');
+      setIsGeneratingReport(false);
+      return;
+    }
+    const selectedTasks = filteredTasks.filter(t => selectedTaskIds.has(t._id || t.id));
+    if (selectedTasks.length === 0) {
+      setReportContent('**No Tasks Found**\n\nThere are no tasks for the selected period. No report can be generated.');
+      setIsGeneratingReport(false);
+      return;
+    }
+    const taskContext = JSON.stringify(selectedTasks);
+    const template = REPORT_TEMPLATES[reportType] || REPORT_TEMPLATES.daily;
+    const audiencePrompt = reportAudience === 'personal' ? 'Generate for personal use, address as "you", offer help for undone tasks.' : 'Generate for submission to superior, keep formal.';
+    const messages = [
+      { role: 'user', content: `Generate a ${reportType} report using this template: Title: ${template.title}, Greeting: ${template.greeting}, Summary: ${template.summary}, Completed: ${template.completed}, Pending: ${template.pending}, Next: ${template.next}, Closing: ${template.closing}. ${audiencePrompt}. If no tasks, state that clearly.` }
+    ];
+    await callGrok(messages, 'report-generator', (content) => setReportContent(prev => prev + content));
+    setIsGeneratingReport(false);
+    // Mock insights with improvements
+    setAiInsights([
+      { text: 'High completion rate this week. Consider automating repetitive tasks.', level: 'success' },
+      { text: 'Watch for overdue tasks. FundCo AI can help with reminders.', level: 'warn' },
+      { text: 'Productivity trend upward. Great job!', level: 'info' }
+    ]);
+  };
+  const downloadReport = () => {
+    downloadContent(reportContent, `${reportType}_report.md`);
+  };
+  const handleSubmit = () => {
+    toast.success('Report submitted!');
+  };
+  const handlePrioritizeAll = async () => {
+    setIsPrioritizing(true);
+    setPrioritizeOutput('');
+    const messages = [{ role: 'user', content: 'Analyze and prioritize all my tasks based on the provided context. Offer help for low-priority or undone tasks.' }];
+    await callGrok(messages, 'task-prioritizer', (content) => setPrioritizeOutput(prev => prev + content));
+    setIsPrioritizing(false);
+  };
+  const handleEstimateGrok = async () => {
+    if (!effortTask.trim()) return;
+    setIsEstimating(true);
+    setEstimateOutput('');
+    const messages = [{ role: 'user', content: `Estimate effort for this task: ${effortTask}. Provide tips to optimize based on context.` }];
+    await callGrok(messages, 'effort-estimator', (content) => setEstimateOutput(prev => prev + content));
+    setIsEstimating(false);
+  };
+  const toggleTool = (id) => {
+    setOpenTools(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+  return (
+    <>
+      <Toaster position="top-center" toastOptions={{
+        style: { background: COLORS.primary, color: 'white', fontWeight: '600' }
+      }} />
+      <div className="min-h-screen bg-gray-50">
+        <header className="bg-white border-b border-gray-200 px-6 py-5 shadow-sm sticky top-0 z-10">
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Brain className="w-8 h-8 text-blue-600" />
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">FundCo AI Hub</h1>
+                <p className="text-sm text-gray-500">Custom reports • Real-time AI • Powered by xAI</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg font-medium transition-colors"
+              >
+                <ArrowLeft className="w-5 h-5" />
+                Dashboard
+              </button>
+              <img
+                src={user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=1e40af&color=fff`}
+                alt="Avatar"
+                className="w-10 h-10 rounded-full ring-2 ring-blue-100"
+              />
+            </div>
+          </div>
+        </header>
+        <div className="max-w-7xl mx-auto p-6 space-y-4">
+          {AI_TOOLS.map(tool => {
+            const isOpen = openTools.has(tool.id);
+            const Icon = tool.icon;
+            let content = null;
+            if (tool.id === 'report-generator') {
+              content = (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-3">
+                      <FileText className="w-5 h-5 text-blue-600" />
+                      Generate Report
+                    </h4>
+                    <div className="flex items-center gap-2">
+                      <select 
+                        value={reportType} 
+                        onChange={e => setReportType(e.target.value)} 
+                        className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="custom">Custom</option>
+                      </select>
+                      <select 
+                        value={reportAudience} 
+                        onChange={e => setReportAudience(e.target.value)} 
+                        className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="personal">Personal</option>
+                        <option value="submission">Submission to Superior</option>
+                      </select>
+                      {reportType === 'custom' && (
+                        <>
+                          <input
+                            type="date"
+                            value={customStartDate}
+                            onChange={e => setCustomStartDate(e.target.value)}
+                            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                          />
+                          <span className="text-xs text-gray-500">to</span>
+                          <input
+                            type="date"
+                            value={customEndDate}
+                            onChange={e => setCustomEndDate(e.target.value)}
+                            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                          />
+                        </>
+                      )}
+                      <button
+                        onClick={() => { setCustomStartDate(''); setCustomEndDate(''); }}
+                        className="p-1.5 text-gray-500 hover:text-gray-700"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                  {reportType === 'custom' && (
+                    <>
+                      <div className="flex gap-2">
+                        <button onClick={selectAll} className="px-3 py-1.5 text-xs bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100">
+                          Select All
+                        </button>
+                        <button onClick={clearSelection} className="px-3 py-1.5 text-xs bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
+                          Clear
+                        </button>
+                      </div>
+                      <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-lg p-3 space-y-2 scrollbar-thin">
+                        {filteredTasks.length > 0 ? (
+                          filteredTasks.map(task => {
+                            const id = task._id || task.id;
+                            const isSelected = selectedTaskIds.has(id);
+                            return (
+                              <label
+                                key={id}
+                                className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all border ${
+                                  isSelected ? 'bg-blue-50 border-blue-300' : 'hover:bg-gray-50 border-transparent'
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => toggleTask(id)}
+                                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-sm text-gray-900 truncate">{task.title}</p>
+                                  <p className="text-xs text-gray-500">
+                                    {task.completed ? 'Completed' : 'Pending'}
+                                    {task.dueDate && ` • Due ${format(new Date(task.dueDate), 'MMM d')}`}
+                                  </p>
+                                </div>
+                              </label>
+                            );
+                          })
+                        ) : (
+                          <p className="text-center text-sm text-gray-500 py-8">
+                            {customStartDate && customEndDate
+                              ? 'No tasks in selected date range'
+                              : 'No tasks available'}
+                          </p>
+                        )}
+                      </div>
+                    </>
+                  )}
+                  <button
+                    onClick={handleGenerateReport}
+                    disabled={isGeneratingReport || (reportType === 'custom' && selectedTaskIds.size === 0)}
+                    className="w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
+                  >
+                    {isGeneratingReport ? (
+                      <>Generating<Loader2 className="w-5 h-5 animate-spin" /></>
+                    ) : (
+                      <>Generate Report</>
+                    )}
+                  </button>
+                  {reportContent && (
+                    <div className="mt-6 space-y-4">
+                      <h4 className="text-lg font-semibold text-gray-900">Generated Report</h4>
+                      <div className="flex gap-2">
+                        <button onClick={() => handleCopy(reportContent)} className="flex-1 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-medium flex items-center justify-center gap-1 transition-colors">
+                          {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                          {copied ? 'Copied' : 'Copy'}
+                        </button>
+                        <button onClick={downloadReport} className="flex-1 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-medium flex items-center justify-center gap-1 transition-colors">
+                          <Download className="w-4 h-4" /> Download
+                        </button>
+                        <button onClick={handleSubmit} className="flex-1 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-1">
+                          <Send className="w-4 h-4" /> Submit
+                        </button>
+                      </div>
+                      <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 max-h-96 overflow-y-auto text-sm prose prose-sm">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{reportContent}</ReactMarkdown>
+                      </div>
+                    </div>
+                  )}
+                  {aiInsights.length > 0 && (
+                    <div className="mt-6">
+                      <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                        <Zap className="w-5 h-5 text-blue-600" />
+                        FundCo AI Insights
+                      </h4>
+                      <div className="space-y-3">
+                        {aiInsights.map((insight, i) => (
+                          <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.1 }} className={`p-3 rounded-lg border text-sm ${insight.level === 'error' ? 'bg-red-50 border-red-200 text-red-800' : insight.level === 'warn' ? 'bg-amber-50 border-amber-200 text-amber-800' : insight.level === 'success' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-blue-50 border-blue-200 text-blue-800'}`}>
+                            {insight.text}
+                          </motion.div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            } else if (tool.id === 'task-prioritizer') {
+              content = (
+                <div className="space-y-4">
+                  <button 
+                    onClick={handlePrioritizeAll} 
+                    disabled={isPrioritizing}
+                    className="w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
+                  >
+                    {isPrioritizing ? <>Prioritizing<Loader2 className="w-5 h-5 animate-spin" /></> : 'Prioritize All Tasks'}
+                  </button>
+                  {prioritizeOutput && (
+                    <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{prioritizeOutput}</ReactMarkdown>
+                    </div>
+                  )}
+                </div>
+              );
+            } else if (tool.id === 'effort-estimator') {
+              content = (
+                <div className="space-y-4">
+                  <input type="text" placeholder="Describe task..." value={effortTask} onChange={e => setEffortTask(e.target.value)} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                  <button 
+                    onClick={handleEstimateGrok} 
+                    disabled={isEstimating}
+                    className="w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
+                  >
+                    {isEstimating ? <>Estimating<Loader2 className="w-5 h-5 animate-spin" /></> : 'Estimate Effort'}
+                  </button>
+                  {estimateOutput && (
+                    <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{estimateOutput}</ReactMarkdown>
+                    </div>
+                  )}
+                </div>
+              );
+            } else {
+              content = (
+                <div className="space-y-4">
+                  <div className="max-h-80 overflow-y-auto space-y-4 scrollbar-thin">
+                    <AnimatePresence>
+                      {(chatHistories[tool.id] || []).map((msg, i) => (
+                        <motion.div
+                          key={i}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className={`p-4 rounded-lg ${msg.role === 'user' ? 'bg-blue-50 text-blue-900' : 'bg-gray-50 text-gray-900'}`}
+                        >
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
+                  </div>
+                  <div className="flex gap-2">
+                    <textarea
+                      value={inputs[tool.id] || ''}
+                      onChange={e => setInputs(prev => ({...prev, [tool.id]: e.target.value}))}
+                      onKeyDown={handleKeyDown(tool.id)}
+                      placeholder="Type your message..."
+                      className="flex-1 p-3 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500"
+                      rows={3}
+                    />
+                    <button onClick={handleSend(tool.id)} disabled={isResponding} className="p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60">
+                      <Send className="w-5 h-5" />
+                    </button>
+                    <button onClick={() => toggleVoice(tool.id)} className="p-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
+                      <Mic className="w-5 h-5" />
+                    </button>
+                  </div>
+                  <button onClick={clearChat(tool.id)} className="text-sm text-gray-500 hover:text-gray-700">
+                    Clear Chat
+                  </button>
+                </div>
+              );
+            }
+            return (
+              <motion.div
+                key={tool.id}
+                className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden"
+              >
+                <button
+                  onClick={() => toggleTool(tool.id)}
+                  className="w-full p-6 flex items-center gap-4 text-left hover:bg-gray-50 transition-colors"
+                >
+                  <Icon className="w-8 h-8 text-blue-600 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-semibold text-gray-900 truncate">{tool.name}</h3>
+                    <p className="text-sm text-gray-600 truncate">{tool.description}</p>
+                  </div>
+                  <ChevronRight className={`w-6 h-6 text-gray-500 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
+                </button>
+                <AnimatePresence>
+                  {isOpen && (
+                    <motion.div
+                      initial={{ height: 0 }}
+                      animate={{ height: 'auto' }}
+                      exit={{ height: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="p-6 border-t border-gray-200">
+                        {content}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            );
+          })}
+        </div>
+        <style jsx>{`
+          .scrollbar-thin { scrollbar-width: thin; }
+          .scrollbar-thin::-webkit-scrollbar { width: 6px; }
+          .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+          .scrollbar-thin::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+          .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        `}</style>
+      </div>
+    </>
+  );
+};
 export default AiTools;

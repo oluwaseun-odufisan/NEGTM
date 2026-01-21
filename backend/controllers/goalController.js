@@ -1,3 +1,4 @@
+// backend/controllers/goalController.js
 import Goal from '../models/goalModel.js';
 import Reminder from '../models/reminderModel.js';
 import User from '../models/userModel.js';
@@ -50,6 +51,34 @@ const createOrUpdateGoalReminder = async (goal, userId, io) => {
     }
 };
 
+// Helper to calculate goal progress
+const calculateGoalProgress = (goal) => {
+  if (!goal.subGoals.length) return 0;
+  const completed = goal.subGoals.filter(sg => sg.completed).length;
+  return (completed / goal.subGoals.length) * 100;
+};
+
+// Helper to calculate goal points
+const getGoalPoints = (goal) => {
+  const progress = calculateGoalProgress(goal);
+  return Math.round(progress / 100 * 50);  // Max 50 points per goal
+};
+
+// Helper to update user performance for goals
+const updateUserGoalPerformance = async (userId, oldGoal, newGoal) => {
+  const oldPoints = getGoalPoints(oldGoal);
+  const newPoints = getGoalPoints(newGoal);
+  const delta = newPoints - oldPoints;
+  if (delta !== 0) {
+    await updateUserPerformance(userId, delta);
+  }
+  const user = await User.findById(userId);
+  if (calculateGoalProgress(newGoal) === 100 && calculateGoalProgress(oldGoal) !== 100) {
+    user.completedGoals = (user.completedGoals || 0) + 1;
+    await user.save();
+  }
+};
+
 // CREATE A NEW GOAL
 export const createGoal = async (req, res) => {
     try {
@@ -69,6 +98,7 @@ export const createGoal = async (req, res) => {
         });
 
         const saved = await goal.save();
+        await updateUserPerformance(req.user._id, getGoalPoints(saved));
         await createOrUpdateGoalReminder(saved, req.user._id, req.io);
         req.io.to(`user:${req.user._id}`).emit('newGoal', saved);
 
@@ -107,14 +137,13 @@ export const getGoalById = async (req, res) => {
 // UPDATE A GOAL BY ID
 export const updateGoal = async (req, res) => {
     try {
+        const oldGoal = await Goal.findById(req.params.id);
         const data = { ...req.body };
         if (data.startDate) data.startDate = new Date(data.startDate);
         if (data.endDate) data.endDate = new Date(data.endDate);
 
         const updated = await Goal.findOneAndUpdate(
-            { _id: req.params
-
-.id, owner: req.user._id },
+            { _id: req.params.id, owner: req.user._id },
             data,
             { new: true, runValidators: true }
         );
@@ -123,6 +152,7 @@ export const updateGoal = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Goal not found or not yours' });
         }
 
+        await updateUserGoalPerformance(req.user._id, oldGoal, updated);
         await createOrUpdateGoalReminder(updated, req.user._id, req.io);
         req.io.to(`user:${req.user._id}`).emit('goalUpdated', updated);
 
@@ -140,6 +170,8 @@ export const deleteGoal = async (req, res) => {
         if (!deleted) {
             return res.status(404).json({ success: false, message: 'Goal not found or not yours' });
         }
+
+        await updateUserPerformance(req.user._id, -getGoalPoints(deleted));
 
         await Reminder.deleteMany({ targetId: req.params.id, targetModel: 'Goal', user: req.user._id });
         req.io.to(`user:${req.user._id}`).emit('goalDeleted', req.params.id);

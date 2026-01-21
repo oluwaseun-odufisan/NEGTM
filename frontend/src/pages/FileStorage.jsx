@@ -7,7 +7,7 @@ import {
     Users, Calendar, Star, Menu, Filter, Clock, Share2, HardDrive,
     ChevronDown, Minus, ChevronUp
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { Toaster } from 'react-hot-toast';
@@ -17,23 +17,18 @@ import mammoth from 'mammoth';
 import DOMPurify from 'dompurify';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
-
 // Configure pdfjs worker
 pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
-
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
 const ALLOWED_TYPES = ['pdf', 'docx', 'doc', 'jpg', 'jpeg', 'png', 'mp4', 'webm', 'xls', 'xlsx'];
 const TOTAL_STORAGE = 2 * 1024 * 1024 * 1024; // 2GB in bytes
-
 // Error Boundary for react-pdf
 class ErrorBoundary extends React.Component {
     state = { hasError: false, error: null };
-
     static getDerivedStateFromError(error) {
         return { hasError: true, error: error.message };
     }
-
     render() {
         if (this.state.hasError) {
             return (
@@ -45,14 +40,12 @@ class ErrorBoundary extends React.Component {
         return this.props.children;
     }
 }
-
 const FilePreviewModal = ({ isOpen, onClose, file, handleDownload, handleShare }) => {
     const [numPages, setNumPages] = useState(null);
     const [pageNumber, setPageNumber] = useState(1);
     const [zoom, setZoom] = useState(1);
     const [docContent, setDocContent] = useState(null);
     const [error, setError] = useState(null);
-
     useEffect(() => {
         if (!isOpen || !file) {
             setNumPages(null);
@@ -62,7 +55,6 @@ const FilePreviewModal = ({ isOpen, onClose, file, handleDownload, handleShare }
             setError(null);
             return;
         }
-
         if (file.type === 'docx' || file.name?.toLowerCase().endsWith('.docx')) {
             const fetchDoc = async () => {
                 try {
@@ -80,22 +72,17 @@ const FilePreviewModal = ({ isOpen, onClose, file, handleDownload, handleShare }
             fetchDoc();
         }
     }, [isOpen, file]);
-
     if (!isOpen || !file) return null;
-
     const onDocumentLoadSuccess = ({ numPages }) => {
         setNumPages(numPages);
         setPageNumber(1);
     };
-
     const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.2, 2));
     const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.2, 0.5));
     const handlePrevPage = () => setPageNumber(prev => Math.max(prev - 1, 1));
     const handleNextPage = () => setPageNumber(prev => Math.min(prev + 1, numPages));
-
     const url = `https://gateway.pinata.cloud/ipfs/${file.cid}`;
     const type = file.type?.toLowerCase() || file.name?.split('.').pop().toLowerCase();
-
     const renderPreview = () => {
         if (error) {
             return (
@@ -229,7 +216,6 @@ const FilePreviewModal = ({ isOpen, onClose, file, handleDownload, handleShare }
             </div>
         );
     };
-
     return (
         <motion.div
             initial={{ opacity: 0 }}
@@ -283,24 +269,20 @@ const FilePreviewModal = ({ isOpen, onClose, file, handleDownload, handleShare }
         </motion.div>
     );
 };
-
 const UploadModal = ({ isOpen, onClose, onUpload, tasks, currentFolderId, isUploading, setIsUploading }) => {
     const [selectedFiles, setSelectedFiles] = useState([]);
     const [taskId, setTaskId] = useState('');
     const [tags, setTags] = useState('');
     const [error, setError] = useState(null);
     const fileInputRef = useRef(null);
-
     const validateTaskId = (id) => {
         if (!id) return true; // Allow no task
         return tasks.some(task => task._id === id);
     };
-
     const validateTags = (tagString) => {
         const tagArray = tagString.split(',').map(t => t.trim()).filter(t => t);
         return tagArray.every(tag => tag.length <= 50 && /^[a-zA-Z0-9._\-]+$/.test(tag));
     };
-
     const handleFileChange = useCallback((e) => {
         console.log('File input changed:', e.target.files);
         const files = Array.from(e.target.files);
@@ -319,7 +301,6 @@ const UploadModal = ({ isOpen, onClose, onUpload, tasks, currentFolderId, isUplo
         setSelectedFiles(validFiles);
         setError(validFiles.length ? null : files.length ? 'Some files are invalid' : null);
     }, []);
-
     const handleSubmit = async (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -362,15 +343,13 @@ const UploadModal = ({ isOpen, onClose, onUpload, tasks, currentFolderId, isUplo
             setIsUploading(false);
         }
     };
-
     if (!isOpen) return null;
-
     return (
         <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-gray-950/80 backdrop-blur-sm flex items-center justify-center z-[1000]"
+            className="fixed inset-0 bg-[#1F2937]/80 flex items-center justify-center z-[1000]"
             onClick={onClose}
             role="dialog"
             aria-label="Upload Modal"
@@ -379,34 +358,34 @@ const UploadModal = ({ isOpen, onClose, onUpload, tasks, currentFolderId, isUplo
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
-                className="bg-gray-800/80 rounded-2xl p-6 max-w-md w-full border border-gray-700/50 shadow-lg"
+                className="bg-white rounded-xl p-6 max-w-md w-full border border-[#6B7280]/20 shadow-lg"
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold text-white">Upload Files</h3>
+                    <h3 className="text-lg font-semibold text-[#1F2937]">Upload Files</h3>
                     <button
                         type="button"
                         onClick={onClose}
-                        className="p-1 text-gray-400 hover:text-white"
+                        className="p-1 text-[#6B7280] hover:text-[#1F2937]"
                         aria-label="Close Modal"
                     >
                         <X className="w-5 h-5" />
                     </button>
                 </div>
-                {error && <p className="text-sm text-red-400 mb-4">{error}</p>}
+                {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
-                        <label className="text-sm text-gray-300 mb-1 block">Files (max 25MB each)</label>
+                        <label className="text-sm text-[#6B7280] mb-1 block">Files (max 25MB each)</label>
                         <div
-                            className="border-2 border-dashed border-gray-500 rounded-lg p-6 text-center hover:bg-gray-700/30"
+                            className="border-2 border-dashed border-[#6B7280]/20 rounded-lg p-6 text-center hover:bg-[#E5E7EB]"
                             onDragOver={(e) => e.preventDefault()}
                             onDrop={(e) => {
                                 e.preventDefault();
                                 handleFileChange({ target: { files: e.dataTransfer.files } });
                             }}
                         >
-                            <Upload className="w-8 h-8 mx-auto text-cyan-500" />
-                            <p className="text-sm text-gray-400 mt-2">Drag & drop files here</p>
+                            <Upload className="w-8 h-8 mx-auto text-[#1E40AF]" />
+                            <p className="text-sm text-[#6B7280] mt-2">Drag & drop files here</p>
                             <input
                                 type="file"
                                 id="file-upload"
@@ -418,13 +397,13 @@ const UploadModal = ({ isOpen, onClose, onUpload, tasks, currentFolderId, isUplo
                             />
                             <label
                                 htmlFor="file-upload"
-                                className="cursor-pointer text-sm text-cyan-400 mt-2 block"
+                                className="cursor-pointer text-sm text-[#1E40AF] mt-2 block"
                             >
                                 Or click to browse
                             </label>
                         </div>
                         {selectedFiles.length > 0 && (
-                            <ul className="mt-2 text-sm text-gray-400">
+                            <ul className="mt-2 text-sm text-[#6B7280]">
                                 {selectedFiles.map((file, index) => (
                                     <li key={index}>{file.name} ({(file.size / 1024 / 1024).toFixed(1)} MB)</li>
                                 ))}
@@ -432,11 +411,11 @@ const UploadModal = ({ isOpen, onClose, onUpload, tasks, currentFolderId, isUplo
                         )}
                     </div>
                     <div>
-                        <label className="text-sm text-gray-300 mb-1 block">Task</label>
+                        <label className="text-sm text-[#6B7280] mb-1 block">Task</label>
                         <select
                             value={taskId}
                             onChange={(e) => setTaskId(e.target.value)}
-                            className="w-full p-2 text-sm bg-gray-700/50 border border-gray-600 rounded-md text-gray-200"
+                            className="w-full p-2 text-sm bg-[#F3F4F6] border border-[#6B7280]/20 rounded-md text-[#1F2937]"
                             aria-label="Select task"
                         >
                             <option value="">No Task</option>
@@ -446,20 +425,20 @@ const UploadModal = ({ isOpen, onClose, onUpload, tasks, currentFolderId, isUplo
                         </select>
                     </div>
                     <div>
-                        <label className="text-sm text-gray-300 mb-1 block">Tags</label>
+                        <label className="text-sm text-[#6B7280] mb-1 block">Tags</label>
                         <input
                             type="text"
                             value={tags}
                             onChange={(e) => setTags(e.target.value)}
                             placeholder="e.g., report, urgent"
-                            className="w-full p-2 text-sm bg-gray-700/50 border border-gray-600 rounded-md text-gray-200"
+                            className="w-full p-2 text-sm bg-[#F3F4F6] border border-[#6B7280]/20 rounded-md text-[#1F2937]"
                             aria-label="Enter tags"
                         />
                     </div>
                     <button
                         type="submit"
                         disabled={!selectedFiles.length || isUploading}
-                        className="w-full py-2 bg-cyan-500 text-white rounded-md hover:bg-cyan-600 disabled:bg-gray-500 disabled:opacity-50"
+                        className="w-full py-2 bg-[#1E40AF] text-white rounded-md hover:bg-[#1E40AF]/90 disabled:bg-gray-500 disabled:opacity-50"
                         aria-label="Upload files"
                     >
                         {isUploading ? <Loader2 className="w-4 h-4 animate-spin inline-block mr-2" /> : 'Upload'}
@@ -469,7 +448,6 @@ const UploadModal = ({ isOpen, onClose, onUpload, tasks, currentFolderId, isUplo
         </motion.div>
     );
 };
-
 const MoveFilesModal = ({ isOpen, onClose, folders, onMove, currentFolderId }) => {
     const [selectedFolderId, setSelectedFolderId] = useState('');
     const folderTree = useMemo(() => {
@@ -484,7 +462,6 @@ const MoveFilesModal = ({ isOpen, onClose, folders, onMove, currentFolderId }) =
         };
         return buildTree(null);
     }, [folders]);
-
     const renderFolderOptions = (folders, indent = 0) => {
         return folders.map(folder => (
             <React.Fragment key={folder._id}>
@@ -495,21 +472,18 @@ const MoveFilesModal = ({ isOpen, onClose, folders, onMove, currentFolderId }) =
             </React.Fragment>
         ));
     };
-
     const handleSubmit = (e) => {
         e.preventDefault();
         onMove(selectedFolderId || null);
         onClose();
     };
-
     if (!isOpen) return null;
-
     return (
         <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-gray-950/80 backdrop-blur-sm flex items-center justify-center z-[1001]"
+            className="fixed inset-0 bg-[#1F2937]/80 flex items-center justify-center z-[1001]"
             onClick={onClose}
             role="dialog"
             aria-label="Move Files Modal"
@@ -518,15 +492,15 @@ const MoveFilesModal = ({ isOpen, onClose, folders, onMove, currentFolderId }) =
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
-                className="bg-gray-800/80 rounded-2xl p-6 max-w-md w-full border border-gray-700/50 shadow-lg"
+                className="bg-white rounded-xl p-6 max-w-md w-full border border-[#6B7280]/20 shadow-lg"
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold text-white">Move to Folder</h3>
+                    <h3 className="text-lg font-semibold text-[#1F2937]">Move to Folder</h3>
                     <button
                         type="button"
                         onClick={onClose}
-                        className="p-1 text-gray-400 hover:text-white"
+                        className="p-1 text-[#6B7280] hover:text-[#1F2937]"
                         aria-label="Close Modal"
                     >
                         <X className="w-5 h-5" />
@@ -534,11 +508,11 @@ const MoveFilesModal = ({ isOpen, onClose, folders, onMove, currentFolderId }) =
                 </div>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
-                        <label className="text-sm text-gray-300 mb-1 block">Select Destination Folder</label>
+                        <label className="text-sm text-[#6B7280] mb-1 block">Select Destination Folder</label>
                         <select
                             value={selectedFolderId}
                             onChange={(e) => setSelectedFolderId(e.target.value)}
-                            className="w-full p-2 text-sm bg-gray-700/50 border border-gray-600 rounded-md text-gray-200"
+                            className="w-full p-2 text-sm bg-[#F3F4F6] border border-[#6B7280]/20 rounded-md text-[#1F2937]"
                             aria-label="Select destination folder"
                         >
                             <option value="">Root Folder</option>
@@ -547,7 +521,7 @@ const MoveFilesModal = ({ isOpen, onClose, folders, onMove, currentFolderId }) =
                     </div>
                     <button
                         type="submit"
-                        className="w-full py-2 bg-cyan-500 text-white rounded-md hover:bg-cyan-600"
+                        className="w-full py-2 bg-[#1E40AF] text-white rounded-md hover:bg-[#1E40AF]/90"
                         aria-label="Move files"
                     >
                         Move
@@ -557,22 +531,20 @@ const MoveFilesModal = ({ isOpen, onClose, folders, onMove, currentFolderId }) =
         </motion.div>
     );
 };
-
 const FolderNode = ({ folder, onSelect, selectedFolderId, folders, level = 0 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const childFolders = folders.filter((f) => f.parentId === folder._id);
-
     return (
         <div style={{ paddingLeft: `${level * 16}px` }}>
             <div
-                className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer hover:bg-gray-700/50 ${selectedFolderId === folder._id ? 'bg-teal-500/20 text-teal-400' : 'text-gray-300'}`}
+                className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer hover:bg-[#E5E7EB] ${selectedFolderId === folder._id ? 'bg-[#E5E7EB] text-[#1E40AF]' : 'text-[#1F2937]'}`}
                 onClick={() => {
                     setIsOpen(!isOpen);
                     onSelect(folder._id);
                 }}
             >
                 {childFolders.length > 0 && (isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />)}
-                <Folder className="w-4 h-4 text-teal-500" />
+                <Folder className="w-4 h-4 text-[#1E40AF]" />
                 <span className="text-sm truncate">{folder.name}</span>
             </div>
             {isOpen && childFolders.map((child) => (
@@ -588,7 +560,6 @@ const FolderNode = ({ folder, onSelect, selectedFolderId, folders, level = 0 }) 
         </div>
     );
 };
-
 const FileStorage = () => {
     const { user, tasks = [], onLogout } = useOutletContext();
     const navigate = useNavigate();
@@ -615,13 +586,12 @@ const FileStorage = () => {
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
     const [showActionsMenu, setShowActionsMenu] = useState(false);
+    const [displayItems, setDisplayItems] = useState([]);
     const searchTimeoutRef = useRef(null);
     const observerRef = useRef();
     const actionsMenuRef = useRef();
-
     const storageUsed = useMemo(() => files.reduce((sum, file) => sum + (file.size || 0), 0), [files]);
     const uniqueTags = useMemo(() => [...new Set(files.flatMap(f => f.tags || []))], [files]);
-
     const getAuthHeaders = useCallback(() => {
         const token = localStorage.getItem('token');
         if (!token) {
@@ -632,7 +602,6 @@ const FileStorage = () => {
         }
         return { Authorization: `Bearer ${token}` };
     }, [onLogout]);
-
     const fetchFilesAndFolders = useCallback(async (pageNum = 1, reset = false) => {
         try {
             const headers = getAuthHeaders();
@@ -650,7 +619,6 @@ const FileStorage = () => {
                 axios.get(`${API_BASE_URL}/api/files`, { headers, params }),
                 axios.get(`${API_BASE_URL}/api/files/folders`, { headers, params: { parentId: currentFolder || undefined } }),
             ]);
-
             if (filesResponse.data.success) {
                 setFiles(prev => reset ? filesResponse.data.files : [...prev, ...filesResponse.data.files]);
                 setHasMore(filesResponse.data.hasMore);
@@ -668,18 +636,15 @@ const FileStorage = () => {
             if (error.response?.status === 401) onLogout?.();
         }
     }, [currentFolder, showTrash, searchQuery, filterType, filterTask, filterTags, getAuthHeaders, onLogout]);
-
     useEffect(() => {
         if (user) fetchFilesAndFolders(1, true);
         return () => {
             if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
         };
     }, [fetchFilesAndFolders, user]);
-
     useEffect(() => {
         if (page > 1) fetchFilesAndFolders(page, false);
     }, [page, fetchFilesAndFolders]);
-
     useEffect(() => {
         const handleClickOutside = (e) => {
             if (actionsMenuRef.current && !actionsMenuRef.current.contains(e.target)) {
@@ -689,7 +654,6 @@ const FileStorage = () => {
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
-
     const debouncedSearch = useCallback((query) => {
         if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
         searchTimeoutRef.current = setTimeout(() => {
@@ -699,7 +663,6 @@ const FileStorage = () => {
             fetchFilesAndFolders(1, true);
         }, 300);
     }, [fetchFilesAndFolders]);
-
     const filteredItems = useMemo(() => {
         const lowerQuery = searchQuery.toLowerCase();
         const items = [
@@ -711,7 +674,6 @@ const FileStorage = () => {
                 item.name?.toLowerCase().includes(lowerQuery) ||
                 item.tags?.some((tag) => tag.toLowerCase().includes(lowerQuery))
         );
-
         return items.sort((a, b) => {
             if (a.isFolder !== b.isFolder) return a.isFolder ? -1 : 1;
             switch (sortBy) {
@@ -728,7 +690,9 @@ const FileStorage = () => {
             }
         });
     }, [files, folders, searchQuery, sortBy, showTrash]);
-
+    useEffect(() => {
+        setDisplayItems(filteredItems);
+    }, [filteredItems]);
     const breadcrumbPath = useMemo(() => {
         const path = [];
         let folderId = currentFolder;
@@ -740,7 +704,6 @@ const FileStorage = () => {
         }
         return path;
     }, [currentFolder, folders]);
-
     const lastFileRef = useCallback(node => {
         if (observerRef.current) observerRef.current.disconnect();
         observerRef.current = new IntersectionObserver(entries => {
@@ -750,7 +713,6 @@ const FileStorage = () => {
         });
         if (node) observerRef.current.observe(node);
     }, [hasMore]);
-
     const handleFileUpload = useCallback(
         async (selectedFiles, taskId, tags, folderId) => {
             console.log('handleFileUpload called:', {
@@ -764,7 +726,6 @@ const FileStorage = () => {
                 const formData = new FormData();
                 const fileIds = selectedFiles.map(() => `${Date.now()}-${Math.random().toString(36).substr(2, 5)}`);
                 setUploadProgress(prev => fileIds.reduce((acc, id) => ({ ...acc, [id]: 0 }), {}));
-
                 selectedFiles.forEach((file, index) => {
                     formData.append('files', file);
                     console.log(`Appending file ${index}:`, file.name, file.size, file.type);
@@ -772,11 +733,9 @@ const FileStorage = () => {
                 if (taskId) formData.append('taskId', taskId);
                 if (tags?.length) formData.append('tags', JSON.stringify(tags));
                 if (folderId) formData.append('folderId', folderId);
-
                 for (let pair of formData.entries()) {
                     console.log(`FormData entry: ${pair[0]}`, pair[1]);
                 }
-
                 const response = await axios.post(`${API_BASE_URL}/api/files/pinFileToIPFS`, formData, {
                     headers: {
                         ...headers,
@@ -788,7 +747,6 @@ const FileStorage = () => {
                     },
                     timeout: 60000,
                 });
-
                 if (response.data.success) {
                     setFiles(prev => [...response.data.files, ...prev]);
                     toast.success('Files uploaded successfully!');
@@ -809,7 +767,6 @@ const FileStorage = () => {
         },
         [getAuthHeaders, onLogout, fetchFilesAndFolders]
     );
-
     const handleCreateFolder = useCallback(
         async () => {
             const folderName = newFolderName.trim();
@@ -821,7 +778,6 @@ const FileStorage = () => {
                 toast.error('Invalid folder name (max 100 chars, alphanumeric, spaces, dots, hyphens, underscores)');
                 return;
             }
-
             try {
                 const headers = getAuthHeaders();
                 const response = await axios.post(
@@ -829,7 +785,6 @@ const FileStorage = () => {
                     { name: folderName, parentId: currentFolder || null },
                     { headers }
                 );
-
                 if (response.data.success) {
                     setFolders(prev => [...prev, response.data.folder]);
                     setNewFolderName('');
@@ -845,7 +800,6 @@ const FileStorage = () => {
             }
         },
         [newFolderName, currentFolder, getAuthHeaders, onLogout, fetchFilesAndFolders]);
-
     const handleDelete = useCallback(
         async (id, isFolder, permanent = false) => {
             if (!window.confirm(permanent ? 'Permanently delete this item?' : 'Move to trash?')) return;
@@ -859,7 +813,6 @@ const FileStorage = () => {
                         : `${API_BASE_URL}/api/files/${id}`;
                 const method = isFolder || permanent ? 'delete' : 'delete';
                 const response = await axios[method](endpoint, { headers });
-
                 if (response.data.success) {
                     if (isFolder) {
                         setFolders(prev => prev.filter(f => f._id !== id));
@@ -875,7 +828,6 @@ const FileStorage = () => {
                             );
                         }
                     }
-
                     setSelectedItems(prev => {
                         const newSet = new Set(prev);
                         newSet.delete(id);
@@ -895,7 +847,6 @@ const FileStorage = () => {
         },
         [getAuthHeaders, detailsPanel, onLogout, fetchFilesAndFolders]
     );
-
     const handleMoveFiles = useCallback(
         async (destinationFolderId) => {
             const fileIds = Array.from(selectedItems).filter(id => !folders.find(f => f._id === id));
@@ -903,7 +854,6 @@ const FileStorage = () => {
                 toast.error('No files selected to move');
                 return;
             }
-
             try {
                 const headers = getAuthHeaders();
                 const response = await axios.patch(
@@ -911,7 +861,6 @@ const FileStorage = () => {
                     { fileIds, folderId: destinationFolderId || null },
                     { headers }
                 );
-
                 if (response.data.success) {
                     setFiles(prev =>
                         prev.map(file =>
@@ -934,7 +883,6 @@ const FileStorage = () => {
         },
         [selectedItems, folders, getAuthHeaders, onLogout, fetchFilesAndFolders]
     );
-
     const handleRestore = useCallback(
         async (id) => {
             try {
@@ -944,7 +892,6 @@ const FileStorage = () => {
                     {},
                     { headers }
                 );
-
                 setFiles(prev =>
                     prev.map(file =>
                         file._id === id ? { ...file, deleted: false, deletedAt: null } : file
@@ -966,14 +913,12 @@ const FileStorage = () => {
         },
         [getAuthHeaders, detailsPanel, onLogout, fetchFilesAndFolders]
     );
-
     const handleClearTrash = useCallback(
         async () => {
             if (!window.confirm('Permanently delete all trashed items?')) return;
             try {
                 const headers = getAuthHeaders();
                 await axios.delete(`${API_BASE_URL}/api/files/trash/clear`, { headers });
-
                 setFiles(prev => prev.filter(file => !file.deleted));
                 setSelectedItems(new Set);
                 setDetailsPanel(null);
@@ -987,20 +932,17 @@ const FileStorage = () => {
         },
         [getAuthHeaders, onLogout, fetchFilesAndFolders]
     );
-
     const handleBulkDelete = useCallback(() => {
         const promises = Array.from(selectedItems).map((id) => {
             const isFolder = folders.find(f => f._id === id);
             return handleDelete(id, !!isFolder, showTrash);
         });
-
         Promise.all(promises).then(() => {
             setSelectedItems(new Set());
             toast.success('Selected items deleted');
             fetchFilesAndFolders(1, true);
         });
     }, [selectedItems, folders, showTrash, handleDelete, fetchFilesAndFolders]);
-
     const handleShare = useCallback(
         async (file) => {
             try {
@@ -1031,7 +973,6 @@ const FileStorage = () => {
         },
         [getAuthHeaders, onLogout]
     );
-
     const handleDownload = useCallback(
         (file) => {
             try {
@@ -1050,12 +991,10 @@ const FileStorage = () => {
         },
         []
     );
-
     const handlePreview = useCallback((file) => {
         setSelectedFileId(file);
         setPreviewModal(true);
     }, []);
-
     const handleAssociateTask = useCallback(
         async (fileId, taskId) => {
             try {
@@ -1087,7 +1026,6 @@ const FileStorage = () => {
         },
         [getAuthHeaders, onLogout, fetchFilesAndFolders]
     );
-
     const handleAddTag = useCallback(
         async (fileId, tag) => {
             if (!tag?.trim()) return;
@@ -1118,7 +1056,6 @@ const FileStorage = () => {
         },
         [getAuthHeaders, onLogout, fetchFilesAndFolders]
     );
-
     const formatFileSize = (bytes) => {
         if (!bytes || bytes < 0) return '-';
         if (bytes < 1024) return `${bytes} B`;
@@ -1126,7 +1063,6 @@ const FileStorage = () => {
         if (bytes < 1073741824) return `${(bytes / 1048576).toFixed(2)} MB`;
         return `${(bytes / 1073741824).toFixed(2)} GB`;
     };
-
     const getFileIcon = (type) => {
         type = type?.toLowerCase();
         if (['jpg', 'jpeg', 'png'].includes(type)) return <Image className="w-6 h-6 text-emerald-500" />;
@@ -1136,7 +1072,6 @@ const FileStorage = () => {
         if (['xls', 'xlsx'].includes(type)) return <FileText className="w-6 h-6 text-green-500" />;
         return <File className="w-6 h-6 text-gray-400" />;
     };
-
     if (!user) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-950">
@@ -1144,36 +1079,182 @@ const FileStorage = () => {
             </div>
         );
     }
-
     console.log('Rendering FileStorage, passing to UploadModal:', { isUploading, setIsUploadingType: typeof setIsUploading });
-
+    const renderItem = (item, index, isLast) => {
+        const isFolder = item.isFolder;
+        return (
+            <motion.div
+                key={item._id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                className={`relative rounded-xl border ${selectedItems.has(item._id) ? 'border-[#1E40AF] bg-[#E5E7EB]' : 'border-[#6B7280]/20 bg-[#F3F4F6]'} p-4 hover:bg-[#E5E7EB] transition-all duration-300 ${viewMode === 'list' ? 'flex items-center gap-4' : ''}`}
+                ref={isLast ? lastFileRef : null}
+                data-tooltip-id="file-tab"
+                data-tooltip-content={item.fileName || item.name}
+            >
+                <input
+                    type="checkbox"
+                    checked={selectedItems.has(item._id)}
+                    onChange={() => {
+                        setSelectedItems(prev => {
+                            const newSet = new Set(prev);
+                            if (newSet.has(item._id)) {
+                                newSet.delete(item._id);
+                            } else {
+                                newSet.add(item._id);
+                            }
+                            return newSet;
+                        });
+                    }}
+                    className="absolute top-2 left-2 form-checkbox text-[#1E40AF]"
+                    aria-label={`Select ${item.fileName || item.name}`}
+                />
+                <div
+                    className="flex-1 cursor-pointer"
+                    onClick={() => {
+                        if (isFolder) {
+                            setCurrentFolder(item._id);
+                            setPage(1);
+                            setFiles([]);
+                            fetchFilesAndFolders(1, true);
+                        } else {
+                            handlePreview(item);
+                        }
+                    }}
+                >
+                    {isFolder ? (
+                        <div className={viewMode === 'list' ? 'flex items-center gap-4' : ''}>
+                            <Folder className="w-12 h-12 text-[#1E40AF]" />
+                            <div className={viewMode === 'list' ? 'flex-1' : 'mt-2'}>
+                                <p className="text-sm font-medium text-[#1F2937] truncate">{item.name}</p>
+                                <p className="text-xs text-[#6B7280]">
+                                    Created: {new Date(item.createdAt).toLocaleDateString()}
+                                </p>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className={viewMode === 'list' ? 'flex items-center gap-4' : ''}>
+                            {getFileIcon(item.type)}
+                            <div className={viewMode === 'list' ? 'flex-1' : 'mt-2'}>
+                                <p className="text-sm font-medium text-[#1F2937] truncate">{item.fileName}</p>
+                                <p className="text-xs text-[#6B7280]">
+                                    {formatFileSize(item.size)} | {new Date(item.uploadedAt).toLocaleDateString()}</p>
+                                {item.tags?.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                        {item.tags.map((tag, i) => (
+                                            <span
+                                                key={i}
+                                                className="px-1.5 py-0.5 text-xs bg-[#E5E7EB] text-[#1F2937] rounded"
+                                            >
+                                                {tag}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+                <div className="absolute top-2 right-2 flex gap-1">
+                    {!showTrash && (
+                        <>
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDownload(item);
+                                }}
+                                className="p-1.5 text-[#1E40AF] hover:bg-[#E5E7EB] rounded-full"
+                                aria-label={`Download ${item.fileName || item.name}`}
+                            >
+                                <Download className="w-4 h-4" />
+                            </button>
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleShare(item);
+                                }}
+                                className="p-1.5 text-[#1E40AF] hover:bg-[#E5E7EB] rounded-full"
+                                aria-label={`Share ${item.fileName || item.name}`}
+                            >
+                                <Share2 className="w-4 h-4" />
+                            </button>
+                        </>
+                    )}
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setDetailsPanel(item);
+                        }}
+                        className="p-1.5 text-[#1E40AF] hover:bg-[#E5E7EB] rounded-full"
+                        aria-label={`View details of ${item.fileName || item.name}`}
+                    >
+                        <Info className="w-4 h-4" />
+                    </button>
+                    {!isFolder && showTrash && (
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleRestore(item._id);
+                            }}
+                            className="p-1.5 text-[#1E40AF] hover:bg-[#E5E7EB] rounded-full"
+                            aria-label={`Restore ${item.fileName}`}
+                        >
+                            <ArrowLeft className="w-4 h-4" />
+                        </button>
+                    )}
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(item._id, isFolder, showTrash);
+                        }}
+                        className="p-1.5 text-red-500 hover:bg-red-100/50 rounded-full"
+                        aria-label={`Delete ${item.fileName || item.name}`}
+                    >
+                        <Trash2 className="w-4 h-4" />
+                    </button>
+                </div>
+            </motion.div>
+        );
+    };
+    if (!user) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-950">
+                <p className="text-lg font-medium text-gray-300">Please log in to access file manager</p>
+            </div>
+        );
+    }
+    console.log('Rendering FileStorage, passing to UploadModal:', { isUploading, setIsUploadingType: typeof setIsUploading });
     return (
         <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.6, ease: 'easeOut' }}
-            className="min-h-screen bg-gradient-to-br from-teal-50 via-blue-50 to-teal-100 flex flex-col font-sans"
+            className="min-h-screen bg-[#F3F4F6] flex flex-col font-sans"
         >
             <Toaster position="bottom-right" toastOptions={{ duration: 4000, style: { background: '#e0f7fa', color: '#1e3a8a' } }} />
-            <Tooltip id="file-tooltip" className="z-[1003]" />
-
             <div className="flex-1 max-w-[1600px] mx-auto w-full px-6 py-8">
                 <motion.div
                     initial={{ y: 20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ duration: 0.5 }}
-                    className="bg-white/95 backdrop-blur-lg border border-teal-100/50 rounded-3xl shadow-lg flex flex-col h-[calc(100vh-4rem)] overflow-hidden"
+                    className="bg-white border border-[#F3F4F6] rounded-3xl shadow-lg flex flex-col overflow-hidden"
                 >
-                    <header className="bg-teal-50/50 border-b border-teal-200/50 px-6 py-4 flex items-center justify-between">
+                    <header className="bg-[#F3F4F6] border-b border-[#6B7280]/20 px-6 py-4 flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                            <Folder className="w-7 h-7 text-teal-500" />
-                            <h1 className="text-2xl font-bold text-blue-900">File Manager</h1>
+                            <Folder className="w-7 h-7 text-[#1E40AF]" />
+                            <h1 className="text-2xl font-bold text-[#1F2937]">File Manager</h1>
                         </div>
                         <div className="flex items-center gap-3">
                             <button
                                 type="button"
                                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                                className="p-2 text-teal-600 hover:bg-teal-100/50 rounded-full md:hidden"
+                                className="p-2 text-[#1E40AF] hover:bg-[#E5E7EB] rounded-full md:hidden"
                                 aria-label="Toggle sidebar"
                             >
                                 {isSidebarOpen ? <ChevronLeft className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -1188,7 +1269,7 @@ const FileStorage = () => {
                                     setFiles([]);
                                     fetchFilesAndFolders(1, true);
                                 }}
-                                className="px-4 py-2 text-sm bg-teal-100 text-teal-700 rounded-lg hover:bg-teal-200"
+                                className="px-4 py-2 text-sm bg-[#F3F4F6] text-[#1E40AF] rounded-lg hover:bg-[#E5E7EB]"
                                 aria-label={showTrash ? 'View Files' : 'View Trash'}
                             >
                                 {showTrash ? 'Files' : 'Trash'}
@@ -1196,7 +1277,7 @@ const FileStorage = () => {
                             <button
                                 type="button"
                                 onClick={() => navigate('/')}
-                                className="px-4 py-2 text-sm bg-teal-100 text-teal-700 rounded-lg hover:bg-teal-200 flex items-center gap-2"
+                                className="px-4 py-2 text-sm bg-[#F3F4F6] text-[#1E40AF] rounded-lg hover:bg-[#E5E7EB] flex items-center gap-2"
                                 aria-label="Back to dashboard"
                             >
                                 <ArrowLeft className="w-5 h-5" />
@@ -1204,10 +1285,9 @@ const FileStorage = () => {
                             </button>
                         </div>
                     </header>
-
                     <main className="flex-1 flex overflow-hidden">
                         <aside
-                            className={`fixed inset-y-0 left-0 z-30 w-72 bg-teal-50/50 backdrop-blur-md border-r border-teal-200/50 transform transition-transform duration-300 md:static md:transform-none ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 flex flex-col`}
+                            className={`fixed inset-y-0 left-0 z-30 w-72 bg-[#F3F4F6] border-r border-[#6B7280]/20 transform transition-transform duration-300 md:static md:transform-none ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 flex flex-col`}
                         >
                             <div className="flex-1 p-6 overflow-y-auto scrollbar-thin">
                                 <motion.section
@@ -1216,29 +1296,28 @@ const FileStorage = () => {
                                     transition={{ delay: 0.1 }}
                                     className="mb-6"
                                 >
-                                    <h3 className="text-sm font-semibold text-teal-700 mb-3 flex items-center gap-2">
-                                        <Upload className="w-5 h-5 text-teal-500" />
+                                    <h3 className="text-sm font-semibold text-[#1E40AF] mb-3 flex items-center gap-2">
+                                        <Upload className="w-5 h-5 text-[#1E40AF]" />
                                         Upload Files
                                     </h3>
                                     <button
                                         type="button"
                                         onClick={() => setUploadModal(true)}
-                                        className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm bg-gradient-to-r from-teal-500 to-blue-600 text-white rounded-xl hover:from-teal-600 hover:to-blue-700 transition-all duration-300 shadow-md hover:shadow-lg"
+                                        className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm bg-[#1E40AF] text-white rounded-xl hover:bg-[#1E40AF]/90 transition-all duration-300 shadow-md hover:shadow-lg"
                                         aria-label="Upload Files"
                                     >
                                         <Plus className="w-5 h-5" />
                                         Upload Files
                                     </button>
                                 </motion.section>
-
                                 <motion.section
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: 0.2 }}
                                     className="mb-6"
                                 >
-                                    <h3 className="text-sm font-semibold text-teal-700 mb-3 flex items-center gap-2">
-                                        <FolderPlus className="w-5 h-5 text-teal-500" />
+                                    <h3 className="text-sm font-semibold text-[#1E40AF] mb-3 flex items-center gap-2">
+                                        <FolderPlus className="w-5 h-5 text-[#1E40AF]" />
                                         New Folder
                                     </h3>
                                     <div className="flex gap-2">
@@ -1247,28 +1326,27 @@ const FileStorage = () => {
                                             value={newFolderName}
                                             onChange={(e) => setNewFolderName(e.target.value)}
                                             placeholder="Folder name"
-                                            className="flex-1 p-3 text-sm bg-teal-50/50 border border-teal-200 rounded-xl text-teal-800 focus:ring-2 focus:ring-teal-500 focus:outline-none transition-all duration-300"
+                                            className="flex-1 p-3 text-sm bg-[#F3F4F6] border border-[#6B7280]/20 rounded-xl text-[#1F2937] focus:ring-2 focus:ring-[#1E40AF] focus:outline-none transition-all duration-300"
                                             aria-label="New folder name"
                                         />
                                         <button
                                             type="button"
                                             onClick={handleCreateFolder}
-                                            className="p-3 bg-gradient-to-r from-teal-500 to-blue-600 text-white rounded-xl hover:from-teal-600 hover:to-blue-700 transition-all duration-300"
+                                            className="p-3 bg-[#1E40AF] text-white rounded-xl hover:bg-[#1E40AF]/90 transition-all duration-300"
                                             aria-label="Create folder"
                                         >
                                             <Plus className="w-5 h-5" />
                                         </button>
                                     </div>
                                 </motion.section>
-
                                 <motion.section
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: 0.3 }}
                                     className="mb-6"
                                 >
-                                    <h3 className="text-sm font-semibold text-teal-700 mb-3 flex items-center gap-2">
-                                        <Folder className="w-5 h-5 text-teal-500" />
+                                    <h3 className="text-sm font-semibold text-[#1E40AF] mb-3 flex items-center gap-2">
+                                        <Folder className="w-5 h-5 text-[#1E40AF]" />
                                         Folders
                                     </h3>
                                     {folders.length ? (
@@ -1284,31 +1362,30 @@ const FileStorage = () => {
                                                 />
                                             ))
                                     ) : (
-                                        <p className="text-sm text-teal-600">No folders created</p>
+                                        <p className="text-sm text-[#1E40AF]">No folders created</p>
                                     )}
                                 </motion.section>
-
                                 <motion.section
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: 0.4 }}
                                     className="mb-6"
                                 >
-                                    <h3 className="text-sm font-semibold text-teal-700 mb-3 flex items-center gap-2">
-                                        <Search className="w-5 h-5 text-teal-500" />
+                                    <h3 className="text-sm font-semibold text-[#1E40AF] mb-3 flex items-center gap-2">
+                                        <Search className="w-5 h-5 text-[#1E40AF]" />
                                         Search & Filter
                                     </h3>
                                     <input
                                         type="text"
                                         onChange={(e) => debouncedSearch(e.target.value)}
                                         placeholder="Search files, folders, or tags..."
-                                        className="w-full p-3 text-sm bg-teal-50/50 border border-teal-200 rounded-xl text-teal-800 focus:ring-2 focus:ring-teal-500 focus:outline-none transition-all duration-300"
+                                        className="w-full p-3 text-sm bg-[#F3F4F6] border border-[#6B7280]/20 rounded-xl text-[#1F2937] focus:ring-2 focus:ring-[#1E40AF] focus:outline-none transition-all duration-300"
                                         aria-label="Search files and folders"
                                     />
                                     <select
                                         value={sortBy}
                                         onChange={(e) => setSortBy(e.target.value)}
-                                        className="w-full mt-3 p-3 text-sm bg-teal-50/50 border border-teal-200 rounded-xl text-teal-800 focus:ring-2 focus:ring-teal-500 focus:outline-none transition-all duration-300"
+                                        className="w-full mt-3 p-3 text-sm bg-[#F3F4F6] border border-[#6B7280]/20 rounded-xl text-[#1F2937] focus:ring-2 focus:ring-[#1E40AF] focus:outline-none transition-all duration-300"
                                         aria-label="Sort by"
                                     >
                                         <option value="uploadedAt">Uploaded Date</option>
@@ -1324,7 +1401,7 @@ const FileStorage = () => {
                                             setFiles([]);
                                             fetchFilesAndFolders(1, true);
                                         }}
-                                        className="w-full mt-3 p-3 text-sm bg-teal-50/50 border border-teal-200 rounded-xl text-teal-800 focus:ring-2 focus:ring-teal-500 focus:outline-none transition-all duration-300"
+                                        className="w-full mt-3 p-3 text-sm bg-[#F3F4F6] border border-[#6B7280]/20 rounded-xl text-[#1F2937] focus:ring-2 focus:ring-[#1E40AF] focus:outline-none transition-all duration-300"
                                         aria-label="Filter by type"
                                     >
                                         <option value="all">All Types</option>
@@ -1340,7 +1417,7 @@ const FileStorage = () => {
                                             setFiles([]);
                                             fetchFilesAndFolders(1, true);
                                         }}
-                                        className="w-full mt-3 p-3 text-sm bg-teal-50/50 border border-teal-200 rounded-xl text-teal-800 focus:ring-2 focus:ring-teal-500 focus:outline-none transition-all duration-300"
+                                        className="w-full mt-3 p-3 text-sm bg-[#F3F4F6] border border-[#6B7280]/20 rounded-xl text-[#1F2937] focus:ring-2 focus:ring-[#1E40AF] focus:outline-none transition-all duration-300"
                                         aria-label="Filter by task"
                                     >
                                         <option value="all">All Tasks</option>
@@ -1349,10 +1426,10 @@ const FileStorage = () => {
                                         ))}
                                     </select>
                                     <div className="mt-3">
-                                        <h4 className="text-sm font-semibold text-teal-700 mb-2">Filter by Tags</h4>
+                                        <h4 className="text-sm font-semibold text-[#1E40AF] mb-2">Filter by Tags</h4>
                                         {uniqueTags.length ? (
                                             uniqueTags.map(tag => (
-                                                <label key={tag} className="flex items-center gap-2 text-sm text-teal-800 mb-1">
+                                                <label key={tag} className="flex items-center gap-2 text-sm text-[#1F2937] mb-1">
                                                     <input
                                                         type="checkbox"
                                                         checked={filterTags.includes(tag)}
@@ -1364,44 +1441,42 @@ const FileStorage = () => {
                                                             setFiles([]);
                                                             fetchFilesAndFolders(1, true);
                                                         }}
-                                                        className="form-checkbox text-teal-500"
+                                                        className="form-checkbox text-[#1E40AF]"
                                                     />
                                                     {tag}
                                                 </label>
                                             ))
                                         ) : (
-                                            <p className="text-sm text-teal-600">No tags available</p>
+                                            <p className="text-sm text-[#1E40AF]">No tags available</p>
                                         )}
                                     </div>
                                 </motion.section>
-
                                 <motion.section
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: 0.5 }}
                                 >
-                                    <h3 className="text-sm font-semibold text-teal-700 mb-3 flex items-center gap-2">
-                                        <HardDrive className="w-5 h-5 text-teal-500" />
+                                    <h3 className="text-sm font-semibold text-[#1E40AF] mb-3 flex items-center gap-2">
+                                        <HardDrive className="w-5 h-5 text-[#1E40AF]" />
                                         Storage
                                     </h3>
-                                    <div className="relative h-2 bg-teal-200/50 rounded-full overflow-hidden">
+                                    <div className="relative h-2 bg-[#F3F4F6] rounded-full overflow-hidden">
                                         <div
-                                            className="absolute h-full bg-gradient-to-r from-teal-500 to-blue-600"
+                                            className="absolute h-full bg-[#1E40AF]"
                                             style={{ width: `${Math.min((storageUsed / TOTAL_STORAGE) * 100, 100)}%` }}
                                         />
                                     </div>
-                                    <p className="text-sm text-teal-600 mt-2">
+                                    <p className="text-sm text-[#1E40AF] mt-2">
                                         {formatFileSize(storageUsed)} used of {formatFileSize(TOTAL_STORAGE)}
                                     </p>
                                 </motion.section>
                             </div>
                         </aside>
-
                         <section className="flex-1 flex flex-col overflow-hidden">
-                            <div className="p-6 border-b border-teal-200/50 bg-teal-50/30">
+                            <div className="p-6 border-b border-[#6B7280]/20 bg-[#F3F4F6]">
                                 <div className="flex items-center justify-between mb-4">
                                     <div className="flex items-center gap-2">
-                                        <nav className="flex items-center gap-2 text-sm text-teal-700">
+                                        <nav className="flex items-center gap-2 text-sm text-[#1E40AF]">
                                             <button
                                                 type="button"
                                                 onClick={() => {
@@ -1410,7 +1485,7 @@ const FileStorage = () => {
                                                     setFiles([]);
                                                     fetchFilesAndFolders(1, true);
                                                 }}
-                                                className="hover:text-teal-500"
+                                                className="hover:text-[#16A34A]"
                                                 aria-label="Root folder"
                                             >
                                                 Home
@@ -1426,7 +1501,7 @@ const FileStorage = () => {
                                                             setFiles([]);
                                                             fetchFilesAndFolders(1, true);
                                                         }}
-                                                        className="hover:text-teal-500 truncate max-w-[150px]"
+                                                        className="hover:text-[#16A34A] truncate max-w-[150px]"
                                                         aria-label={`Folder ${folder.name}`}
                                                     >
                                                         {folder.name}
@@ -1439,7 +1514,7 @@ const FileStorage = () => {
                                         <button
                                             type="button"
                                             onClick={() => setViewMode('grid')}
-                                            className={`p-2 rounded-lg ${viewMode === 'grid' ? 'bg-teal-100 text-teal-700' : 'text-teal-600 hover:bg-teal-100/50'}`}
+                                            className={`p-2 rounded-lg ${viewMode === 'grid' ? 'bg-[#E5E7EB] text-[#1E40AF]' : 'text-[#1E40AF] hover:bg-[#E5E7EB]'}`}
                                             aria-label="Grid view"
                                         >
                                             <Grid className="w-5 h-5" />
@@ -1447,7 +1522,7 @@ const FileStorage = () => {
                                         <button
                                             type="button"
                                             onClick={() => setViewMode('list')}
-                                            className={`p-2 rounded-lg ${viewMode === 'list' ? 'bg-teal-100 text-teal-700' : 'text-teal-600 hover:bg-teal-100/50'}`}
+                                            className={`p-2 rounded-lg ${viewMode === 'list' ? 'bg-[#E5E7EB] text-[#1E40AF]' : 'text-[#1E40AF] hover:bg-[#E5E7EB]'}`}
                                             aria-label="List view"
                                         >
                                             <List className="w-5 h-5" />
@@ -1455,12 +1530,12 @@ const FileStorage = () => {
                                     </div>
                                 </div>
                                 {selectedItems.size > 0 && (
-                                    <div className="flex items-center gap-3 bg-teal-100/50 p-3 rounded-lg relative">
-                                        <p className="text-sm text-teal-700">{selectedItems.size} item(s) selected</p>
+                                    <div className="flex items-center gap-3 bg-[#E5E7EB] p-3 rounded-lg relative">
+                                        <p className="text-sm text-[#1E40AF]">{selectedItems.size} item(s) selected</p>
                                         <button
                                             type="button"
                                             onClick={() => setShowActionsMenu(!showActionsMenu)}
-                                            className="px-3 py-1 text-sm bg-teal-500 text-white rounded-lg hover:bg-teal-600 flex items-center gap-1"
+                                            className="px-3 py-1 text-sm bg-[#1E40AF] text-white rounded-lg hover:bg-[#1E40AF]/90 flex items-center gap-1"
                                             aria-label="Show actions menu"
                                         >
                                             Actions {showActionsMenu ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -1468,12 +1543,12 @@ const FileStorage = () => {
                                         {showActionsMenu && (
                                             <div
                                                 ref={actionsMenuRef}
-                                                className="absolute top-full mt-2 left-40 bg-teal-50/95 border border-teal-200 rounded-lg shadow-lg z-10"
+                                                className="absolute top-full mt-2 left-40 bg-[#F3F4F6] border border-[#6B7280]/20 rounded-lg shadow-lg z-10"
                                             >
                                                 <button
                                                     type="button"
                                                     onClick={handleBulkDelete}
-                                                    className="w-full px-4 py-2 text-sm text-red-500 hover:bg-teal-100/50 text-left"
+                                                    className="w-full px-4 py-2 text-sm text-red-500 hover:bg-[#E5E7EB] text-left"
                                                     aria-label={showTrash ? 'Permanently delete selected items' : 'Move selected items to trash'}
                                                 >
                                                     {showTrash ? 'Permanently Delete' : 'Move to Trash'}
@@ -1482,7 +1557,7 @@ const FileStorage = () => {
                                                     <button
                                                         type="button"
                                                         onClick={() => setMoveFilesModal(true)}
-                                                        className="w-full px-4 py-2 text-sm text-teal-700 hover:bg-teal-100/50 text-left"
+                                                        className="w-full px-4 py-2 text-sm text-[#1E40AF] hover:bg-[#E5E7EB] text-left"
                                                         aria-label="Move selected items to folder"
                                                     >
                                                         Move to Folder
@@ -1496,7 +1571,7 @@ const FileStorage = () => {
                                                                 if (!folders.find(f => f._id === id)) handleRestore(id);
                                                             });
                                                         }}
-                                                        className="w-full px-4 py-2 text-sm text-teal-700 hover:bg-teal-100/50 text-left"
+                                                        className="w-full px-4 py-2 text-sm text-[#1E40AF] hover:bg-[#E5E7EB] text-left"
                                                         aria-label="Restore selected items"
                                                     >
                                                         Restore
@@ -1530,10 +1605,9 @@ const FileStorage = () => {
                                     </div>
                                 )}
                             </div>
-
                             <div className="flex-1 overflow-y-auto scrollbar-thin p-6">
                                 {filteredItems.length === 0 ? (
-                                    <div className="flex flex-col items-center justify-center h-full text-teal-600">
+                                    <div className="flex flex-col items-center justify-center h-full text-[#1E40AF]">
                                         <Folder className="w-16 h-16 mb-4" />
                                         <p className="text-lg font-medium">
                                             {showTrash ? 'Trash is empty' : 'No files or folders found'}
@@ -1543,162 +1617,35 @@ const FileStorage = () => {
                                     <div
                                         className={`grid gap-4 ${viewMode === 'grid' ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5' : 'grid-cols-1'}`}
                                     >
-                                        {filteredItems.map((item, index) => {
-                                            const isFolder = item.isFolder;
-                                            const isLast = index === filteredItems.length - 1;
-                                            return (
-                                                <motion.div
-                                                    key={item._id}
-                                                    initial={{ opacity: 0, y: 10 }}
-                                                    animate={{ opacity: 1, y: 0 }}
-                                                    transition={{ delay: index * 0.05 }}
-                                                    className={`relative rounded-xl border ${selectedItems.has(item._id) ? 'border-teal-500 bg-teal-50/30' : 'border-teal-200/50 bg-teal-50/10'} p-4 hover:bg-teal-50/20 transition-all duration-300 ${viewMode === 'list' ? 'flex items-center gap-4' : ''}`}
-                                                    ref={isLast ? lastFileRef : null}
-                                                    data-tooltip-id="file-tab"
-                                                    data-tooltip-content={item.fileName || item.name}
-                                                >
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={selectedItems.has(item._id)}
-                                                        onChange={() => {
-                                                            setSelectedItems(prev => {
-                                                                const newSet = new Set(prev);
-                                                                if (newSet.has(item._id)) {
-                                                                    newSet.delete(item._id);
-                                                                } else {
-                                                                    newSet.add(item._id);
-                                                                }
-                                                                return newSet;
-                                                            });
-                                                        }}
-                                                        className="absolute top-2 left-2 form-checkbox text-teal-500"
-                                                        aria-label={`Select ${item.fileName || item.name}`}
-                                                    />
-                                                    <div
-                                                        className="flex-1 cursor-pointer"
-                                                        onClick={() => {
-                                                            if (isFolder) {
-                                                                setCurrentFolder(item._id);
-                                                                setPage(1);
-                                                                setFiles([]);
-                                                                fetchFilesAndFolders(1, true);
-                                                            } else {
-                                                                handlePreview(item);
-                                                            }
-                                                        }}
-                                                    >
-                                                        {isFolder ? (
-                                                            <div className={viewMode === 'list' ? 'flex items-center gap-4' : ''}>
-                                                                <Folder className="w-12 h-12 text-teal-500" />
-                                                                <div className={viewMode === 'list' ? 'flex-1' : 'mt-2'}>
-                                                                    <p className="text-sm font-medium text-teal-800 truncate">{item.name}</p>
-                                                                    <p className="text-xs text-teal-600">
-                                                                        Created: {new Date(item.createdAt).toLocaleDateString()}
-                                                                    </p>
-                                                                </div>
-                                                            </div>
-                                                        ) : (
-                                                            <div className={viewMode === 'list' ? 'flex items-center gap-4' : ''}>
-                                                                {getFileIcon(item.type)}
-                                                                <div className={viewMode === 'list' ? 'flex-1' : 'mt-2'}>
-                                                                    <p className="text-sm font-medium text-teal-800 truncate">{item.fileName}</p>
-                                                                    <p className="text-xs text-teal-600">
-                                                                        {formatFileSize(item.size)} | {new Date(item.uploadedAt).toLocaleDateString()}</p>
-                                                                    {item.tags?.length > 0 && (
-                                                                        <div className="flex flex-wrap gap-1 mt-1">
-                                                                            {item.tags.map((tag, i) => (
-                                                                                <span
-                                                                                    key={i}
-                                                                                    className="px-1.5 py-0.5 text-xs bg-teal-200/50 text-teal-700 rounded"
-                                                                                >
-                                                                                    {tag}
-                                                                                </span>
-                                                                            ))}
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                    <div className="absolute top-2 right-2 flex gap-1">
-                                                        {!showTrash && (
-                                                            <>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        handleDownload(item);
-                                                                    }}
-                                                                    className="p-1.5 text-teal-600 hover:bg-teal-100/50 rounded-full"
-                                                                    aria-label={`Download ${item.fileName || item.name}`}
-                                                                >
-                                                                    <Download className="w-4 h-4" />
-                                                                </button>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        handleShare(item);
-                                                                    }}
-                                                                    className="p-1.5 text-teal-600 hover:bg-teal-100/50 rounded-full"
-                                                                    aria-label={`Share ${item.fileName || item.name}`}
-                                                                >
-                                                                    <Share2 className="w-4 h-4" />
-                                                                </button>
-                                                            </>
-                                                        )}
-                                                        <button
-                                                            type="button"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setDetailsPanel(item);
-                                                            }}
-                                                            className="p-1.5 text-teal-600 hover:bg-teal-100/50 rounded-full"
-                                                            aria-label={`View details of ${item.fileName || item.name}`}
-                                                        >
-                                                            <Info className="w-4 h-4" />
-                                                        </button>
-                                                        {!isFolder && showTrash && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    handleRestore(item._id);
-                                                                }}
-                                                                className="p-1.5 text-teal-600 hover:bg-teal-100/50 rounded-full"
-                                                                aria-label={`Restore ${item.fileName}`}
-                                                            >
-                                                                <ArrowLeft className="w-4 h-4" />
-                                                            </button>
-                                                        )}
-                                                        <button
-                                                            type="button"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleDelete(item._id, isFolder, showTrash);
-                                                            }}
-                                                            className="p-1.5 text-red-500 hover:bg-red-100/50 rounded-full"
-                                                            aria-label={`Delete ${item.fileName || item.name}`}
-                                                        >
-                                                            <Trash2 className="w-4 h-4" />
-                                                        </button>
-                                                    </div>
-                                                </motion.div>
-                                            );
-                                        })}
+                                        {viewMode === 'list' ? (
+                                            <Reorder.Group axis="y" values={displayItems} onReorder={setDisplayItems}>
+                                                {displayItems.map((item, index) => {
+                                                    const isLast = index === displayItems.length - 1;
+                                                    return (
+                                                        <Reorder.Item key={item._id} value={item}>
+                                                            {renderItem(item, index, isLast)}
+                                                        </Reorder.Item>
+                                                    );
+                                                })}
+                                            </Reorder.Group>
+                                        ) : (
+                                            displayItems.map((item, index) => {
+                                                const isLast = index === displayItems.length - 1;
+                                                return renderItem(item, index, isLast);
+                                            })
+                                        )}
                                     </div>
                                 )}
                             </div>
                         </section>
-
                         {detailsPanel && (
-                            <aside className="w-80 bg-teal-50/50 border-l border-teal-200/50 p-6 overflow-y-auto scrollbar-thin">
+                            <aside className="w-80 bg-[#F3F4F6] border-l border-[#6B7280]/20 p-6 overflow-y-auto scrollbar-thin">
                                 <div className="flex justify-between items-center mb-4">
-                                    <h3 className="text-sm font-semibold text-teal-700">Details</h3>
+                                    <h3 className="text-sm font-semibold text-[#1E40AF]">Details</h3>
                                     <button
                                         type="button"
                                         onClick={() => setDetailsPanel(null)}
-                                        className="p-1 text-teal-600 hover:bg-teal-100/50 rounded-full"
+                                        className="p-1 text-[#1E40AF] hover:bg-[#E5E7EB] rounded-full"
                                         aria-label="Close details panel"
                                     >
                                         <X className="w-5 h-5" />
@@ -1706,29 +1653,29 @@ const FileStorage = () => {
                                 </div>
                                 <div className="space-y-4">
                                     <div>
-                                        <p className="text-xs font-medium text-teal-600">Name</p>
-                                        <p className="text-sm text-teal-800 truncate">{detailsPanel.fileName || detailsPanel.name}</p>
+                                        <p className="text-xs font-medium text-[#1E40AF]">Name</p>
+                                        <p className="text-sm text-[#1F2937] truncate">{detailsPanel.fileName || detailsPanel.name}</p>
                                     </div>
                                     {!detailsPanel.isFolder && (
                                         <>
                                             <div>
-                                                <p className="text-xs font-medium text-teal-600">Size</p>
-                                                <p className="text-sm text-teal-800">{formatFileSize(detailsPanel.size)}</p>
+                                                <p className="text-xs font-medium text-[#1E40AF]">Size</p>
+                                                <p className="text-sm text-[#1F2937]">{formatFileSize(detailsPanel.size)}</p>
                                             </div>
                                             <div>
-                                                <p className="text-xs font-medium text-teal-600">Type</p>
-                                                <p className="text-sm text-teal-800">{detailsPanel.type?.toUpperCase()}</p>
+                                                <p className="text-xs font-medium text-[#1E40AF]">Type</p>
+                                                <p className="text-sm text-[#1F2937]">{detailsPanel.type?.toUpperCase()}</p>
                                             </div>
                                             <div>
-                                                <p className="text-xs font-medium text-teal-600">Uploaded</p>
-                                                <p className="text-sm text-teal-800">{new Date(detailsPanel.uploadedAt).toLocaleString()}</p>
+                                                <p className="text-xs font-medium text-[#1E40AF]">Uploaded</p>
+                                                <p className="text-sm text-[#1F2937]">{new Date(detailsPanel.uploadedAt).toLocaleString()}</p>
                                             </div>
                                             <div>
-                                                <p className="text-xs font-medium text-teal-600">Task</p>
+                                                <p className="text-xs font-medium text-[#1E40AF]">Task</p>
                                                 <select
                                                     value={detailsPanel.taskId || ''}
                                                     onChange={(e) => handleAssociateTask(detailsPanel._id, e.target.value)}
-                                                    className="w-full p-2 text-sm bg-teal-50/50 border border-teal-200 rounded-xl text-teal-800 focus:ring-2 focus:ring-teal-500"
+                                                    className="w-full p-2 text-sm bg-[#F3F4F6] border border-[#6B7280]/20 rounded-xl text-[#1F2937] focus:ring-2 focus:ring-[#1E40AF]"
                                                     aria-label="Associate task"
                                                 >
                                                     <option value="">No Task</option>
@@ -1738,12 +1685,12 @@ const FileStorage = () => {
                                                 </select>
                                             </div>
                                             <div>
-                                                <p className="text-xs font-medium text-teal-600">Tags</p>
+                                                <p className="text-xs font-medium text-[#1E40AF]">Tags</p>
                                                 <div className="flex flex-wrap gap-1 mt-1">
                                                     {detailsPanel.tags?.map((tag, i) => (
                                                         <span
                                                             key={i}
-                                                            className="px-1.5 py-0.5 text-xs bg-teal-200/50 text-teal-700 rounded"
+                                                            className="px-1.5 py-0.5 text-xs bg-[#E5E7EB] text-[#1F2937] rounded"
                                                         >
                                                             {tag}
                                                         </span>
@@ -1759,7 +1706,7 @@ const FileStorage = () => {
                                                                 e.target.value = '';
                                                             }
                                                         }}
-                                                        className="flex-1 p-2 text-sm bg-teal-50/50 border border-teal-200 rounded-xl text-teal-800 focus:ring-2 focus:ring-teal-500"
+                                                        className="flex-1 p-2 text-sm bg-[#F3F4F6] border border-[#6B7280]/20 rounded-xl text-[#1F2937] focus:ring-2 focus:ring-[#1E40AF]"
                                                         aria-label="Add tag"
                                                     />
                                                     <button
@@ -1771,7 +1718,7 @@ const FileStorage = () => {
                                                                 input.value = '';
                                                             }
                                                         }}
-                                                        className="p-2 bg-teal-500 text-white rounded-xl"
+                                                        className="p-2 bg-[#1E40AF] text-white rounded-xl"
                                                         aria-label="Add tag"
                                                     >
                                                         <Plus className="w-4 h-4" />
@@ -1780,13 +1727,13 @@ const FileStorage = () => {
                                             </div>
                                             {detailsPanel.shareLink && (
                                                 <div>
-                                                    <p className="text-xs font-medium text-teal-600">Share Link</p>
+                                                    <p className="text-xs font-medium text-[#1E40AF]">Share Link</p>
                                                     <div className="flex gap-2">
                                                         <input
                                                             type="text"
                                                             value={detailsPanel.shareLink}
                                                             readOnly
-                                                            className="flex-1 p-2 text-sm bg-teal-50/50 border border-teal-200 rounded-xl text-teal-800"
+                                                            className="flex-1 p-2 text-sm bg-[#F3F4F6] border border-[#6B7280]/20 rounded-xl text-[#1F2937]"
                                                             aria-label="Share link"
                                                         />
                                                         <button
@@ -1795,13 +1742,13 @@ const FileStorage = () => {
                                                                 navigator.clipboard.writeText(detailsPanel.shareLink);
                                                                 toast.success('Link copied!');
                                                             }}
-                                                            className="p-2 bg-teal-500 text-white rounded-xl"
+                                                            className="p-2 bg-[#1E40AF] text-white rounded-xl"
                                                             aria-label="Copy share link"
                                                         >
                                                             <Link2 className="w-4 h-4" />
                                                         </button>
                                                     </div>
-                                                    <p className="text-xs text-teal-600 mt-1">
+                                                    <p className="text-xs text-[#1E40AF] mt-1">
                                                         Expires: {new Date(detailsPanel.shareExpires).toLocaleDateString()}
                                                     </p>
                                                 </div>
@@ -1810,8 +1757,8 @@ const FileStorage = () => {
                                     )}
                                     {detailsPanel.isFolder && (
                                         <div>
-                                            <p className="text-xs font-medium text-teal-600">Created</p>
-                                            <p className="text-sm text-teal-800">{new Date(detailsPanel.createdAt).toLocaleString()}</p>
+                                            <p className="text-xs font-medium text-[#1E40AF]">Created</p>
+                                            <p className="text-sm text-[#1F2937]">{new Date(detailsPanel.createdAt).toLocaleString()}</p>
                                         </div>
                                     )}
                                 </div>
@@ -1820,7 +1767,6 @@ const FileStorage = () => {
                     </main>
                 </motion.div>
             </div>
-
             <FilePreviewModal
                 isOpen={previewModal}
                 onClose={() => setPreviewModal(false)}
@@ -1847,5 +1793,4 @@ const FileStorage = () => {
         </motion.div>
     );
 };
-
 export default FileStorage;

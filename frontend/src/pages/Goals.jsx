@@ -11,6 +11,23 @@ import 'react-datepicker/dist/react-datepicker.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
+// 60-30-10 Palette (No Gradients)
+const COLORS = {
+  primary: '#1E40AF',    // Blue - 60%
+  secondary: '#16A34A',  // Green - 30%
+  danger: '#DC2626',     // Red
+  neutral: {
+    50: '#F9FAFB',
+    100: '#F3F4F6',
+    200: '#E5E7EB',
+    300: '#D1D5DB',
+    500: '#6B7280',
+    700: '#374151',
+    900: '#111827',
+    border: '#E5E7EB'
+  }
+};
+
 const Goals = () => {
   const { user, onLogout } = useOutletContext();
   const navigate = useNavigate();
@@ -23,8 +40,9 @@ const Goals = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState('date'); // 'date', 'completion-asc', 'completion-desc'
+  const [sortBy, setSortBy] = useState('date');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [filterBy, setFilterBy] = useState('all'); // all, completed, active, personal, task
   const [newGoal, setNewGoal] = useState({
     title: '',
     subGoals: [],
@@ -49,21 +67,21 @@ const Goals = () => {
         if (prev.some((g) => g._id === goal._id)) return prev;
         return [goal, ...prev];
       });
-      toast.success('Goal created in real-time!', { style: { background: '#2DD4BF', color: '#FFFFFF' } });
+      toast.success('Goal created in real-time!', { style: { background: COLORS.secondary, color: '#FFFFFF' } });
     });
     socket.on('goalUpdated', (goal) => {
       if (!goal?._id) return;
       setGoals((prev) => prev.map((g) => (g._id === goal._id ? goal : g)));
-      toast.success('Goal updated in real-time!', { style: { background: '#2DD4BF', color: '#FFFFFF' } });
+      toast.success('Goal updated in real-time!', { style: { background: COLORS.secondary, color: '#FFFFFF' } });
     });
     socket.on('goalDeleted', (goalId) => {
       if (!goalId) return;
       setGoals((prev) => prev.filter((g) => g._id !== goalId));
-      toast.success('Goal deleted in real-time!', { style: { background: '#2DD4BF', color: '#FFFFFF' } });
+      toast.success('Goal deleted in real-time!', { style: { background: COLORS.secondary, color: '#FFFFFF' } });
     });
     socket.on('connect_error', (error) => {
       console.error('Socket connect error:', error.message);
-      toast.error('Real-time updates unavailable.', { style: { background: '#2DD4BF', color: '#FFFFFF' } });
+      toast.error('Real-time updates unavailable.', { style: { background: COLORS.danger, color: '#FFFFFF' } });
     });
     return () => {
       socket.off('newGoal');
@@ -79,7 +97,7 @@ const Goals = () => {
       (response) => response,
       (error) => {
         if (error.response?.status === 401) {
-          toast.error('Session expired. Please log in.', { style: { background: '#2DD4BF', color: '#FFFFFF' } });
+          toast.error('Session expired. Please log in.', { style: { background: COLORS.danger, color: '#FFFFFF' } });
           localStorage.removeItem('token');
           localStorage.removeItem('user');
           onLogout?.();
@@ -123,7 +141,7 @@ const Goals = () => {
     } catch (error) {
       if (error.response?.status !== 401) {
         toast.error(error.response?.data?.message || 'Failed to fetch goals.', {
-          style: { background: '#2DD4BF', color: '#FFFFFF' },
+          style: { background: COLORS.danger, color: '#FFFFFF' },
         });
       }
     } finally {
@@ -139,7 +157,7 @@ const Goals = () => {
     } catch (error) {
       if (error.response?.status !== 401) {
         toast.error(error.response?.data?.message || 'Failed to fetch tasks.', {
-          style: { background: '#2DD4BF', color: '#FFFFFF' },
+          style: { background: COLORS.danger, color: '#FFFFFF' },
         });
       }
     }
@@ -156,15 +174,15 @@ const Goals = () => {
 
   const handleCreateGoal = useCallback(async () => {
     if (!newGoal.title.trim()) {
-      toast.error('Goal title is required.', { style: { background: '#2DD4BF', color: '#FFFFFF' } });
+      toast.error('Goal title is required.', { style: { background: COLORS.danger, color: '#FFFFFF' } });
       return;
     }
     if (newGoal.subGoals.length === 0) {
-      toast.error('At least one sub-goal is required.', { style: { background: '#2DD4BF', color: '#FFFFFF' } });
+      toast.error('At least one sub-goal is required.', { style: { background: COLORS.danger, color: '#FFFFFF' } });
       return;
     }
     if (newGoal.startDate >= newGoal.endDate) {
-      toast.error('End date must be after start date.', { style: { background: '#2DD4BF', color: '#FFFFFF' } });
+      toast.error('End date must be after start date.', { style: { background: COLORS.danger, color: '#FFFFFF' } });
       return;
     }
     try {
@@ -180,11 +198,11 @@ const Goals = () => {
         endDate: new Date(),
       });
       setNewSubGoal('');
-      toast.success('Goal created!', { style: { background: '#2DD4BF', color: '#FFFFFF' } });
+      toast.success('Goal created!', { style: { background: COLORS.secondary, color: '#FFFFFF' } });
     } catch (error) {
       if (error.response?.status !== 401) {
         toast.error(error.response?.data?.message || 'Failed to create goal.', {
-          style: { background: '#2DD4BF', color: '#FFFFFF' },
+          style: { background: COLORS.danger, color: '#FFFFFF' },
         });
       }
     } finally {
@@ -194,15 +212,15 @@ const Goals = () => {
 
   const handleUpdateGoal = useCallback(async () => {
     if (!editGoal.title.trim()) {
-      toast.error('Goal title is required.', { style: { background: '#2DD4BF', color: '#FFFFFF' } });
+      toast.error('Goal title is required.', { style: { background: COLORS.danger, color: '#FFFFFF' } });
       return;
     }
     if (editGoal.subGoals.length === 0) {
-      toast.error('At least one sub-goal is required.', { style: { background: '#2DD4BF', color: '#FFFFFF' } });
+      toast.error('At least one sub-goal is required.', { style: { background: COLORS.danger, color: '#FFFFFF' } });
       return;
     }
     if (editGoal.startDate >= editGoal.endDate) {
-      toast.error('End date must be after start date.', { style: { background: '#2DD4BF', color: '#FFFFFF' } });
+      toast.error('End date must be after start date.', { style: { background: COLORS.danger, color: '#FFFFFF' } });
       return;
     }
     try {
@@ -210,11 +228,11 @@ const Goals = () => {
       await axios.put(`${API_BASE_URL}/api/goals/${selectedGoal._id}`, editGoal, { headers: getAuthHeaders() });
       setShowGoalDetails(false);
       setIsEditing(false);
-      toast.success('Goal updated!', { style: { background: '#2DD4BF', color: '#FFFFFF' } });
+      toast.success('Goal updated!', { style: { background: COLORS.secondary, color: '#FFFFFF' } });
     } catch (error) {
       if (error.response?.status !== 401) {
         toast.error(error.response?.data?.message || 'Failed to update goal.', {
-          style: { background: '#2DD4BF', color: '#FFFFFF' },
+          style: { background: COLORS.danger, color: '#FFFFFF' },
         });
       }
     } finally {
@@ -228,11 +246,11 @@ const Goals = () => {
       setIsLoading(true);
       await axios.delete(`${API_BASE_URL}/api/goals/${selectedGoal._id}`, { headers: getAuthHeaders() });
       setShowGoalDetails(false);
-      toast.success('Goal deleted!', { style: { background: '#2DD4BF', color: '#FFFFFF' } });
+      toast.success('Goal deleted!', { style: { background: COLORS.secondary, color: '#FFFFFF' } });
     } catch (error) {
       if (error.response?.status !== 401) {
         toast.error(error.response?.data?.message || 'Failed to delete goal.', {
-          style: { background: '#2DD4BF', color: '#FFFFFF' },
+          style: { background: COLORS.danger, color: '#FFFFFF' },
         });
       }
     } finally {
@@ -249,7 +267,7 @@ const Goals = () => {
 
   const handleAddSubGoal = () => {
     if (!newSubGoal.trim()) {
-      toast.error('Sub-goal title is required.', { style: { background: '#2DD4BF', color: '#FFFFFF' } });
+      toast.error('Sub-goal title is required.', { style: { background: COLORS.danger, color: '#FFFFFF' } });
       return;
     }
     setNewGoal((prev) => ({
@@ -297,28 +315,43 @@ const Goals = () => {
   const handleSearch = useCallback((query) => {
     setSearchQuery(query);
     setIsSearching(true);
-    setTimeout(() => setIsSearching(false), 100); // Brief delay to show loading state
+    setTimeout(() => setIsSearching(false), 100);
   }, []);
 
-  const filteredGoals = goals.filter((goal) =>
-    goal.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filter & Sort
+  const filteredGoals = goals
+    .filter((goal) => {
+      const matchesSearch = goal.title.toLowerCase().includes(searchQuery.toLowerCase());
+      const progress = calculateProgress(goal.subGoals);
+      if (filterBy === 'all') return matchesSearch;
+      if (filterBy === 'completed') return matchesSearch && progress === 100;
+      if (filterBy === 'active') return matchesSearch && progress < 100;
+      if (filterBy === 'personal') return matchesSearch && goal.type === 'personal';
+      if (filterBy === 'task') return matchesSearch && goal.type === 'task';
+      return matchesSearch;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'completion-asc') {
+        return calculateProgress(a.subGoals) - calculateProgress(b.subGoals);
+      } else if (sortBy === 'completion-desc') {
+        return calculateProgress(b.subGoals) - calculateProgress(a.subGoals);
+      } else {
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      }
+    });
 
-  const sortedGoals = [...filteredGoals].sort((a, b) => {
-    if (sortBy === 'completion-asc') {
-      return calculateProgress(a.subGoals) - calculateProgress(b.subGoals);
-    } else if (sortBy === 'completion-desc') {
-      return calculateProgress(b.subGoals) - calculateProgress(a.subGoals);
-    } else {
-      // Default by date (recent first)
-      return new Date(b.createdAt) - new Date(a.createdAt);
-    }
-  });
+  // Stats
+  const stats = {
+    total: goals.length,
+    completed: goals.filter(g => calculateProgress(g.subGoals) === 100).length,
+    avgProgress: Math.round(goals.reduce((sum, g) => sum + calculateProgress(g.subGoals), 0) / (goals.length || 1)),
+    active: goals.filter(g => calculateProgress(g.subGoals) < 100).length,
+  };
 
   const modalVariants = {
-    hidden: { opacity: 0, scale: 0.8 },
+    hidden: { opacity: 0, scale: 0.9 },
     visible: { opacity: 1, scale: 1, transition: { duration: 0.3, ease: 'easeOut' } },
-    exit: { opacity: 0, scale: 0.8, transition: { duration: 0.2 } },
+    exit: { opacity: 0, scale: 0.9, transition: { duration: 0.2 } },
   };
 
   if (!user || !localStorage.getItem('token')) {
@@ -327,7 +360,7 @@ const Goals = () => {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.6 }}
-        className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-50 via-blue-50 to-teal-100"
+        className="min-h-screen flex items-center justify-center bg-gray-50"
       >
         <p className="text-base text-gray-600">Please log in to access your goals.</p>
       </motion.div>
@@ -339,7 +372,7 @@ const Goals = () => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.6, ease: 'easeOut' }}
-      className="min-h-screen bg-gradient-to-br from-teal-50 via-blue-50 to-teal-100 flex flex-col font-sans"
+      className="min-h-screen bg-gray-50 flex flex-col font-sans"
     >
       <Toaster position="bottom-right" toastOptions={{ className: 'text-base max-w-md' }} />
       <div className="flex-1 max-w-[1600px] mx-auto w-full px-4 sm:px-8 py-12">
@@ -347,27 +380,63 @@ const Goals = () => {
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.5 }}
-          className="bg-white/95 backdrop-blur-lg border border-teal-100/50 rounded-3xl shadow-lg p-6 sm:p-8"
+          className="bg-white rounded-3xl shadow-lg border border-gray-200 p-6 sm:p-8"
         >
-          <header className="bg-teal-50/50 border-b border-teal-200/50 px-6 py-4 -mx-6 mb-6 flex items-center justify-between">
+          <header className="border-b border-gray-200 px-6 py-4 -mx-6 mb-6 flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Target className="w-8 h-8 text-teal-600 animate-pulse" />
+              <Target className="w-8 h-8 text-blue-600" />
               <div className="min-w-0">
-                <h1 className="text-2xl sm:text-3xl font-bold text-blue-900 truncate">Your Goals</h1>
-                <p className="text-base text-teal-600 truncate">Track Your Progress</p>
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 truncate">Your Goals</h1>
+                <p className="text-base text-blue-600 truncate">Track & Achieve</p>
               </div>
             </div>
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => navigate('/')}
-              className="flex items-center gap-2 bg-teal-100 text-teal-600 px-4 py-2 rounded-lg hover:bg-teal-200 transition-all duration-300 text-base hover:scale-105 hover:shadow-md"
+              className="flex items-center gap-2 bg-blue-50 text-blue-700 px-4 py-2 rounded-lg hover:bg-blue-100 transition-all duration-300 text-base"
               aria-label="Back to Dashboard"
             >
               <ArrowLeft className="w-5 h-5" />
               Dashboard
             </motion.button>
           </header>
+
+          {/* Interactive Analytics Dashboard */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            {[
+              { label: 'Total Goals', value: stats.total, filter: 'all', color: 'gray' },
+              { label: 'Completed', value: stats.completed, filter: 'completed', color: 'green' },
+              { label: 'Avg Progress', value: `${stats.avgProgress}%`, filter: null, color: 'blue' },
+              { label: 'Active', value: stats.active, filter: 'active', color: 'amber' },
+            ].map((stat, i) => (
+              <motion.div
+                key={stat.label}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.1 }}
+                onClick={() => stat.filter && setFilterBy(stat.filter === filterBy ? 'all' : stat.filter)}
+                className={`p-5 rounded-2xl border-2 transition-all duration-300 cursor-pointer
+                  ${filterBy === stat.filter ? 'border-blue-600 bg-blue-50 shadow-lg scale-105' : 'border-gray-200 bg-white hover:border-gray-300'}
+                `}
+              >
+                <p className="text-sm font-medium text-gray-600">{stat.label}</p>
+                <p className={`text-3xl font-bold mt-1 ${stat.color === 'green' ? 'text-green-600' : stat.color === 'blue' ? 'text-blue-600' : stat.color === 'amber' ? 'text-amber-600' : 'text-gray-900'}`}>
+                  {stat.value}
+                </p>
+                {stat.filter && (
+                  <motion.div
+                    className="mt-2 flex items-center justify-end"
+                    initial={false}
+                    animate={{ opacity: filterBy === stat.filter ? 1 : 0 }}
+                  >
+                    <div className="w-2 h-2 bg-blue-600 rounded-full" />
+                  </motion.div>
+                )}
+              </motion.div>
+            ))}
+          </div>
+
           <div className="mb-6 flex flex-col sm:flex-row items-center gap-4">
             <motion.button
               whileHover={{ scale: 1.05 }}
@@ -376,13 +445,13 @@ const Goals = () => {
                 setShowCreateGoal(true);
                 setDefaultDates('daily');
               }}
-              className="px-4 py-3 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg hover:from-teal-700 hover:to-blue-700 transition-all duration-300 flex items-center gap-3 text-base hover:scale-105 hover:shadow-md"
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-300 flex items-center gap-3 text-base"
               aria-label="Create Goal"
             >
               <Plus className="w-6 h-6" />
               New Goal
             </motion.button>
-            <div className="flex-1 flex items-center gap-3 bg-white/95 border border-teal-300/50 rounded-lg px-4 py-3 w-full sm:w-auto relative">
+            <div className="flex-1 flex items-center gap-3 bg-white border border-gray-300 rounded-lg px-4 py-3 w-full sm:w-auto relative">
               <Search className="w-6 h-6 text-gray-600 flex-shrink-0" />
               <input
                 type="text"
@@ -393,7 +462,7 @@ const Goals = () => {
               />
               {isSearching && (
                 <motion.div
-                  className="absolute right-3 w-5 h-5 border-2 border-teal-600 border-t-transparent rounded-full animate-spin"
+                  className="absolute right-3 w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
@@ -403,52 +472,59 @@ const Goals = () => {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="p-3 border border-teal-300/50 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-teal-400 transition-all duration-300 w-full sm:w-auto"
+              className="p-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300 w-full sm:w-auto"
             >
-              <option value="date">Sort by Date (Recent)</option>
-              <option value="completion-asc">Sort by Completion (Low to High)</option>
-              <option value="completion-desc">Sort by Completion (High to Low)</option>
+              <option value="date">Recent First</option>
+              <option value="completion-asc">Progress: Low to High</option>
+              <option value="completion-desc">Progress: High to Low</option>
             </select>
           </div>
-          <div className="space-y-6 max-h-[calc(100vh-18rem)] lg:max-h-[700px] overflow-y-auto scrollbar-thin scroll-smooth">
-            <h2 className="text-xl sm:text-2xl font-bold text-blue-900">All Goals</h2>
+
+          <div className="space-y-4">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">All Goals</h2>
             {isLoading || isSearching ? (
-              <p className="text-base text-gray-600 text-center py-4">Loading goals...</p>
+              <div className="flex items-center justify-center py-12">
+                <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+              </div>
             ) : filteredGoals.length === 0 ? (
-              <p className="text-base text-gray-600 text-center py-4">No goals found. Create a goal to get started!</p>
+              <div className="text-center py-12 text-gray-600">
+                <Target className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                <p className="text-base">No goals found. Create your first goal!</p>
+              </div>
             ) : (
               <AnimatePresence>
-                {sortedGoals.map((goal, index) => (
+                {filteredGoals.map((goal, index) => (
                   <motion.div
                     key={goal._id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -20 }}
                     transition={{ duration: 0.3, delay: index * 0.05 }}
-                    className="bg-white/95 backdrop-blur-md rounded-2xl shadow-md p-4 sm:p-6 flex items-center gap-4 hover:bg-teal-50/50 transition-all duration-300 border-l-4 border-teal-600 cursor-pointer"
+                    className="bg-white rounded-2xl shadow-sm p-6 flex items-center gap-4 hover:bg-blue-50/50 transition-all duration-300 cursor-pointer"
                     onClick={() => handleGoalClick(goal)}
                   >
-                    <Target className="w-6 h-6 sm:w-7 h-7 text-teal-600 flex-shrink-0" />
+                    <div className="flex-shrink-0 w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md">
+                      {calculateProgress(goal.subGoals)}%
+                    </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-base sm:text-lg font-semibold text-blue-900 truncate">{goal.title}</p>
-                      <p className="text-sm sm:text-base text-gray-600 line-clamp-1">
-                        {moment(goal.startDate).tz('Africa/Lagos').format('MMM D, YYYY')} -{' '}
-                        {moment(goal.endDate).tz('Africa/Lagos').format('MMM D, YYYY')}
+                      <p className="text-base sm:text-lg font-semibold text-gray-900 truncate">{goal.title}</p>
+                      <p className="text-sm text-gray-600">
+                        {moment(goal.startDate).tz('Africa/Lagos').format('MMM D')} - {moment(goal.endDate).tz('Africa/Lagos').format('MMM D, YYYY')}
                       </p>
-                      <p className="text-sm sm:text-base text-gray-600 capitalize line-clamp-1">Type: {goal.type}</p>
-                      <div className="mt-3 flex items-center gap-3">
-                        <div className="w-full bg-gray-200 rounded-full h-3">
-                          <motion.div
-                            className="bg-gradient-to-r from-teal-600 to-blue-600 h-3 rounded-full"
-                            initial={{ width: 0 }}
-                            animate={{ width: `${calculateProgress(goal.subGoals)}%` }}
-                            transition={{ duration: 0.5 }}
-                          />
-                        </div>
-                        <p className="text-sm sm:text-base text-gray-600 flex-shrink-0">{calculateProgress(goal.subGoals)}%</p>
+                      <p className="text-sm text-gray-600 capitalize">{goal.type}</p>
+                    </div>
+                    <div className="flex-shrink-0">
+                      <div className="w-24 bg-gray-200 rounded-full h-2.5">
+                        <motion.div
+                          className="bg-gradient-to-r from-blue-500 to-blue-700 h-2.5 rounded-full"
+                          initial={{ width: 0 }}
+                          animate={{ width: `${calculateProgress(goal.subGoals)}%` }}
+                          transition={{ duration: 0.6, ease: "easeOut" }}
+                        />
                       </div>
+                      <p className="text-sm text-gray-600 mt-2 text-right">{calculateProgress(goal.subGoals)}%</p>
                       {calculateProgress(goal.subGoals) === 100 && (
-                        <p className="text-sm sm:text-base text-teal-600 font-semibold mt-2 line-clamp-1">Goal Completed!</p>
+                        <p className="text-sm text-green-600 font-semibold mt-1 text-right">Done!</p>
                       )}
                     </div>
                   </motion.div>
@@ -467,48 +543,48 @@ const Goals = () => {
             animate="visible"
             exit="exit"
             variants={modalVariants}
-            className="fixed inset-0 bg-gray-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-6"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-6"
             role="dialog"
             aria-label="Create Goal"
             ref={modalRef}
             tabIndex={-1}
           >
             <motion.div
-              className="bg-white/95 backdrop-blur-md rounded-3xl p-6 sm:p-8 w-full max-w-md border border-teal-200/50 shadow-lg flex flex-col"
+              className="bg-white rounded-3xl p-6 sm:p-8 w-full max-w-md border border-gray-200 shadow-xl flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl sm:text-2xl font-semibold text-blue-900 truncate">Create New Goal</h2>
+                <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 truncate">Create New Goal</h2>
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setShowCreateGoal(false)}
-                  className="p-2 text-teal-600 hover:bg-teal-100 rounded-full transition-all duration-300"
+                  className="p-2 text-blue-600 hover:bg-blue-50 rounded-full transition-all duration-300"
                   aria-label="Close Create Goal"
                 >
                   <X className="w-6 h-6" />
                 </motion.button>
               </div>
-              <div className="space-y-6 flex-1 overflow-y-auto scrollbar-thin scroll-smooth max-h-[60vh]">
+              <div className="space-y-6">
                 <div>
-                  <label className="text-base font-semibold text-gray-800">Goal Title</label>
+                  <label className="text-base font-semibold text-gray-900">Goal Title</label>
                   <input
                     type="text"
                     value={newGoal.title}
                     onChange={(e) => setNewGoal((prev) => ({ ...prev, title: e.target.value }))}
-                    className="w-full p-3 border border-teal-300/50 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-teal-400 transition-all duration-300"
+                    className="w-full p-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300"
                     placeholder="Enter goal title"
                     maxLength={100}
                   />
                 </div>
                 <div>
-                  <label className="text-base font-semibold text-gray-800">Sub-Goals</label>
+                  <label className="text-base font-semibold text-gray-900">Sub-Goals</label>
                   <div className="flex gap-3">
                     <input
                       type="text"
                       value={newSubGoal}
                       onChange={(e) => setNewSubGoal(e.target.value)}
-                      className="flex-1 p-3 border border-teal-300/50 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-teal-400 transition-all duration-300"
+                      className="flex-1 p-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300"
                       placeholder="Enter sub-goal"
                       maxLength={200}
                     />
@@ -516,22 +592,22 @@ const Goals = () => {
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                       onClick={handleAddSubGoal}
-                      className="p-3 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg hover:from-teal-700 hover:to-blue-700 transition-all duration-300 shadow-md"
+                      className="p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-300 shadow-md"
                       aria-label="Add Sub-Goal"
                     >
                       <Plus className="w-5 h-5" />
                     </motion.button>
                   </div>
-                  <div className="mt-3 max-h-48 overflow-y-auto scrollbar-thin scroll-smooth">
+                  <div className="mt-3 space-y-2">
                     {newGoal.subGoals.map((subGoal, index) => (
                       <motion.div
                         key={index}
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ duration: 0.3 }}
-                        className="flex items-center gap-3 p-3 bg-teal-50/50 rounded-lg mb-3"
+                        className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg"
                       >
-                        <p className="text-base text-gray-800 flex-1 truncate">{subGoal.title}</p>
+                        <p className="text-base text-gray-900 flex-1 truncate">{subGoal.title}</p>
                         <motion.button
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
@@ -541,7 +617,7 @@ const Goals = () => {
                               subGoals: prev.subGoals.filter((_, i) => i !== index),
                             }))
                           }
-                          className="p-2 text-red-600 hover:bg-red-100 rounded-full transition-all duration-300"
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-full transition-all duration-300"
                           aria-label="Remove Sub-Goal"
                         >
                           <X className="w-5 h-5" />
@@ -551,11 +627,11 @@ const Goals = () => {
                   </div>
                 </div>
                 <div>
-                  <label className="text-base font-semibold text-gray-800">Goal Type</label>
+                  <label className="text-base font-semibold text-gray-900">Goal Type</label>
                   <select
                     value={newGoal.type}
                     onChange={(e) => setNewGoal((prev) => ({ ...prev, type: e.target.value }))}
-                    className="w-full p-3 border border-teal-300/50 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-teal-400 transition-all duration-300"
+                    className="w-full p-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300"
                   >
                     <option value="personal">Personal</option>
                     <option value="task">Task</option>
@@ -563,10 +639,10 @@ const Goals = () => {
                 </div>
                 {newGoal.type === 'task' && (
                   <div>
-                    <label className="text-base font-semibold text-gray-800">Attach Task to Sub-Goals</label>
+                    <label className="text-base font-semibold text-gray-900">Attach Task to Sub-Goals</label>
                     {newGoal.subGoals.map((subGoal, index) => (
                       <div key={index} className="flex items-center gap-3 mb-3">
-                        <p className="text-base text-gray-800 flex-1 truncate">{subGoal.title}</p>
+                        <p className="text-base text-gray-900 flex-1 truncate">{subGoal.title}</p>
                         <select
                           value={subGoal.taskId || ''}
                           onChange={(e) => {
@@ -574,7 +650,7 @@ const Goals = () => {
                             updatedSubGoals[index].taskId = e.target.value || null;
                             setNewGoal((prev) => ({ ...prev, subGoals: updatedSubGoals }));
                           }}
-                          className="w-full sm:w-1/2 p-3 border border-teal-300/50 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-teal-400 transition-all duration-300"
+                          className="w-full sm:w-1/2 p-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300"
                         >
                           <option value="">No Task</option>
                           {tasks.map((task) => (
@@ -588,14 +664,14 @@ const Goals = () => {
                   </div>
                 )}
                 <div>
-                  <label className="text-base font-semibold text-gray-800">Timeframe</label>
+                  <label className="text-base font-semibold text-gray-900">Timeframe</label>
                   <select
                     value={newGoal.timeframe}
                     onChange={(e) => {
                       setNewGoal((prev) => ({ ...prev, timeframe: e.target.value }));
                       setDefaultDates(e.target.value);
                     }}
-                    className="w-full p-3 border border-teal-300/50 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-teal-400 transition-all duration-300"
+                    className="w-full p-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300"
                   >
                     <option value="daily">Daily</option>
                     <option value="weekly">Weekly</option>
@@ -605,23 +681,23 @@ const Goals = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="text-base font-semibold text-gray-800">Start Date</label>
+                  <label className="text-base font-semibold text-gray-900">Start Date</label>
                   <DatePicker
                     selected={newGoal.startDate}
                     onChange={(date) => setNewGoal((prev) => ({ ...prev, startDate: date }))}
                     dateFormat="MMM d, yyyy"
-                    className="w-full p-3 border border-teal-300/50 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-teal-400 transition-all duration-300"
+                    className="w-full p-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300"
                     wrapperClassName="w-full"
                     minDate={new Date()}
                   />
                 </div>
                 <div>
-                  <label className="text-base font-semibold text-gray-800">End Date</label>
+                  <label className="text-base font-semibold text-gray-900">End Date</label>
                   <DatePicker
                     selected={newGoal.endDate}
                     onChange={(date) => setNewGoal((prev) => ({ ...prev, endDate: date }))}
                     dateFormat="MMM d, yyyy"
-                    className="w-full p-3 border border-teal-300/50 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-teal-400 transition-all duration-300"
+                    className="w-full p-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300"
                     wrapperClassName="w-full"
                     minDate={newGoal.startDate}
                   />
@@ -632,7 +708,7 @@ const Goals = () => {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setShowCreateGoal(false)}
-                  className="px-6 py-3 bg-gray-200 text-gray-800 rounded-lg text-base font-semibold hover:bg-gray-300 transition-all duration-300"
+                  className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg text-base font-semibold hover:bg-gray-200 transition-all duration-300"
                   aria-label="Cancel"
                 >
                   Cancel
@@ -641,7 +717,7 @@ const Goals = () => {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={handleCreateGoal}
-                  className="px-6 py-3 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg text-base font-semibold hover:from-teal-700 hover:to-blue-700 transition-all duration-300 shadow-md"
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg text-base font-semibold hover:bg-blue-700 transition-all duration-300 shadow-md"
                   aria-label="Create Goal"
                 >
                   Create Goal
@@ -660,18 +736,18 @@ const Goals = () => {
             animate="visible"
             exit="exit"
             variants={modalVariants}
-            className="fixed inset-0 bg-gray-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-6"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-6"
             role="dialog"
             aria-label="Goal Details"
             ref={modalRef}
             tabIndex={-1}
           >
             <motion.div
-              className="bg-white/95 backdrop-blur-md rounded-3xl p-6 sm:p-8 w-full max-w-md border border-teal-200/50 shadow-lg flex flex-col"
+              className="bg-white rounded-3xl p-6 sm:p-8 w-full max-w-md border border-gray-200 shadow-xl flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl sm:text-2xl font-semibold text-blue-900 truncate">
+                <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 truncate">
                   {isEditing ? 'Edit Goal' : 'Goal Details'}
                 </h2>
                 <motion.button
@@ -681,34 +757,34 @@ const Goals = () => {
                     setShowGoalDetails(false);
                     setIsEditing(false);
                   }}
-                  className="p-2 text-teal-600 hover:bg-teal-100 rounded-full transition-all duration-300"
+                  className="p-2 text-blue-600 hover:bg-blue-50 rounded-full transition-all duration-300"
                   aria-label="Close Goal Details"
                 >
                   <X className="w-6 h-6" />
                 </motion.button>
               </div>
-              <div className="space-y-6 flex-1 overflow-y-auto scrollbar-thin scroll-smooth max-h-[60vh]">
+              <div className="space-y-6 flex-1 overflow-y-auto">
                 {isEditing ? (
                   <>
                     <div>
-                      <label className="text-base font-semibold text-gray-800">Goal Title</label>
+                      <label className="text-base font-semibold text-gray-900">Goal Title</label>
                       <input
                         type="text"
                         value={editGoal.title}
                         onChange={(e) => setEditGoal((prev) => ({ ...prev, title: e.target.value }))}
-                        className="w-full p-3 border border-teal-300/50 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-teal-400 transition-all duration-300"
+                        className="w-full p-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300"
                         placeholder="Enter goal title"
                         maxLength={100}
                       />
                     </div>
                     <div>
-                      <label className="text-base font-semibold text-gray-800">Sub-Goals</label>
+                      <label className="text-base font-semibold text-gray-900">Sub-Goals</label>
                       <div className="flex gap-3">
                         <input
                           type="text"
                           value={newSubGoal}
                           onChange={(e) => setNewSubGoal(e.target.value)}
-                          className="flex-1 p-3 border border-teal-300/50 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-teal-400 transition-all duration-300"
+                          className="flex-1 p-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300"
                           placeholder="Enter sub-goal"
                           maxLength={200}
                         />
@@ -717,7 +793,7 @@ const Goals = () => {
                           whileTap={{ scale: 0.95 }}
                           onClick={() => {
                             if (!newSubGoal.trim()) {
-                              toast.error('Sub-goal title is required.', { style: { background: '#2DD4BF', color: '#FFFFFF' } });
+                              toast.error('Sub-goal title is required.', { style: { background: COLORS.danger, color: '#FFFFFF' } });
                               return;
                             }
                             setEditGoal((prev) => ({
@@ -726,22 +802,22 @@ const Goals = () => {
                             }));
                             setNewSubGoal('');
                           }}
-                          className="p-3 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg hover:from-teal-700 hover:to-blue-700 transition-all duration-300 shadow-md"
+                          className="p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-300 shadow-md"
                           aria-label="Add Sub-Goal"
                         >
                           <Plus className="w-5 h-5" />
                         </motion.button>
                       </div>
-                      <div className="mt-3 max-h-48 overflow-y-auto scrollbar-thin scroll-smooth">
+                      <div className="mt-3 space-y-2">
                         {editGoal.subGoals.map((subGoal, index) => (
                           <motion.div
                             key={index}
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ duration: 0.3 }}
-                            className="flex items-center gap-3 p-3 bg-teal-50/50 rounded-lg mb-3"
+                            className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg"
                           >
-                            <p className="text-base text-gray-800 flex-1 truncate">{subGoal.title}</p>
+                            <p className="text-base text-gray-900 flex-1 truncate">{subGoal.title}</p>
                             <motion.button
                               whileHover={{ scale: 1.05 }}
                               whileTap={{ scale: 0.95 }}
@@ -751,7 +827,7 @@ const Goals = () => {
                                   subGoals: prev.subGoals.filter((_, i) => i !== index),
                                 }))
                               }
-                              className="p-2 text-red-600 hover:bg-red-100 rounded-full transition-all duration-300"
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-full transition-all duration-300"
                               aria-label="Remove Sub-Goal"
                             >
                               <X className="w-5 h-5" />
@@ -761,11 +837,11 @@ const Goals = () => {
                       </div>
                     </div>
                     <div>
-                      <label className="text-base font-semibold text-gray-800">Goal Type</label>
+                      <label className="text-base font-semibold text-gray-900">Goal Type</label>
                       <select
                         value={editGoal.type}
                         onChange={(e) => setEditGoal((prev) => ({ ...prev, type: e.target.value }))}
-                        className="w-full p-3 border border-teal-300/50 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-teal-400 transition-all duration-300"
+                        className="w-full p-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300"
                       >
                         <option value="personal">Personal</option>
                         <option value="task">Task</option>
@@ -773,10 +849,10 @@ const Goals = () => {
                     </div>
                     {editGoal.type === 'task' && (
                       <div>
-                        <label className="text-base font-semibold text-gray-800">Attach Task to Sub-Goals</label>
+                        <label className="text-base font-semibold text-gray-900">Attach Task to Sub-Goals</label>
                         {editGoal.subGoals.map((subGoal, index) => (
                           <div key={index} className="flex items-center gap-3 mb-3">
-                            <p className="text-base text-gray-800 flex-1 truncate">{subGoal.title}</p>
+                            <p className="text-base text-gray-900 flex-1 truncate">{subGoal.title}</p>
                             <select
                               value={subGoal.taskId || ''}
                               onChange={(e) => {
@@ -784,7 +860,7 @@ const Goals = () => {
                                 updatedSubGoals[index].taskId = e.target.value || null;
                                 setEditGoal((prev) => ({ ...prev, subGoals: updatedSubGoals }));
                               }}
-                              className="w-full sm:w-1/2 p-3 border border-teal-300/50 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-teal-400 transition-all duration-300"
+                              className="w-full sm:w-1/2 p-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300"
                             >
                               <option value="">No Task</option>
                               {tasks.map((task) => (
@@ -798,11 +874,11 @@ const Goals = () => {
                       </div>
                     )}
                     <div>
-                      <label className="text-base font-semibold text-gray-800">Timeframe</label>
+                      <label className="text-base font-semibold text-gray-900">Timeframe</label>
                       <select
                         value={editGoal.timeframe}
                         onChange={(e) => setEditGoal((prev) => ({ ...prev, timeframe: e.target.value }))}
-                        className="w-full p-3 border border-teal-300/50 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-teal-400 transition-all duration-300"
+                        className="w-full p-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300"
                       >
                         <option value="daily">Daily</option>
                         <option value="weekly">Weekly</option>
@@ -812,23 +888,23 @@ const Goals = () => {
                       </select>
                     </div>
                     <div>
-                      <label className="text-base font-semibold text-gray-800">Start Date</label>
+                      <label className="text-base font-semibold text-gray-900">Start Date</label>
                       <DatePicker
                         selected={editGoal.startDate}
                         onChange={(date) => setEditGoal((prev) => ({ ...prev, startDate: date }))}
                         dateFormat="MMM d, yyyy"
-                        className="w-full p-3 border border-teal-300/50 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-teal-400 transition-all duration-300"
+                        className="w-full p-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300"
                         wrapperClassName="w-full"
                         minDate={new Date()}
                       />
                     </div>
                     <div>
-                      <label className="text-base font-semibold text-gray-800">End Date</label>
+                      <label className="text-base font-semibold text-gray-900">End Date</label>
                       <DatePicker
                         selected={editGoal.endDate}
                         onChange={(date) => setEditGoal((prev) => ({ ...prev, endDate: date }))}
                         dateFormat="MMM d, yyyy"
-                        className="w-full p-3 border border-teal-300/50 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-teal-400 transition-all duration-300"
+                        className="w-full p-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300"
                         wrapperClassName="w-full"
                         minDate={editGoal.startDate}
                       />
@@ -838,7 +914,7 @@ const Goals = () => {
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={() => setIsEditing(false)}
-                        className="px-6 py-3 bg-gray-200 text-gray-800 rounded-lg text-base font-semibold hover:bg-gray-300 transition-all duration-300"
+                        className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg text-base font-semibold hover:bg-gray-200 transition-all duration-300"
                         aria-label="Cancel"
                       >
                         Cancel
@@ -847,7 +923,7 @@ const Goals = () => {
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={handleUpdateGoal}
-                        className="px-6 py-3 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg text-base font-semibold hover:from-teal-700 hover:to-blue-700 transition-all duration-300 shadow-md"
+                        className="px-6 py-3 bg-blue-600 text-white rounded-lg text-base font-semibold hover:bg-blue-700 transition-all duration-300 shadow-md"
                         aria-label="Save Goal"
                       >
                         Save Goal
@@ -857,21 +933,21 @@ const Goals = () => {
                 ) : (
                   <>
                     <div>
-                      <p className="text-base font-semibold text-gray-800">Goal Title</p>
-                      <p className="text-lg text-gray-800 truncate">{selectedGoal.title}</p>
+                      <p className="text-base font-semibold text-gray-900">Goal Title</p>
+                      <p className="text-lg text-gray-900 truncate">{selectedGoal.title}</p>
                     </div>
                     <div>
-                      <p className="text-base font-semibold text-gray-800">Sub-Goals</p>
-                      <div className="max-h-48 overflow-y-auto scrollbar-thin scroll-smooth">
+                      <p className="text-base font-semibold text-gray-900">Sub-Goals</p>
+                      <div className="space-y-2">
                         {selectedGoal.subGoals.map((subGoal, index) => (
-                          <div key={index} className="flex items-center gap-3 p-3 bg-teal-50/50 rounded-lg mb-3">
+                          <div key={index} className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
                             <input
                               type="checkbox"
                               checked={subGoal.completed}
                               onChange={(e) => handleUpdateSubGoalStatus(index, e.target.checked)}
-                              className="h-5 w-5 text-teal-600 focus:ring-teal-400 flex-shrink-0"
+                              className="h-5 w-5 text-blue-600 focus:ring-blue-400 flex-shrink-0"
                             />
-                            <p className="text-base text-gray-800 flex-1 truncate">
+                            <p className="text-base text-gray-900 flex-1 truncate">
                               {subGoal.title}
                               {subGoal.taskId && (
                                 <span className="text-sm text-gray-600">
@@ -885,10 +961,10 @@ const Goals = () => {
                       </div>
                     </div>
                     <div>
-                      <p className="text-base font-semibold text-gray-800">Progress</p>
+                      <p className="text-base font-semibold text-gray-900">Progress</p>
                       <div className="w-full bg-gray-200 rounded-full h-3">
                         <motion.div
-                          className="bg-gradient-to-r from-teal-600 to-blue-600 h-3 rounded-full"
+                          className="bg-gradient-to-r from-blue-500 to-blue-700 h-3 rounded-full"
                           initial={{ width: 0 }}
                           animate={{ width: `${calculateProgress(selectedGoal.subGoals)}%` }}
                           transition={{ duration: 0.5 }}
@@ -896,19 +972,19 @@ const Goals = () => {
                       </div>
                       <p className="text-base text-gray-600 mt-2">{calculateProgress(selectedGoal.subGoals)}%</p>
                       {calculateProgress(selectedGoal.subGoals) === 100 && (
-                        <p className="text-base text-teal-600 font-semibold mt-2 line-clamp-1">Goal Completed!</p>
+                        <p className="text-base text-green-600 font-semibold mt-2 line-clamp-1">Goal Completed!</p>
                       )}
                     </div>
                     <div>
-                      <p className="text-base font-semibold text-gray-800">Type</p>
+                      <p className="text-base font-semibold text-gray-900">Type</p>
                       <p className="text-base text-gray-600 capitalize line-clamp-1">{selectedGoal.type}</p>
                     </div>
                     <div>
-                      <p className="text-base font-semibold text-gray-800">Timeframe</p>
+                      <p className="text-base font-semibold text-gray-900">Timeframe</p>
                       <p className="text-base text-gray-600 capitalize line-clamp-1">{selectedGoal.timeframe}</p>
                     </div>
                     <div>
-                      <p className="text-base font-semibold text-gray-800">Duration</p>
+                      <p className="text-base font-semibold text-gray-900">Duration</p>
                       <p className="text-base text-gray-600 line-clamp-1">
                         {moment(selectedGoal.startDate).tz('Africa/Lagos').format('MMM D, YYYY')} -{' '}
                         {moment(selectedGoal.endDate).tz('Africa/Lagos').format('MMM D, YYYY')}
@@ -919,7 +995,7 @@ const Goals = () => {
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={() => setIsEditing(true)}
-                        className="px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg text-base font-semibold hover:from-blue-700 hover:to-blue-800 transition-all duration-300 flex items-center gap-2 shadow-md"
+                        className="px-4 py-3 bg-blue-600 text-white rounded-lg text-base font-semibold hover:bg-blue-700 transition-all duration-300 flex items-center gap-2 shadow-md"
                         aria-label="Edit Goal"
                       >
                         <Edit className="w-5 h-5" />
@@ -929,7 +1005,7 @@ const Goals = () => {
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={handleUpdateGoal}
-                        className="px-4 py-3 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg text-base font-semibold hover:from-teal-700 hover:to-blue-700 transition-all duration-300 flex items-center gap-2 shadow-md"
+                        className="px-4 py-3 bg-green-600 text-white rounded-lg text-base font-semibold hover:bg-green-700 transition-all duration-300 flex items-center gap-2 shadow-md"
                         aria-label="Update Progress"
                       >
                         <CheckCircle className="w-5 h-5" />
@@ -953,7 +1029,6 @@ const Goals = () => {
           </motion.div>
         )}
       </AnimatePresence>
-
       {/* Delete Confirmation Modal */}
       <AnimatePresence>
         {showDeleteConfirm && (
@@ -962,23 +1037,23 @@ const Goals = () => {
             animate="visible"
             exit="exit"
             variants={modalVariants}
-            className="fixed inset-0 bg-gray-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-6"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-6"
             role="dialog"
             aria-label="Delete Confirmation"
             ref={modalRef}
             tabIndex={-1}
           >
             <motion.div
-              className="bg-white/95 backdrop-blur-md rounded-3xl p-6 sm:p-8 w-full max-w-md border border-teal-200/50 shadow-lg flex flex-col"
+              className="bg-white rounded-3xl p-6 sm:p-8 w-full max-w-md border border-gray-200 shadow-xl flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-semibold text-blue-900">Confirm Deletion</h2>
+                <h2 className="text-xl font-semibold text-gray-900">Confirm Deletion</h2>
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setShowDeleteConfirm(false)}
-                  className="p-2 text-teal-600 hover:bg-teal-100 rounded-full transition-all duration-300"
+                  className="p-2 text-blue-600 hover:bg-blue-50 rounded-full transition-all duration-300"
                   aria-label="Close Confirmation"
                 >
                   <X className="w-6 h-6" />
@@ -990,7 +1065,7 @@ const Goals = () => {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setShowDeleteConfirm(false)}
-                  className="px-6 py-3 bg-gray-200 text-gray-800 rounded-lg text-base font-semibold hover:bg-gray-300 transition-all duration-300"
+                  className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg text-base font-semibold hover:bg-gray-200 transition-all duration-300"
                   aria-label="Cancel Deletion"
                 >
                   Cancel
@@ -1009,53 +1084,51 @@ const Goals = () => {
           </motion.div>
         )}
       </AnimatePresence>
-
       <style jsx>{`
         .scrollbar-thin::-webkit-scrollbar {
           width: 6px;
         }
         .scrollbar-thin::-webkit-scrollbar-track {
-          background: rgba(20, 184, 166, 0.1);
+          background: transparent;
           border-radius: 3px;
         }
         .scrollbar-thin::-webkit-scrollbar-thumb {
-          background: #14B8A6;
+          background: #cbd5e1;
           border-radius: 3px;
         }
         .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-          background: #0D9488;
+          background: #94a3b8;
         }
         .react-datepicker__input-container input {
           width: 100%;
           padding: 0.75rem;
-          border: 1px solid rgba(20, 184, 166, 0.5);
+          border: 1px solid #E5E7EB;
           border-radius: 0.5rem;
           font-size: 1rem;
           transition: all 0.3s ease;
         }
         .react-datepicker__input-container input:focus {
           outline: none;
-          border-color: #14B8A6;
-          box-shadow: 0 0 0 2px rgba(20, 184, 166, 0.4);
+          border-color: #1E40AF;
+          box-shadow: 0 0 0 2px rgba(30, 64, 175, 0.2);
         }
         .react-datepicker {
-          border: 1px solid rgba(20, 184, 166, 0.5);
+          border: 1px solid #E5E7EB;
           border-radius: 0.75rem;
-          background: rgba(255, 255, 255, 0.95);
-          backdrop-filter: blur(4px);
+          background: white;
         }
         .react-datepicker__header {
-          background: linear-gradient(to right, #14B8A6, #3B82F6);
+          background: #1E40AF;
           color: white;
           border-bottom: none;
         }
         .react-datepicker__day--selected,
         .react-datepicker__day--keyboard-selected {
-          background: #14B8A6;
+          background: #1E40AF;
           color: white;
         }
         .react-datepicker__day:hover {
-          background: rgba(20, 184, 166, 0.2);
+          background: rgba(30, 64, 175, 0.1);
         }
         @media (max-width: 639px) {
           .max-w-md {
