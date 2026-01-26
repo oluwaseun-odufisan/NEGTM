@@ -1,4 +1,4 @@
-// Updated models/userModel.js
+// backend/models/userModel.js
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import validator from 'validator';
@@ -83,10 +83,33 @@ const userSchema = new mongoose.Schema(
             type: String,
             default: 'Novice',
         },
+        avatarType: {
+            type: String,
+            default: 'basic',
+        },
+        currentStreak: {
+            type: Number,
+            default: 0,
+        },
+        maxStreak: {
+            type: Number,
+            default: 0,
+        },
+        consistencyScore: {
+            type: Number,
+            default: 0,
+        },
+        historicalPerformance: [{
+            date: Date,
+            points: Number,
+            tasksCompleted: Number,
+            goalsCompleted: Number,
+        }],
         redemptionHistory: [{
             amount: Number,
             date: { type: Date, default: Date.now },
             status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+            _id: { type: mongoose.Schema.Types.ObjectId, auto: true }
         }],
     },
     { timestamps: true }

@@ -22,6 +22,10 @@ import meetingRouter from './routes/meetingRoutes.js';
 import learningRouter from './routes/learningRoutes.js'; // New
 import { startReminderScheduler } from './utils/reminderScheduler.js';
 import Meeting from './models/meetingModel.js';
+import { startReminderScheduler } from './utils/reminderScheduler.js';
+import User from './models/userModel.js';
+import Task from './models/taskModel.js';
+import Goal from './models/goalModel.js';
 import './models/userModel.js';
 import './models/chatModel.js';
 import './models/messageModel.js';
@@ -31,6 +35,8 @@ import './models/reminderModel.js';
 import './models/goalModel.js';
 import './models/meetingModel.js';
 import './models/learningMaterialModel.js'; // New
+import './models/challengeModel.js';
+import './models/performanceInteractionModel.js';
 import grokRouter from './routes/grokRoutes.js'
 
 const app = express();
@@ -264,6 +270,63 @@ cron.schedule('*/5 * * * *', async () => {
     console.log('Meeting statuses updated');
   } catch (err) {
     console.error('Cron meeting status error:', err);
+  }
+});
+
+// Daily cron to update historical performance and streaks
+cron.schedule('0 0 * * *', async () => {
+  console.log('Running daily performance update');
+  const users = await User.find();
+  for (const user of users) {
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const todayTasks = await Task.countDocuments({
+      owner: user._id,
+      completed: true,
+      updatedAt: { $gte: today }
+    });
+    
+    if (todayTasks > 0) {
+      user.currentStreak += 1;
+      user.maxStreak = Math.max(user.maxStreak, user.currentStreak);
+    } else {
+      user.currentStreak = 0;
+    }
+
+    const onTimeTasks = await Task.countDocuments({
+      owner: user._id,
+      completed: true,
+      dueDate: { $exists: true },
+      $expr: { $lte: ["$updatedAt", "$dueDate"] }
+    });
+    const totalDueTasks = await Task.countDocuments({
+      owner: user._id,
+      dueDate: { $exists: true }
+    });
+    user.consistencyScore = totalDueTasks > 0 ? Math.round((onTimeTasks / totalDueTasks) * 100) : 0;
+
+    user.historicalPerformance.push({
+      date: new Date(today),
+      points: user.points,
+      tasksCompleted: todayTasks,
+      goalsCompleted: await Goal.countDocuments({
+        owner: user._id,
+        updatedAt: { $gte: today },
+        $expr: { $eq: [{ $size: { $filter: { input: "$subGoals", cond: { $eq: ["$$this.completed", true] } } } }, { $size: "$subGoals" }] }
+      })
+    });
+
+    // Keep last 30 days
+    if (user.historicalPerformance.length > 30) {
+      user.historicalPerformance = user.historicalPerformance.slice(-30);
+    }
+
+    // Check avatar evolution
+    if (user.points > 1000 && user.avatarType === 'basic') user.avatarType = 'warrior';
+    if (user.points > 5000 && user.avatarType === 'warrior') user.avatarType = 'mage';
+    if (user.points > 10000 && user.avatarType === 'mage') user.avatarType = 'legend';
+
+    await user.save();
   }
 });
 

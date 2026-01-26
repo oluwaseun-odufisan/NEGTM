@@ -1,3 +1,4 @@
+// backend/routes/userRoute.js
 import express from 'express';
 import { getCurrentUser, loginUser, registerUser, updatePassword, updateProfile, updatePushToken } from '../controllers/userController.js';
 import authMiddleware from '../middleware/auth.js';
