@@ -1,4 +1,4 @@
-// backend/services/grokService.js
+// backend/services/grokServices.js (renamed from grokService.js for consistency)
 import OpenAI from 'openai';
 
 const openai = new OpenAI({

@@ -1,4 +1,4 @@
-// src/pages/AiTools.jsx
+// src/pages/AiTools.jsx (Fixed version: Replaced toast.warn with toast.error, as react-hot-toast does not have .warn)
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import {
@@ -196,7 +196,7 @@ const AiTools = () => {
       };
       recognitionRef.current.onend = () => setIsListening(false);
     } else {
-      toast.warn('Voice recognition not supported in this browser.');
+      toast.error('Voice recognition not supported in this browser.'); // Fixed: Changed toast.warn to toast.error
     }
     return () => {
       if (recognitionRef.current) recognitionRef.current.stop();
