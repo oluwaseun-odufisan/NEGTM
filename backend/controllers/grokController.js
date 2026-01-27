@@ -1,9 +1,12 @@
 // backend/controllers/grokController.js
 import OpenAI from 'openai';
+import GrokChat from '../models/grokModel.js'; // Import the new GrokChat model for persisting chats
+
 const openai = new OpenAI({
   apiKey: process.env.GROK_API_KEY,
   baseURL: 'https://api.x.ai/v1',
 });
+
 // Tool-specific prompts (complete for all tools)
 const TOOL_PROMPTS = {
   'general': 'You are FundCo AI, a maximally truth-seeking AI. Be concise, accurate, and professional. Use markdown formatting. Always address the user as "you" in responses. Be intelligent and offer help where appropriate, especially for undone tasks.',
@@ -24,6 +27,7 @@ const TOOL_PROMPTS = {
   'automation-builder': 'You are an automation architect for FundCo AI. Design step-by-step workflows for task automation using tools like Zapier patterns, with triggers, actions, and conditions. Be intelligent: suggest scalable and error-resistant designs. Address the user as "you".',
   'calendar-optimizer': 'You are a time management expert for FundCo AI. Suggest optimal time blocks, calendar integrations, and scheduling based on task priorities, durations, and energy levels. Be intelligent: factor in user\'s preferences if provided. Address the user as "you".'
 };
+
 export const grokChat = async (req, res) => {
   const { messages, taskContext, toolId } = req.body; // Added toolId in body for flexibility
   res.setHeader('Content-Type', 'text/event-stream');
@@ -46,13 +50,26 @@ Task context (if any): ${taskContext || 'None provided'}`,
       max_tokens: 4096,
       stream: true,
     });
+    let fullContent = '';
     for await (const chunk of stream) {
       const content = chunk.choices[0]?.delta?.content || '';
       if (content) {
+        fullContent += content;
         res.write(`data: ${JSON.stringify({ content })}\n\n`);
       }
     }
     res.write(`data: [DONE]\n\n`);
+
+    // Persist the chat history using the new model
+    await GrokChat.create({
+      userId: req.user._id,
+      toolId,
+      messages: [
+        ...messages,
+        { role: 'assistant', content: fullContent }
+      ],
+      taskContext
+    });
   } catch (error) {
     console.error('Grok API Error:', error.message);
     res.write(`data: ${JSON.stringify({ error: 'Failed to reach FundCo AI. Please try again.' })}\n\n`);
